@@ -67,10 +67,60 @@
 서비스 초기 사용자가 적어 데이터가 부족한 문제는, 모바일 식권 소액 할인·적립 인센티브, 단과대 학생회와의 학과 단위 동시 가입 이벤트, 데이터가 충분해질 때까지 "현재 앱 기준 대기 OO명" 정직 표기로 대응합니다. 
 
 ### 2\. 상세설계
+```mermaid
+graph TD
+    %% Client Tier
+    subgraph Client_Tier ["1. Client Tier (PWA)"]
+        A[학생 앱 <br/> Next.js 14 / Zustand]
+        B[운영자 대시보드 <br/> Next.js 14]
+    end
+
+    %% Application Tier
+    subgraph App_Tier ["2. Application Tier (Vercel)"]
+        C[API Routes <br/> Node.js 20]
+        D[NextAuth.js <br/> 학교 이메일 인증]
+    end
+
+    %% Data Tier
+    subgraph Data_Tier ["3. Database & Real-time Tier"]
+        E[(Supabase PostgreSQL <br/> 영구 데이터 저장)]
+        F[(Upstash Redis <br/> 대기열 카운터)]
+        G((Supabase Realtime / SSE <br/> 실시간 통신))
+    end
+
+    %% AI Tier
+    subgraph AI_Tier ["4. AI & Prediction Tier"]
+        H[OpenAI GPT-4o-mini <br/> 자연어 검색/챗봇]
+        I[LightGBM <br/> 시간대별 혼잡도 예측]
+    end
+
+    %% Connections (구버전 파서 호환을 위해 단방향 화살표로 수정)
+    A -->|UI 렌더링 / API 요청| C
+    B -->|운영 설정 / 상태 요청| C
+    A -->|대기 현황 실시간 구독| G
+    B -->|대기 현황 실시간 구독| G
+    
+    C -->|인증/권한 검증| D
+    C -->|식당/식권/사용자 CRUD| E
+    C -->|빠른 대기열 I/O| F
+    G -.->|데이터 변경 감지| E
+    
+    C -->|메뉴 검색 질의| H
+    C -->|예측 데이터 요청| I
+    
+    %% Styling
+    classDef primary fill:#e1f5fe,stroke:#0288d1,stroke-width:2px;
+    classDef database fill:#fff3e0,stroke:#f57c00,stroke-width:2px;
+    classDef ai fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+    classDef server fill:#f1f8e9,stroke:#689f38,stroke-width:2px;
+    
+    class A,B primary;
+    class C,D server;
+    class E,F,G database;
+    class H,I ai;
+```
 
 #### 2.1. 시스템 구성도
-
-![alt text](image-1.png) ![alt text](image-2.png)
 
 #### 2.2. 사용기술
 
@@ -123,13 +173,12 @@
 ##### `메인 페이지`
 
 - 학식 실시간 대기 현황  
-    
   - 금정회관 라인별(1층 정식·1층 단품·2층 정식) 현재 대기자 수와 예상 대기 시간을 실시간으로 표시합니다.  
   - 혼잡도를 색상(여유 / 보통 / 혼잡)으로 직관적으로 표현합니다.
 
 
   (시연 이미지를 삽입하세요.)
-
+  ![alt text](image-4.png)
 
 - 주변 제휴 식당 목록  
     
@@ -138,7 +187,8 @@
 
 
   (시연 이미지를 삽입하세요.)
-
+  ![alt text](image-9.png)
+  
 ##### `모바일 식권 / 대기번호 페이지`
 
 - 식권 구매  
@@ -149,7 +199,7 @@
 
 
   (시연 이미지를 삽입하세요.)
-
+  ![alt text](image-5.png)
 
 - 원격 웨이팅  
     
@@ -158,7 +208,7 @@
 
 
   (시연 이미지를 삽입하세요.)
-
+  ![alt text](image-6.png)
 ##### `운영자 대시보드`
 
 - 실시간 대기자 관리  
@@ -168,7 +218,7 @@
 
 
   (시연 이미지를 삽입하세요.)
-
+  ![alt text](image-7.png)
 
 - 메뉴 및 운영 정보 관리  
     
@@ -177,7 +227,7 @@
 
 
   (시연 이미지를 삽입하세요.)
-
+  ![alt text](image-8.png)
 #### 3.3. 기능명세서
 
 (노션 링크, PDF 파일, 구글 스프레드시트 등 기능명세서 링크를 삽입하세요.)
