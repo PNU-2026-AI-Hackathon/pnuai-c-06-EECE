@@ -124,17 +124,24 @@ class _RestaurantCard extends ConsumerWidget {
   }
 
   Future<void> _join(BuildContext context, WidgetRef ref) async {
-    final waiting = await ref
-        .read(restaurantRepositoryProvider)
-        .joinWaiting(restaurant.id);
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '${waiting.restaurantName} 웨이팅 ${waiting.number}번 등록! '
-          '내 앞 ${waiting.teamsAhead}팀',
+    try {
+      final waiting = await ref
+          .read(restaurantRepositoryProvider)
+          .joinWaiting(restaurant.id);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${waiting.restaurantName} 웨이팅 ${waiting.number}번 등록! '
+            '내 앞 ${waiting.teamsAhead}팀',
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
   }
 }

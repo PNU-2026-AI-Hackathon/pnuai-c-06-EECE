@@ -19,6 +19,7 @@ class MealTicket {
   final int aheadCount; // 내 앞 대기 인원 (실시간 갱신)
   final TicketStatus status;
   final DateTime purchasedAt;
+  final String? qrToken; // 서버 발급 검증 토큰(POST /api/tickets 응답). 없으면(Mock) 로컬 값으로 대체.
 
   const MealTicket({
     required this.id,
@@ -30,10 +31,11 @@ class MealTicket {
     required this.aheadCount,
     required this.status,
     required this.purchasedAt,
+    this.qrToken,
   });
 
-  /// 배식대 QR 스캔용 페이로드 (추후 서버 서명 토큰으로 교체)
-  String get qrData => 'PNU-BAPMUKJA|$id|$lineId|$queueNumber';
+  /// 배식대 QR 스캔용 페이로드. 서버 qrToken이 있으면 그걸 그대로 사용(검증 대상과 일치해야 함).
+  String get qrData => qrToken ?? 'PNU-BAPMUKJA|$id|$lineId|$queueNumber';
 
   MealTicket copyWith({int? aheadCount, TicketStatus? status}) {
     return MealTicket(
@@ -46,6 +48,7 @@ class MealTicket {
       aheadCount: aheadCount ?? this.aheadCount,
       status: status ?? this.status,
       purchasedAt: purchasedAt,
+      qrToken: qrToken,
     );
   }
 }

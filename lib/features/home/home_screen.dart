@@ -154,10 +154,18 @@ class _LineCard extends ConsumerWidget {
     );
     if (confirmed != true || !context.mounted) return;
 
-    final ticket =
-        await ref.read(ticketRepositoryProvider).purchaseTicket(line.id);
-    if (context.mounted) {
-      context.push('/ticket/${ticket.id}');
+    try {
+      final ticket =
+          await ref.read(ticketRepositoryProvider).purchaseTicket(line.id);
+      if (context.mounted) {
+        context.push('/ticket/${ticket.id}');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
     }
   }
 }

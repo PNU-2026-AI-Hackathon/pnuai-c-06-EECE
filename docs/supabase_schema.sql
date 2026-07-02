@@ -1,0 +1,3 @@
+-- ⚠️ 이 파일은 폐기되었습니다 (초기 추정 스키마).
+-- 백엔드 실제 스키마는 restaurants → dining_lines → menus 3단 구조입니다.
+-- 현행 연결 계약은 docs/backend_contract.md 를 참고하세요.
