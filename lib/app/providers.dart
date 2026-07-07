@@ -10,6 +10,9 @@ import '../data/models/meal_ticket.dart';
 import '../data/models/remote_waiting.dart';
 import '../data/models/restaurant.dart';
 import '../data/api/api_client.dart';
+import '../data/api/api_ai_repository.dart';
+import '../data/mock/mock_ai_repository.dart';
+import '../data/repositories/ai_repository.dart';
 import '../data/repositories/cafeteria_repository.dart';
 import '../data/repositories/restaurant_repository.dart';
 import '../data/repositories/ticket_repository.dart';
@@ -58,6 +61,15 @@ final restaurantRepositoryProvider = Provider<RestaurantRepository>((ref) {
     );
   }
   return MockRestaurantRepository(ref.watch(campusDataSourceProvider));
+});
+
+/// AI 추천 — 서버(/api/ai/search)가 배포되면(API_BASE_URL 설정) 자동으로
+/// ApiAiRepository로 전환, 그 전엔 규칙 기반 Mock 사용.
+final aiRepositoryProvider = Provider<AiRepository>((ref) {
+  if (_useSupabase && ref.watch(apiClientProvider).isReady) {
+    return ApiAiRepository(ref.watch(apiClientProvider));
+  }
+  return MockAiRepository();
 });
 
 /// ── 화면용 스트림/퓨처 (구현체와 무관 — 변경 없음) ────────

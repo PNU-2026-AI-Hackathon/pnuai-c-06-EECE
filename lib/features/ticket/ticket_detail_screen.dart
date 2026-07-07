@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../app/providers.dart';
+import '../../app/theme.dart';
 import '../../core/formatters.dart';
 import '../../data/models/meal_ticket.dart';
 
-/// QR 식권 상세 — 대기번호 + 호출 상태 실시간 갱신 (시연 핵심 화면)
+/// QR 식권 상세 — 목업(p.16) 스타일: 구매 완료 + 대형 QR + 오렌지 CTA
+/// 대기번호 + 호출 상태 실시간 갱신 (시연 핵심 화면)
 class TicketDetailScreen extends ConsumerWidget {
   const TicketDetailScreen({super.key, required this.ticketId});
 
@@ -35,51 +37,91 @@ class _TicketBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _StatusBanner(status: ticket.status),
-          const SizedBox(height: 20),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  Text(
-                    '${ticket.lineName} · ${ticket.menuName}',
-                    style: Theme.of(context).textTheme.titleMedium,
+          _StatusHeader(status: ticket.status),
+          const SizedBox(height: 16),
+          // ── QR 카드 ──
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(kRadiusCard),
+              boxShadow: kCardShadow,
+            ),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                QrImageView(
+                  data: ticket.qrData,
+                  version: QrVersions.auto,
+                  size: 200,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '${ticket.lineName} 1매 (${won(ticket.price)}) 구매 완료.\n'
+                  '배식 라인 대기열에 자동 등록되었습니다.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textStrong,
                   ),
-                  const SizedBox(height: 16),
-                  QrImageView(
-                    data: ticket.qrData,
-                    version: QrVersions.auto,
-                    size: 190,
-                  ),
-                  const SizedBox(height: 16),
-                  Text('대기번호',
-                      style: Theme.of(context).textTheme.bodySmall),
-                  Text(
-                    '${ticket.queueNumber}',
-                    style: Theme.of(context)
-                        .textTheme
-                        .displayMedium
-                        ?.copyWith(fontWeight: FontWeight.w800),
-                  ),
-                  if (ticket.status == TicketStatus.waiting)
-                    Text('내 앞 대기 ${ticket.aheadCount}명'),
-                ],
-              ),
+                ),
+                const SizedBox(height: 16),
+                const Divider(height: 1, color: Color(0xFFEDF0F5)),
+                const SizedBox(height: 16),
+                // ── 대기번호 (큰 숫자) ──
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _BigMetric(label: '대기번호', value: '${ticket.queueNumber}'),
+                    if (ticket.status == TicketStatus.waiting) ...[
+                      Container(
+                        width: 1,
+                        height: 44,
+                        color: const Color(0xFFEDF0F5),
+                        margin: const EdgeInsets.symmetric(horizontal: 28),
+                      ),
+                      _BigMetric(label: '내 앞 대기', value: '${ticket.aheadCount}명'),
+                    ],
+                  ],
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Text(
-            '${won(ticket.price)} · ${hhmm(ticket.purchasedAt)} 구매\n'
+            '${ticket.menuName} · ${hhmm(ticket.purchasedAt)} 구매\n'
             '배식대에서 QR을 보여주시면 스캔과 동시에 체크인됩니다.',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall,
+            style: const TextStyle(fontSize: 12, color: AppColors.textWeak),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          // ── 오렌지 CTA 배너 (목업 하단) ──
+          if (ticket.status == TicketStatus.waiting)
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.accent,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: kCardShadow,
+              ),
+              child: const Text(
+                '현장 키오스크 줄을 서지 말고\n바로 대기열로 합류하세요!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  height: 1.4,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          const SizedBox(height: 16),
           if (ticket.status != TicketStatus.used)
             OutlinedButton.icon(
               icon: const Icon(Icons.qr_code_scanner),
@@ -93,49 +135,83 @@ class _TicketBody extends ConsumerWidget {
   }
 }
 
-class _StatusBanner extends StatelessWidget {
-  const _StatusBanner({required this.status});
+/// 상태 헤더 — "구매 완료!" / "호출됨!" / "사용 완료"
+class _StatusHeader extends StatelessWidget {
+  const _StatusHeader({required this.status});
 
   final TicketStatus status;
 
   @override
   Widget build(BuildContext context) {
-    final (color, icon, text) = switch (status) {
+    final (color, icon, title, sub) = switch (status) {
       TicketStatus.waiting => (
-          Colors.orange,
-          Icons.hourglass_top,
-          '대기 중입니다 — 호출되면 알려드릴게요',
+          AppColors.relaxed,
+          Icons.check_circle,
+          '구매 완료!',
+          '호출되면 알려드릴게요',
         ),
       TicketStatus.called => (
-          Colors.green,
+          AppColors.accent,
           Icons.notifications_active,
-          '호출되었습니다! 배식대로 이동해 주세요',
+          '호출되었습니다!',
+          '지금 배식대로 이동해 주세요',
         ),
       TicketStatus.used => (
-          Colors.grey,
-          Icons.check_circle,
-          '사용 완료된 식권입니다',
+          AppColors.textWeak,
+          Icons.task_alt,
+          '사용 완료',
+          '맛있게 드세요!',
         ),
     };
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(color: color, fontWeight: FontWeight.w700),
-            ),
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 44),
+        const SizedBox(height: 6),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            color: color,
           ),
-        ],
-      ),
+        ),
+        Text(
+          sub,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 13, color: AppColors.textWeak),
+        ),
+      ],
+    );
+  }
+}
+
+/// 큰 숫자 지표
+class _BigMetric extends StatelessWidget {
+  const _BigMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: AppColors.textWeak),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 34,
+            fontWeight: FontWeight.w900,
+            color: AppColors.primary,
+            height: 1.2,
+          ),
+        ),
+      ],
     );
   }
 }

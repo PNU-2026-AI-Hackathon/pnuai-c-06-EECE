@@ -53,7 +53,7 @@ class _MyWaitingCard extends StatelessWidget {
     final called = waiting.status == WaitingStatus.called;
     final color = called ? Colors.green : Colors.orange;
     return Card(
-      color: color.withOpacity(0.08),
+      color: color.withValues(alpha: 0.08),
       child: ListTile(
         leading: Icon(
           called ? Icons.notifications_active : Icons.schedule,

@@ -6,7 +6,7 @@ import '../../core/env.dart';
 /// 인증 상태 스트림. Supabase 모드가 아니면 항상 "로그인됨"으로 취급해
 /// Mock 시연 시 로그인 화면을 건너뛴다.
 final authStateProvider = StreamProvider<AuthState?>((ref) {
-  if (!Env.useSupabase) return Stream<AuthState?>.empty();
+  if (!Env.useSupabase) return const Stream<AuthState?>.empty();
   return Supabase.instance.client.auth.onAuthStateChange;
 });
 
