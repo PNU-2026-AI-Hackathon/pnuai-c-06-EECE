@@ -29,6 +29,21 @@ class _AiScreenState extends ConsumerState<AiScreen> {
   static const _presets = ['지금 제일 빨리 먹을 수 있는 곳', '5,000원 이하 메뉴', '매운 게 땡겨'];
 
   @override
+  void initState() {
+    super.initState();
+    // 홈 검색바에서 넘어온 질문 처리 (첫 진입 시)
+    WidgetsBinding.instance.addPostFrameCallback((_) => _consumePending());
+  }
+
+  void _consumePending() {
+    final pending = ref.read(pendingAiQuestionProvider);
+    if (pending != null && pending.trim().isNotEmpty) {
+      ref.read(pendingAiQuestionProvider.notifier).state = null;
+      _ask(pending.trim());
+    }
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -65,6 +80,11 @@ class _AiScreenState extends ConsumerState<AiScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 화면이 이미 살아있는 상태(탭 전환)에서 홈 검색바 질문이 들어온 경우
+    ref.listen(pendingAiQuestionProvider, (_, next) {
+      if (next != null) _consumePending();
+    });
+
     return Scaffold(
       appBar: AppBar(title: const Text('AI 메뉴 추천')),
       body: Column(

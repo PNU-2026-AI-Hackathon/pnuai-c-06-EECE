@@ -1,7 +1,45 @@
-# 백엔드 전달 사항 정리 (2026-07-07 기준)
+# 백엔드 전달 사항 정리
+
+## 📌 현재 상태 요약 (2026-07-08 갱신)
+
+**완료된 것**: 카카오 OAuth 로그인 ✅ (웹에서 검증 완료), Supabase 조회(라인/식당) ✅
+**앱 쪽 준비 상태**: API 계약대로 호출하는 코드 전부 구현 완료 — 배포되는 즉시 자동 연결됨.
+
+### 지금 백엔드가 해야 할 것 (우선순위순)
+
+1. **`tickets` 테이블 Realtime 활성화** (5분) — Supabase 대시보드 → Database → Replication.
+   이거 없으면 Supabase 모드에서 실시간 대기/식권 화면이 에러남. **최우선.**
+2. **Next.js API 3개 구현·배포 + `API_BASE_URL` 공유** (핵심 작업)
+   - `POST /api/tickets` {diningLineId} → {ticketId, qrToken, queueCount} — 식권 구매
+   - `POST /api/tickets/verify` {qrToken} → {valid, status} — 운영자 QR 검증
+   - `POST /api/ai/search` {query} → {answer, menus} — AI 추천
+   - ~~`POST /api/waitings`~~ 인근 상권 배제로 **당장 불필요**
+3. **시드 데이터 입력** — 금정회관 restaurants/dining_lines/menus 행.
+   식당 협의 전엔 임시값으로: 3개 라인, 가격 4,000원, avg_service_sec 25초.
+   (협의 후 실제 값으로 교체 — `cafeteria_data_request.md` 참고)
+4. **웹 배포 URL Redirect 등록** — 프론트가 Netlify/Vercel에 배포하면 그 URL을
+   Supabase → Auth → URL Configuration → Redirect URLs에 추가 (카카오 로그인용).
+5. **확인 요청**: 카카오 가입 시 `users` 행이 트리거로 잘 생성되는지 (성공 사례 1건 확인).
+
+### 백엔드 테스트 방법 (앱/에뮬레이터 불필요)
+- API: curl/Postman으로 위 규격 검증 (Authorization: Bearer <Supabase accessToken>)
+- 통합: 프론트 웹 배포 링크 열어서 브라우저로 직접 확인
+
+---
+
+# (이하 상세 계약 — 2026-07-07 작성)
 
 > 프론트(강현) → 백엔드(조우진) 핸드오프 문서.
 > 상세 계약은 `docs/backend_contract.md`, 스키마는 `docs/supabase_schema.sql` 참고.
+
+## ⚠️ 범위 변경 (2026-07-07): 인근 상권(제휴식당) MVP에서 배제
+
+앱에서 제휴식당 탭·원격 웨이팅·쿠폰 화면을 제거함 (코드는 보존, 라우트만 차단).
+백엔드 영향:
+
+- **불필요해진 것**: `POST /api/waitings`, `waitings` Realtime, `coupons`/`coupon_issues` — 당장 구현 안 해도 됨
+- **여전히 필요한 것**: `tickets` Realtime, `POST /api/tickets`, `/api/tickets/verify`, `/api/ai/search`
+- 스키마는 그대로 둬도 됨 (추후 복구 대비)
 
 ## 1. 전달 문서 (이미 레포에 있음)
 
@@ -27,6 +65,17 @@
    인증: `Authorization: Bearer <Supabase accessToken>` (앱이 자동 첨부).
 3. **QR 토큰 일치 확인** — 앱은 서버가 준 `qrToken`을 그대로 QR로 표시.
    운영자 대시보드 스캔 검증도 반드시 같은 `tickets.qr_token` 기준이어야 함.
+4. **카카오 OAuth 설정 (필수로 승격 — 회원가입/로그인이 카카오 전용으로 확정됨)**
+   1) [Kakao Developers](https://developers.kakao.com)에 앱 등록, REST API 키 발급
+   2) Kakao 콘솔 → 카카오 로그인 활성화, Redirect URI에
+      `https://nnvqiigzlvgukvmrrama.supabase.co/auth/v1/callback` 등록
+   3) Supabase 대시보드 → Auth → Providers → Kakao 활성화 (REST API 키/Secret 입력)
+   4) Supabase → Auth → URL Configuration → Redirect URLs에
+      `io.pnubapmukja://login-callback` 추가
+
+   **프론트는 이미 완료**: 딥링크(AndroidManifest/Info.plist), `signInWithOAuth(kakao)`
+   호출, 로그인 화면 카카오 버튼. 위 4단계만 끝나면 즉시 동작함.
+   `users` 트리거가 OAuth 가입(email/nickname이 카카오에서 옴)도 처리하는지 확인 필요.
 
 ## 3. 결정 필요 (같이 정하자) 🟡
 
@@ -35,8 +84,7 @@
    `tickets.status`에 `'called'` 추가(또는 별도 컬럼) 필요. 시연 시나리오에 넣을지 결정.
 2. **AI 응답 확장** — `/api/ai/search` 응답에 `lineId`/`restaurantId`(추천 대상 ID)를
    추가해주면 앱이 "추천 카드 탭 → 해당 라인/식당으로 이동"을 만들 수 있음. 선택사항.
-3. **카카오 로그인** — 딥링크 `io.pnubapmukja://login-callback`을 Supabase 대시보드
-   redirect URL에 등록 필요. 시연에 카카오 로그인 넣을지부터 결정.
+3. ~~카카오 로그인 포함 여부~~ → **확정됨: 카카오 전용** (위 🔴 4번 참고)
 
 ## 4. 여유 있으면 (스키마 보강, 우선순위 낮음) 🟢
 

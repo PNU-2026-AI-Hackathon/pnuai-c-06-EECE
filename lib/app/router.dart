@@ -6,8 +6,9 @@ import '../features/ai/ai_screen.dart';
 import '../features/auth/auth_controller.dart';
 import '../features/auth/login_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/operator/operator_screen.dart';
+import '../features/profile/history_screen.dart';
 import '../features/profile/profile_screen.dart';
-import '../features/restaurants/restaurants_screen.dart';
 import '../features/shell/scaffold_with_nav_bar.dart';
 import '../features/ticket/ticket_detail_screen.dart';
 import '../features/ticket/tickets_screen.dart';
@@ -29,6 +30,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      // 카카오 OAuth는 가입+로그인 통합 — 별도 회원가입 라우트 없음
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
@@ -40,12 +42,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(routes: [
             GoRoute(path: '/tickets', builder: (_, __) => const TicketsScreen()),
           ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/restaurants',
-              builder: (_, __) => const RestaurantsScreen(),
-            ),
-          ]),
+          // 인근 상권(제휴식당)은 현재 MVP 범위에서 배제 — 복구 시 아래 주석 해제
+          // StatefulShellBranch(routes: [
+          //   GoRoute(
+          //     path: '/restaurants',
+          //     builder: (_, __) => const RestaurantsScreen(),
+          //   ),
+          // ]),
           StatefulShellBranch(routes: [
             GoRoute(path: '/ai', builder: (_, __) => const AiScreen()),
           ]),
@@ -59,6 +62,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) =>
             TicketDetailScreen(ticketId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/history',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, __) => const HistoryScreen(),
+      ),
+      GoRoute(
+        path: '/operator',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, __) => const OperatorScreen(),
       ),
     ],
   );

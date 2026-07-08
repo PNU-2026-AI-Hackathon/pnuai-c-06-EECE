@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/app.dart';
+import 'app/providers.dart';
 import 'core/env.dart';
 
 Future<void> main() async {
@@ -16,5 +18,16 @@ Future<void> main() async {
     );
   }
 
-  runApp(const ProviderScope(child: BapMukJaApp()));
+  // 저장된 설정 복원 (호출 알림 ON/OFF)
+  final prefs = await SharedPreferences.getInstance();
+  final callAlertEnabled = prefs.getBool('notify_enabled') ?? true;
+
+  runApp(
+    ProviderScope(
+      overrides: [
+        callAlertEnabledProvider.overrideWith((ref) => callAlertEnabled),
+      ],
+      child: const BapMukJaApp(),
+    ),
+  );
 }

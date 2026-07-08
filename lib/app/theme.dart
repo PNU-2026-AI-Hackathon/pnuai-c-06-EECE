@@ -5,35 +5,35 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  /// 부산대 브랜드 블루 (짙은 톤 — 텍스트/포인트)
-  static const pnuBlue = Color(0xFF005BAC);
+  /// 부산대 공식 교색 (pusan.ac.kr 컬러시스템: #005BAA)
+  static const pnuBlue = Color(0xFF005BAA);
 
-  /// 목업 Primary — 밝은 로열 블루
-  static const primary = Color(0xFF2B6BE4);
+  /// Primary = 교색 그대로 — "부산대 블루"가 앱의 얼굴
+  static const primary = pnuBlue;
 
-  /// 헤더 그라데이션
-  static const gradientTop = Color(0xFF2560D8);
-  static const gradientBottom = Color(0xFF4D9CF4);
+  /// 헤더 그라데이션 — 교색 기반 딥 네이비 → 클리어 블루
+  static const gradientTop = Color(0xFF00417E);
+  static const gradientBottom = Color(0xFF1B7ED2);
 
-  /// CTA·강조 오렌지 (키오스크 배너, 내 차례 배지)
+  /// CTA·강조 오렌지 (식사의 따뜻함 — 공대 지정색 #FFA500 톤)
   static const accent = Color(0xFFFF8A00);
   static const accentSoft = Color(0xFFFFF3E0);
 
-  /// 혼잡도 3색
-  static const relaxed = Color(0xFF22B14C);
+  /// 혼잡도 3색 — '여유'는 부산대 공식 보조색 그린(#00A651)
+  static const relaxed = Color(0xFF00A651);
   static const normal = Color(0xFFFF9800);
   static const crowded = Color(0xFFE53935);
 
-  /// 배경/텍스트
-  static const background = Color(0xFFF4F6FA);
-  static const textStrong = Color(0xFF1A1E27);
-  static const textWeak = Color(0xFF7A8194);
+  /// 배경/텍스트 — 옅은 블루그레이 배경 + 네이비 잉크 텍스트
+  static const background = Color(0xFFF3F6FB);
+  static const textStrong = Color(0xFF16243D);
+  static const textWeak = Color(0xFF75809A);
 }
 
-/// 카드 공통 그림자 (목업의 은은한 뜬 느낌)
+/// 카드 공통 그림자 (교색 네이비 틴트 — 은은하게 뜬 느낌)
 const kCardShadow = [
   BoxShadow(
-    color: Color(0x14204A8C),
+    color: Color(0x12003A75),
     blurRadius: 16,
     offset: Offset(0, 4),
   ),
@@ -53,6 +53,7 @@ ThemeData buildAppTheme() {
   );
   return ThemeData(
     useMaterial3: true,
+    fontFamily: 'Pretendard',
     colorScheme: scheme,
     scaffoldBackgroundColor: AppColors.background,
     appBarTheme: const AppBarTheme(

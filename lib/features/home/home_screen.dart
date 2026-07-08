@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../core/formatters.dart';
+import '../../core/ui/error_view.dart';
 import '../../data/models/cafeteria_line.dart';
 import '../../data/models/meal_ticket.dart';
 
@@ -20,9 +21,19 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       body: linesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('오류: $e')),
-        data: (lines) => ListView(
+        loading: () => const _HomeSkeleton(),
+        error: (e, _) => ErrorRetryView(
+          message: '$e',
+          onRetry: () => ref.invalidate(cafeteriaLinesProvider),
+        ),
+        data: (lines) => RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: () async {
+            ref.invalidate(cafeteriaLinesProvider);
+            await Future.delayed(const Duration(milliseconds: 500));
+          },
+          child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.zero,
           children: [
             const _GradientHeader(),
@@ -49,6 +60,7 @@ class HomeScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
           ],
+          ),
         ),
       ),
     );
@@ -62,23 +74,114 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-/// ── 그라데이션 헤더 (로고 + 타이틀 + AI 검색바) ─────────────
-class _GradientHeader extends StatelessWidget {
-  const _GradientHeader();
+/// ── 로딩 스켈레톤 (헤더 톤 유지 + 카드 자리 표시) ────────────
+class _HomeSkeleton extends StatelessWidget {
+  const _HomeSkeleton();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [AppColors.gradientTop, AppColors.gradientBottom],
+    Widget box(double h, {double? w}) => Container(
+          height: h,
+          width: w,
+          decoration: BoxDecoration(
+            color: const Color(0xFFE6EAF2),
+            borderRadius: BorderRadius.circular(16),
+          ),
+        );
+
+    return ListView(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      children: [
+        Container(
+          height: 190,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [AppColors.gradientTop, AppColors.gradientBottom],
+            ),
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+          ),
         ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+        const SizedBox(height: 20),
+        for (var i = 0; i < 3; i++)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: box(96),
+          ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: box(180),
+        ),
+      ],
+    );
+  }
+}
+
+/// ── 그라데이션 헤더 (로고 + 타이틀 + AI 검색바) ─────────────
+class _GradientHeader extends ConsumerWidget {
+  const _GradientHeader();
+
+  /// 시간대별 인사말 — 배민식 친근한 한 줄
+  String get _greeting {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 10) return '굿모닝! 아침 든든하게 먹고 시작해요';
+    if (hour >= 10 && hour < 14) return '오늘 점심 뭐 먹지? 밥묵자가 골라줄게요';
+    if (hour >= 14 && hour < 17) return '늦은 점심도 줄 서지 말고 밥묵자';
+    if (hour >= 17 && hour < 20) return '오늘 하루 수고했어요, 저녁 맛있게!';
+    return '내일 학식 미리 보고 계획 세워요';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [AppColors.gradientTop, AppColors.gradientBottom],
+          ),
+        ),
+        child: Stack(
+          children: [
+            // 장식 원 — 로고(환) 모티프, 은은한 캠퍼스 감성
+            Positioned(
+              top: -30,
+              right: -40,
+              child: _decoCircle(140),
+            ),
+            Positioned(
+              bottom: -50,
+              left: -30,
+              child: _decoCircle(120),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: _headerContent(context, ref),
+            ),
+          ],
+        ),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      child: SafeArea(
+    );
+  }
+
+  Widget _decoCircle(double size) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.08),
+            width: 22,
+          ),
+        ),
+      );
+
+  Widget _headerContent(BuildContext context, WidgetRef ref) {
+    return SafeArea(
         bottom: false,
         child: Column(
           children: [
@@ -116,7 +219,7 @@ class _GradientHeader extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '부산대 학식 · 인근 상권 통합 웨이팅',
+                        '부산대 학식 모바일 식권 · 실시간 웨이팅',
                         style: TextStyle(color: Colors.white70, fontSize: 12),
                       ),
                     ],
@@ -128,32 +231,57 @@ class _GradientHeader extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
-            // AI 자연어 검색바 → AI 추천 탭으로 이동
-            GestureDetector(
-              onTap: () => context.go('/ai'),
-              child: Container(
-                height: 44,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
+            const SizedBox(height: 16),
+            // 시간대별 인사말
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _greeting,
+                style: const TextStyle(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(kRadiusPill),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
                 ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.search, color: AppColors.textWeak, size: 20),
-                    SizedBox(width: 8),
-                    Text(
-                      '"오늘 매콤한 거 땡기는 거"',
-                      style: TextStyle(color: AppColors.textWeak, fontSize: 14),
-                    ),
-                  ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            // AI 자연어 검색바 — 입력하면 질문을 들고 AI 탭으로 이동
+            SizedBox(
+              height: 44,
+              child: TextField(
+                textInputAction: TextInputAction.search,
+                style: const TextStyle(fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: '"오늘 매콤한 거 땡기는 거"',
+                  hintStyle: const TextStyle(
+                    color: AppColors.textWeak,
+                    fontSize: 14,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    color: AppColors.textWeak,
+                    size: 20,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(kRadiusPill),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
+                onSubmitted: (v) {
+                  final q = v.trim();
+                  if (q.isNotEmpty) {
+                    ref.read(pendingAiQuestionProvider.notifier).state = q;
+                  }
+                  context.go('/ai');
+                },
               ),
             ),
           ],
         ),
-      ),
     );
   }
 }
@@ -169,6 +297,16 @@ class _SectionHeader extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          // 교색 악센트 바 — 섹션 시작을 브랜드 컬러로
+          Container(
+            width: 4,
+            height: 16,
+            margin: const EdgeInsets.only(right: 8, bottom: 2),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
           const Text(
             '학생식당',
             style: TextStyle(
@@ -184,11 +322,11 @@ class _SectionHeader extends StatelessWidget {
               style: TextStyle(fontSize: 12, color: AppColors.textWeak),
             ),
           ),
-          Row(
+          const Row(
             children: [
-              Icon(Icons.circle, size: 8, color: Colors.green.shade600),
-              const SizedBox(width: 4),
-              const Text(
+              Icon(Icons.circle, size: 8, color: AppColors.relaxed),
+              SizedBox(width: 4),
+              Text(
                 '실시간',
                 style: TextStyle(fontSize: 12, color: AppColors.textWeak),
               ),
@@ -252,23 +390,34 @@ class _LineCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
+          // 대기 인원 변화가 부드럽게 차오르는 프로그레스 바
           ClipRRect(
             borderRadius: BorderRadius.circular(kRadiusPill),
-            child: LinearProgressIndicator(
-              value: fraction.toDouble(),
-              minHeight: 8,
-              backgroundColor: const Color(0xFFEDF0F5),
-              valueColor: AlwaysStoppedAnimation(_color),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(end: fraction.toDouble()),
+              duration: const Duration(milliseconds: 700),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, _) => LinearProgressIndicator(
+                value: value,
+                minHeight: 8,
+                backgroundColor: const Color(0xFFEDF0F5),
+                valueColor: AlwaysStoppedAnimation(_color),
+              ),
             ),
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Text(
-                '대기 ${line.waitingCount}명',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textWeak,
+              // 숫자 변경 시 페이드 전환
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 350),
+                child: Text(
+                  '대기 ${line.waitingCount}명',
+                  key: ValueKey(line.waitingCount),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textWeak,
+                  ),
                 ),
               ),
               const Spacer(),

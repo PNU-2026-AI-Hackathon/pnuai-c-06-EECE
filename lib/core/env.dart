@@ -27,4 +27,14 @@ class Env {
   /// Supabase 접속 정보가 채워졌는가 → 데이터소스 자동 선택 기준
   static bool get useSupabase =>
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
+
+  /// Gemini API 키 (무료 티어 — aistudio.google.com에서 발급)
+  /// 실행: flutter run --dart-define=GEMINI_API_KEY=AIza...
+  /// ⚠️ 클라이언트 내장 키는 해커톤 MVP용 — 정식 배포 시 서버(/api/ai/search) 경유로 전환.
+  static const geminiApiKey = String.fromEnvironment(
+    'GEMINI_API_KEY',
+    defaultValue: '',
+  );
+
+  static bool get hasGemini => geminiApiKey.isNotEmpty;
 }
