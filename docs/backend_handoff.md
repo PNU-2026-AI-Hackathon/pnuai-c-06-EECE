@@ -1,25 +1,31 @@
 # 백엔드 전달 사항 정리
 
-## 📌 현재 상태 요약 (2026-07-08 갱신)
+## 📌 현재 상태 요약 (2026-07-08 2차 갱신)
 
-**완료된 것**: 카카오 OAuth 로그인 ✅ (웹에서 검증 완료), Supabase 조회(라인/식당) ✅
+**완료된 것**: 카카오 OAuth 로그인 ✅ · Supabase 조회 ✅ · **AI 추천 ✅ (프론트가 Gemini
+무료 API로 직접 연결 — `/api/ai/search`는 급하지 않음)** · 운영자 대시보드 Mock ✅
 **앱 쪽 준비 상태**: API 계약대로 호출하는 코드 전부 구현 완료 — 배포되는 즉시 자동 연결됨.
 
 ### 지금 백엔드가 해야 할 것 (우선순위순)
 
 1. **`tickets` 테이블 Realtime 활성화** (5분) — Supabase 대시보드 → Database → Replication.
    이거 없으면 Supabase 모드에서 실시간 대기/식권 화면이 에러남. **최우선.**
-2. **Next.js API 3개 구현·배포 + `API_BASE_URL` 공유** (핵심 작업)
+2. **Next.js API 2개 구현·배포 + `API_BASE_URL` 공유** (핵심 작업)
    - `POST /api/tickets` {diningLineId} → {ticketId, qrToken, queueCount} — 식권 구매
    - `POST /api/tickets/verify` {qrToken} → {valid, status} — 운영자 QR 검증
-   - `POST /api/ai/search` {query} → {answer, menus} — AI 추천
-   - ~~`POST /api/waitings`~~ 인근 상권 배제로 **당장 불필요**
-3. **시드 데이터 입력** — 금정회관 restaurants/dining_lines/menus 행.
-   식당 협의 전엔 임시값으로: 3개 라인, 가격 4,000원, avg_service_sec 25초.
-   (협의 후 실제 값으로 교체 — `cafeteria_data_request.md` 참고)
-4. **웹 배포 URL Redirect 등록** — 프론트가 Netlify/Vercel에 배포하면 그 URL을
-   Supabase → Auth → URL Configuration → Redirect URLs에 추가 (카카오 로그인용).
-5. **확인 요청**: 카카오 가입 시 `users` 행이 트리거로 잘 생성되는지 (성공 사례 1건 확인).
+   - ~~`POST /api/ai/search`~~ Gemini로 임시 해결 — 여유 생기면 서버로 이전 (키 보호 목적).
+     이전 시 프론트 `gemini_ai_repository.dart`의 프롬프트를 그대로 쓰면 됨.
+   - ~~`POST /api/waitings`~~ 인근 상권 배제로 당장 불필요
+3. **🆕 자동 호출 로직 설계 (같이 결정)** — 프론트에 "자리가 나면 자동으로 다음 번호
+   호출 → 학생 알림" 컨셉이 확정됨 (운영자 대시보드 Mock으로 구현/시연 중).
+   실서버 구현 방향 제안:
+   - `verify` 성공(배식 완료) 시 서버가 같은 라인의 다음 대기 티켓 상태를 `called`로 전이
+   - → `tickets.status`에 `'called'` 값 추가 필요 (기존 paid/used/expired에)
+   - 앱은 Realtime으로 called 전환을 이미 감지·알림함 (프론트 추가 작업 없음)
+4. **시드 데이터 입력** — 금정회관 restaurants/dining_lines/menus 행.
+   식당 협의 전엔 임시값: 3개 라인, 4,000원, avg_service_sec 25초.
+5. **웹 배포 URL Redirect 등록** — 프론트 배포 URL을 Supabase Redirect URLs에 추가.
+6. **확인**: 카카오 가입 시 `users` 행 트리거 생성 여부 (성공 사례 1건).
 
 ### 백엔드 테스트 방법 (앱/에뮬레이터 불필요)
 - API: curl/Postman으로 위 규격 검증 (Authorization: Bearer <Supabase accessToken>)

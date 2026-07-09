@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme.dart';
+import '../../core/notifications.dart';
 import '../../data/models/meal_ticket.dart';
 
 /// 하단 탭바 셸 — 탭 전환 시 각 탭의 네비게이션 상태 유지.
@@ -27,6 +28,11 @@ class ScaffoldWithNavBar extends ConsumerWidget {
           (p) => p.id == t.id && p.status == TicketStatus.called,
         );
         if (wasCalled) continue;
+        // 시스템 알림 (백그라운드에서도 표시 — 웹은 자동 무시)
+        NotificationService.showCallAlert(
+          lineName: t.lineName,
+          queueNumber: t.queueNumber,
+        );
         ScaffoldMessenger.of(context)
           ..clearSnackBars()
           ..showSnackBar(

@@ -13,9 +13,10 @@ class ApiAiRepository implements AiRepository {
   Future<AiRecommendation> ask(
     String question, {
     List<CafeteriaLine> lines = const [],
+    List<AiChatTurn> history = const [],
   }) async {
     final answer = await _client.aiSearch(question);
-    // TODO(백엔드 확장): 응답에 lineId/restaurantId가 추가되면 함께 매핑
+    // TODO(백엔드 확장): 응답에 lineId/restaurantId 매핑, 요청에 history 전달
     return AiRecommendation(answer: answer);
   }
 }

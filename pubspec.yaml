@@ -12,9 +12,11 @@ dependencies:
   flutter_riverpod: ^2.6.1
   go_router: ^14.8.0
   qr_flutter: ^4.1.0
+  flutter_local_notifications: ^17.2.2
   shared_preferences: ^2.3.2
   supabase_flutter: ^2.8.0
   http: ^1.2.2
+  html: ^0.15.4
 
   # ── 추후 연동 ──
   # mobile_scanner: ^5.2.3     # 운영자 QR 체크인 데모 시
@@ -26,6 +28,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/data/kumjung_week_menu.json
 
   fonts:
     - family: Pretendard

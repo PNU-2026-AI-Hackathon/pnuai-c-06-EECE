@@ -8,6 +8,7 @@ class MockAiRepository implements AiRepository {
   Future<AiRecommendation> ask(
     String question, {
     List<CafeteriaLine> lines = const [],
+    List<AiChatTurn> history = const [], // 규칙 기반이라 맥락 미사용
   }) async {
     // 챗봇 응답 느낌을 위한 지연
     await Future.delayed(const Duration(milliseconds: 400));

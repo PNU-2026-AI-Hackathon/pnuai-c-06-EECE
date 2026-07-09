@@ -6,6 +6,7 @@ import '../features/ai/ai_screen.dart';
 import '../features/auth/auth_controller.dart';
 import '../features/auth/login_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/menu/weekly_menu_screen.dart';
 import '../features/operator/operator_screen.dart';
 import '../features/profile/history_screen.dart';
 import '../features/profile/profile_screen.dart';
@@ -72,6 +73,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/operator',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (_, __) => const OperatorScreen(),
+      ),
+      GoRoute(
+        path: '/menu',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, __) => const WeeklyMenuScreen(),
       ),
     ],
   );

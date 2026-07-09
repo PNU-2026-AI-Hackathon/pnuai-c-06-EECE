@@ -45,6 +45,7 @@ class CafeteriaLine {
 
   CafeteriaLine copyWith({
     List<String>? todayMenu,
+    int? price,
     int? waitingCount,
     LineStatus? status,
   }) {
@@ -53,7 +54,7 @@ class CafeteriaLine {
       name: name,
       location: location,
       todayMenu: todayMenu ?? this.todayMenu,
-      price: price,
+      price: price ?? this.price,
       waitingCount: waitingCount ?? this.waitingCount,
       avgServeSecondsPerPerson: avgServeSecondsPerPerson,
       status: status ?? this.status,

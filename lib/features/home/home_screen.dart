@@ -316,21 +316,30 @@ class _SectionHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: Text(
-              '금정회관 · 실시간 대기 현황',
-              style: TextStyle(fontSize: 12, color: AppColors.textWeak),
+              // 공식 운영시간 기준: 중식 11:00-17:00 / 석식 17:00-18:30
+              '금정회관 · ${DateTime.now().hour >= 17 ? '석식' : '중식'} 메뉴 · 실시간 대기',
+              style: const TextStyle(fontSize: 12, color: AppColors.textWeak),
             ),
           ),
-          const Row(
-            children: [
-              Icon(Icons.circle, size: 8, color: AppColors.relaxed),
-              SizedBox(width: 4),
-              Text(
-                '실시간',
-                style: TextStyle(fontSize: 12, color: AppColors.textWeak),
-              ),
-            ],
+          GestureDetector(
+            onTap: () => context.push('/menu'),
+            child: const Row(
+              children: [
+                Icon(Icons.circle, size: 8, color: AppColors.relaxed),
+                SizedBox(width: 4),
+                Text(
+                  '주간 식단',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
+                ),
+                Icon(Icons.chevron_right, size: 14, color: AppColors.primary),
+              ],
+            ),
           ),
         ],
       ),
@@ -513,33 +522,56 @@ class _TicketPurchaseCard extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '식권 구매하기',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '식권 구매하기',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
+                    Text(
+                      '원하는 식권을 선택해 구매하세요',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              // 현재 시간대 배지 (공식 운영시간: 중식 11-17시 / 석식 17-18:30)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(kRadiusPill),
+                ),
+                child: Text(
+                  DateTime.now().hour >= 17 ? '석식 17:00~18:30' : '중식 11:00~17:00',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
                   ),
-                  Text(
-                    '원하는 식권을 선택해 구매하세요',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                ],
+                ),
               ),
             ],
           ),
           const SizedBox(height: 14),
-          Row(
-            children: [
-              for (final (i, line) in lines.indexed) ...[
-                if (i > 0) const SizedBox(width: 10),
-                Expanded(child: _TicketOption(line: line)),
+          // IntrinsicHeight + stretch → 3개 카드 높이 동일
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final (i, line) in lines.indexed) ...[
+                  if (i > 0) const SizedBox(width: 10),
+                  Expanded(child: _TicketOption(line: line)),
+                ],
               ],
-            ],
+            ),
           ),
         ],
       ),

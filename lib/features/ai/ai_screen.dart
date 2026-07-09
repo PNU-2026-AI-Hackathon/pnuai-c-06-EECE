@@ -59,9 +59,14 @@ class _AiScreenState extends ConsumerState<AiScreen> {
 
     try {
       final lines = ref.read(cafeteriaLinesProvider).valueOrNull ?? const [];
+      // 방금 추가한 내 질문을 제외한 이전 대화를 맥락으로 전달
+      final history = [
+        for (final m in _messages.take(_messages.length - 1))
+          AiChatTurn(isUser: m.isUser, text: m.text),
+      ];
       final result = await ref
           .read(aiRepositoryProvider)
-          .ask(question, lines: lines);
+          .ask(question, lines: lines, history: history);
       if (!mounted) return;
       setState(() {
         _messages.add(
@@ -86,7 +91,19 @@ class _AiScreenState extends ConsumerState<AiScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('AI 메뉴 추천')),
+      appBar: AppBar(
+        title: const Text('AI 메뉴 추천'),
+        actions: [
+          if (_messages.isNotEmpty)
+            TextButton.icon(
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('새 대화'),
+              onPressed: _loading
+                  ? null
+                  : () => setState(() => _messages.clear()),
+            ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(

@@ -12,6 +12,7 @@ import '../data/models/restaurant.dart';
 import '../data/api/api_client.dart';
 import '../data/api/api_ai_repository.dart';
 import '../data/api/gemini_ai_repository.dart';
+import '../data/api/pnu_menu_service.dart';
 import '../data/mock/mock_ai_repository.dart';
 import '../data/repositories/ai_repository.dart';
 import '../data/repositories/cafeteria_repository.dart';
@@ -38,6 +39,12 @@ final campusDataSourceProvider = Provider<MockCampusDataSource>((ref) {
   ref.onDispose(ds.dispose);
   return ds;
 });
+
+/// 부산대 금정회관 주간 식단 (네트워크 → 캐시 → 내장 에셋 3단 폴백).
+/// 내장 에셋 덕분에 웹(CORS)·오프라인에서도 항상 데이터가 있다.
+final pnuMenuProvider = FutureProvider<KumjungWeekMenu>(
+  (ref) => PnuMenuService().fetchWeek(),
+);
 
 /// 커스텀 Next.js API 클라이언트 (식권·웨이팅 쓰기용)
 final apiClientProvider = Provider<ApiClient>(
@@ -95,9 +102,96 @@ final pendingAiQuestionProvider = StateProvider<String?>((ref) => null);
 final callAlertEnabledProvider = StateProvider<bool>((ref) => true);
 
 /// ── 화면용 스트림/퓨처 (구현체와 무관 — 변경 없음) ────────
-final cafeteriaLinesProvider = StreamProvider<List<CafeteriaLine>>(
-  (ref) => ref.watch(cafeteriaRepositoryProvider).watchLines(),
-);
+/// 학식 라인 스트림.
+/// · 부산대 공식 식단이 확보되면 메뉴·가격을 실제 값으로 덮어씀 (하드코딩 제거)
+/// · 시간대 자동 전환: 17시 전 중식 / 17시 이후 석식 (학생식당 공식 운영시간 기준)
+/// · Supabase 모드에서 DB에 라인이 없으면 기본 라인으로 폴백 (빈 화면 방지)
+final cafeteriaLinesProvider = StreamProvider<List<CafeteriaLine>>((ref) {
+  final pnuMenu = ref.watch(pnuMenuProvider).valueOrNull;
+  return ref.watch(cafeteriaRepositoryProvider).watchLines().map((lines) {
+    final base = lines.isEmpty ? _fallbackLines : lines;
+    return _overlayRealMenus(base, pnuMenu);
+  });
+});
+
+/// DB 시드 전 폴백 라인 (금정회관 실구조)
+const _fallbackLines = [
+  CafeteriaLine(
+    id: 'line_1f_jeongsik',
+    name: '1층 정식',
+    location: '금정회관 1층 학생식당',
+    todayMenu: ['식단 로딩 중'],
+    price: 5000,
+    waitingCount: 12,
+  ),
+  CafeteriaLine(
+    id: 'line_1f_danpum',
+    name: '1층 일품',
+    location: '금정회관 1층 학생식당',
+    todayMenu: ['식단 로딩 중'],
+    price: 5000,
+    waitingCount: 6,
+    avgServeSecondsPerPerson: 20,
+  ),
+  CafeteriaLine(
+    id: 'line_2f_jeongsik',
+    name: '2층 교직원 정식',
+    location: '금정회관 2층 교직원식당 (외부인 이용가능)',
+    todayMenu: ['식단 로딩 중'],
+    price: 6500,
+    waitingCount: 20,
+    avgServeSecondsPerPerson: 30,
+  ),
+];
+
+/// 실제 식단 오버레이 — 금정회관 실구조 + 운영시간 기준:
+/// · 1층 정식/일품 ← 학생식당 (17시 전 중식, 17시 이후 석식 메뉴)
+/// · 2층 ← 교직원식당 중식 정식 (중식만 운영)
+List<CafeteriaLine> _overlayRealMenus(
+  List<CafeteriaLine> lines,
+  KumjungWeekMenu? week,
+) {
+  if (week == null || week.days.isEmpty) return lines;
+
+  PnuMenuSection? pick(List<PnuMenuSection>? list, String name) {
+    for (final s in list ?? const <PnuMenuSection>[]) {
+      if (s.name.contains(name)) return s;
+    }
+    return null;
+  }
+
+  // 시간대: 공식 운영시간 (중식 11:00-17:00 / 석식 17:00-18:30)
+  final isDinner = DateTime.now().hour >= PnuMenuService.dinnerStartHour;
+
+  final studentDay =
+      week.todayOrLatest(where: (d) => d.studentLunch.isNotEmpty);
+  final staffDay = week.todayOrLatest(where: (d) => d.staffLunch.isNotEmpty);
+
+  final studentSections = (isDinner &&
+          (studentDay?.studentDinner.isNotEmpty ?? false))
+      ? studentDay!.studentDinner
+      : studentDay?.studentLunch;
+
+  final jeongsik = pick(studentSections, '정식');
+  final ilpum = pick(studentSections, '일품');
+  final staffJeongsik = pick(staffDay?.staffLunch, '정식');
+
+  PnuMenuSection? sectionFor(CafeteriaLine line) {
+    if (line.name.contains('단품') || line.name.contains('일품')) return ilpum;
+    if (line.name.contains('2층') || line.name.contains('교직원')) {
+      return staffJeongsik;
+    }
+    return jeongsik;
+  }
+
+  return [
+    for (final line in lines)
+      switch (sectionFor(line)) {
+        null => line,
+        final s => line.copyWith(todayMenu: s.items, price: s.price),
+      },
+  ];
+}
 
 final myTicketsProvider = StreamProvider<List<MealTicket>>(
   (ref) => ref.watch(ticketRepositoryProvider).watchMyTickets(),

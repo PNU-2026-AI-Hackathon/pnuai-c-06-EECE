@@ -13,6 +13,14 @@ class AiRecommendation {
   });
 }
 
+/// 대화 히스토리 1턴 (멀티턴 맥락 유지용)
+class AiChatTurn {
+  final bool isUser; // true = 사용자, false = AI
+  final String text;
+
+  const AiChatTurn({required this.isUser, required this.text});
+}
+
 /// AI 메뉴 추천 계약 — 백엔드는 이 인터페이스만 구현하면 됨.
 ///
 /// 서버 계약: POST /api/ai/search {query} → {answer, menus[, lineId, restaurantId]}
@@ -20,8 +28,10 @@ class AiRecommendation {
 abstract interface class AiRepository {
   /// 자연어 질문 + 현재 대기 현황 → 추천 답변.
   /// [lines]는 실시간 혼잡도 컨텍스트 (서버 구현은 무시해도 됨 — 서버가 직접 조회 가능).
+  /// [history]는 이전 대화 턴 — "그럼 두 번째로 빠른 건?" 같은 후속 질문 지원용.
   Future<AiRecommendation> ask(
     String question, {
     List<CafeteriaLine> lines = const [],
+    List<AiChatTurn> history = const [],
   });
 }

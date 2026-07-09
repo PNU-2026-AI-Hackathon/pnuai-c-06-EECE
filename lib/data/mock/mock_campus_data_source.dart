@@ -22,31 +22,32 @@ class MockCampusDataSource {
   final _random = Random();
   Timer? _timer;
 
-  // ── 학식 라인 (금정회관) ──────────────────────────────
+  // ── 학식 라인 (금정회관 실구조: 1층 학생식당 정식·일품 / 2층 교직원식당) ──
+  // 메뉴·가격은 부산대 공식 식단안내 기준 (pnuMenuProvider가 최신으로 덮어씀)
   final Map<String, CafeteriaLine> _lines = {
     'line_1f_jeongsik': const CafeteriaLine(
       id: 'line_1f_jeongsik',
       name: '1층 정식',
-      location: '금정회관 1층',
-      todayMenu: ['제육볶음', '미역국', '계란찜', '배추김치'],
-      price: 5500,
+      location: '금정회관 1층 학생식당',
+      todayMenu: ['김치콩나물국', '도쿄멘치가스/소스', '마파두부', '열무겉절이', '배추김치'],
+      price: 5000,
       waitingCount: 18,
     ),
     'line_1f_danpum': const CafeteriaLine(
       id: 'line_1f_danpum',
-      name: '1층 단품',
-      location: '금정회관 1층',
-      todayMenu: ['치즈돈까스', '우동', '공기밥'],
-      price: 4800,
+      name: '1층 일품',
+      location: '금정회관 1층 학생식당',
+      todayMenu: ['삼겹살버섯덮밥', '애플파이', '배추김치'],
+      price: 5000,
       waitingCount: 7,
       avgServeSecondsPerPerson: 20,
     ),
     'line_2f_jeongsik': const CafeteriaLine(
       id: 'line_2f_jeongsik',
-      name: '2층 정식',
-      location: '금정회관 2층',
-      todayMenu: ['닭갈비', '된장국', '잡채', '깍두기'],
-      price: 5500,
+      name: '2층 교직원 정식',
+      location: '금정회관 2층 교직원식당 (외부인 이용가능)',
+      todayMenu: ['흑미밥', '육개장', '도톰함박스테이크/치즈', '스파게티/토마토소스', '비빔야채만두', '콩나물냉채', '김치/후식'],
+      price: 6500,
       waitingCount: 26,
       avgServeSecondsPerPerson: 30,
     ),

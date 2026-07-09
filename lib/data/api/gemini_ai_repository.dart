@@ -28,6 +28,7 @@ class GeminiAiRepository implements AiRepository {
   Future<AiRecommendation> ask(
     String question, {
     List<CafeteriaLine> lines = const [],
+    List<AiChatTurn> history = const [],
   }) async {
     final context = lines
         .map((l) => '- id:"${l.id}" | ${l.name} | 대기 ${l.waitingCount}명 '
@@ -35,35 +36,52 @@ class GeminiAiRepository implements AiRepository {
             '${won(l.price)} | 오늘 메뉴: ${l.todayMenu.join(', ')}')
         .join('\n');
 
-    final prompt = '''
+    // 역할·규칙은 systemInstruction으로 분리 (대화 턴과 섞이지 않게)
+    const systemPrompt = '''
 너는 부산대학교 학생식당(금정회관) 메뉴 추천 챗봇 "밥묵자 AI"다.
-아래 실시간 대기 현황을 근거로 학생의 질문에 답해라.
-
-[실시간 대기 현황]
-$context
+사용자 메시지에 포함된 실시간 대기 현황을 근거로 답해라.
+이전 대화 맥락을 기억하고 후속 질문("그럼 두 번째로 빠른 건?" 등)에 자연스럽게 이어서 답해라.
 
 [규칙]
 - 한국어로 2~3문장, 친근한 반말 섞인 존댓말 톤 (예: "~어때요?", "~빨라요!")
-- 반드시 위 현황의 대기 인원·예상 시간을 근거로 추천할 것
+- 반드시 현황의 대기 인원·예상 시간을 근거로 추천할 것
 - 특정 라인을 추천하면 그 라인의 id를 lineId에 넣을 것 (추천 없으면 null)
 - 아래 JSON 형식으로만 응답: {"answer": "...", "lineId": "..." 또는 null}
-
-[학생 질문]
-$question
 ''';
+
+    // 이전 대화 턴 (최근 10턴만 — 토큰 절약)
+    final turns = <Map<String, dynamic>>[
+      for (final t in history.length > 10
+          ? history.sublist(history.length - 10)
+          : history)
+        {
+          'role': t.isUser ? 'user' : 'model',
+          'parts': [
+            {'text': t.text}
+          ],
+        },
+      // 현재 질문 — 최신 대기 현황을 함께 전달 (턴마다 갱신된 데이터 사용)
+      {
+        'role': 'user',
+        'parts': [
+          {
+            'text': '[실시간 대기 현황]\n$context\n\n[질문]\n$question',
+          }
+        ],
+      },
+    ];
 
     final res = await http
         .post(
           Uri.parse('$_endpoint/$_model:generateContent?key=$_apiKey'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
-            'contents': [
-              {
-                'parts': [
-                  {'text': prompt}
-                ]
-              }
-            ],
+            'systemInstruction': {
+              'parts': [
+                {'text': systemPrompt}
+              ]
+            },
+            'contents': turns,
             'generationConfig': {
               'responseMimeType': 'application/json',
               'temperature': 0.7,
