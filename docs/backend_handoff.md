@@ -27,6 +27,21 @@
 5. **웹 배포 URL Redirect 등록** — 프론트 배포 URL을 Supabase Redirect URLs에 추가.
 6. **확인**: 카카오 가입 시 `users` 행 트리거 생성 여부 (성공 사례 1건).
 
+### 🆕 식단 자동 수집 (서버 크론 요청 — 2026-07-09 추가)
+
+프론트가 부산대 공식 식단 페이지 파싱을 구현·검증 완료함. **수집 URL 파라미터 확보**:
+
+- 금정회관 학생식당(주간, 중식/석식):
+  `https://www.pusan.ac.kr/kor/CMS/MenuMgr/menuListOnBuilding.do?mCode=MN202&campus_gb=PUSAN&building_gb=R001&restaurant_code=PG002`
+- 금정회관 교직원식당(주간, 중식): 같은 URL에서 파라미터 없이 (기본값)
+- 공식 운영시간: 학생식당 중식 11:00-17:00 / 석식 17:00-18:30 (조식 방학 미운영), 교직원 중식 11:00-15:00
+- 확인된 가격: 학생 정식/일품 각 5,000원, 교직원 정식 6,500원 → **menus 시드에 이 값 사용**
+
+**요청**: 앱은 웹(CORS)에서 이 페이지를 직접 못 읽음 → 서버에서 주 1회(월요일 아침) 크론으로
+수집해 `menus` 테이블에 넣어주면 웹 포함 전 플랫폼에서 실식단이 뜸.
+파싱 로직은 `lib/data/api/pnu_menu_service.dart` (_parseBuildingWeek/_parseSections)를
+그대로 이식하면 됨 — 열=날짜, 행=중식/석식, 셀 내 "정식-5,000원<br>메뉴..." 구조.
+
 ### 백엔드 테스트 방법 (앱/에뮬레이터 불필요)
 - API: curl/Postman으로 위 규격 검증 (Authorization: Bearer <Supabase accessToken>)
 - 통합: 프론트 웹 배포 링크 열어서 브라우저로 직접 확인
