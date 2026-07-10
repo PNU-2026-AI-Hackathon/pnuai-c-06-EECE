@@ -12,6 +12,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // flutter_local_notifications(백그라운드 알림) 요구사항
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -42,4 +44,9 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // core library desugaring (flutter_local_notifications 요구)
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
