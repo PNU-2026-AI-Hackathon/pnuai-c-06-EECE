@@ -22,14 +22,16 @@ Future<void> main() async {
   // 시스템 알림 초기화 (백그라운드 호출 알림용, 웹은 자동 무시)
   await NotificationService.init();
 
-  // 저장된 설정 복원 (호출 알림 ON/OFF)
+  // 저장된 설정 복원 (호출 알림 ON/OFF, 온보딩 완료 여부)
   final prefs = await SharedPreferences.getInstance();
   final callAlertEnabled = prefs.getBool('notify_enabled') ?? true;
+  final onboardingDone = prefs.getBool('onboarding_done') ?? false;
 
   runApp(
     ProviderScope(
       overrides: [
         callAlertEnabledProvider.overrideWith((ref) => callAlertEnabled),
+        onboardingDoneProvider.overrideWith((ref) => onboardingDone),
       ],
       child: const BapMukJaApp(),
     ),

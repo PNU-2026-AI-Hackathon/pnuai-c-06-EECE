@@ -101,6 +101,10 @@ final pendingAiQuestionProvider = StateProvider<String?>((ref) => null);
 /// SharedPreferences 저장값('notify_enabled')으로 override됨.
 final callAlertEnabledProvider = StateProvider<bool>((ref) => true);
 
+/// 온보딩 완료 여부 — main()에서 저장값('onboarding_done')으로 override됨.
+/// false면 라우터가 /onboarding으로 보냄.
+final onboardingDoneProvider = StateProvider<bool>((ref) => false);
+
 /// ── 화면용 스트림/퓨처 (구현체와 무관 — 변경 없음) ────────
 /// 학식 라인 스트림.
 /// · 부산대 공식 식단이 확보되면 메뉴·가격을 실제 값으로 덮어씀 (하드코딩 제거)
