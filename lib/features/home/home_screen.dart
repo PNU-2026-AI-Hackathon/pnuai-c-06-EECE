@@ -708,6 +708,18 @@ Future<void> showPurchaseSheet(
   WidgetRef ref,
   CafeteriaLine line,
 ) async {
+  // 실서버 모드에서 폴백 라인(DB 시드 전 가짜 id)이면 구매 차단 — uuid 500 방지
+  final isFallbackLine = line.id.startsWith('line_');
+  if (isFallbackLine && ref.read(useSupabaseProvider)) {
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('서버에 식당 데이터가 아직 등록되지 않았어요. (백엔드 dining_lines 시드 대기 중)'),
+        ),
+      );
+    return;
+  }
   final confirmed = await showModalBottomSheet<bool>(
     context: context,
     shape: const RoundedRectangleBorder(
