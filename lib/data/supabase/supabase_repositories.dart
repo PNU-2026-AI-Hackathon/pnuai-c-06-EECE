@@ -173,7 +173,19 @@ class SupabaseTicketRepository implements TicketRepository {
   Future<MealTicket> purchaseTicket(String lineId) => _api.purchaseTicket(lineId);
 
   @override
-  Future<void> checkIn(String ticketId) => _api.verifyTicket(ticketId);
+  Future<void> checkIn(String ticketId) async {
+    // verify API는 qrToken 기준 — 티켓 id로 qr_token을 조회해 전달
+    final row = await _client
+        .from(_tTickets)
+        .select('qr_token')
+        .eq('id', ticketId)
+        .single();
+    final qrToken = row['qr_token'] as String?;
+    if (qrToken == null || qrToken.isEmpty) {
+      throw StateError('이 식권에는 qr_token이 없습니다 (id: $ticketId)');
+    }
+    await _api.verifyTicket(qrToken);
+  }
 
   @override
   Stream<List<MealTicket>> watchMyTickets() {

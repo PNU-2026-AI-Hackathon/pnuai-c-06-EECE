@@ -79,16 +79,17 @@ final restaurantRepositoryProvider = Provider<RestaurantRepository>((ref) {
   return MockRestaurantRepository(ref.watch(campusDataSourceProvider));
 });
 
-/// AI 추천 — 우선순위: ① 백엔드 서버(/api/ai/search, 배포 시)
-/// ② Gemini 무료 API (GEMINI_API_KEY 설정 시) ③ 규칙 기반 Mock.
+/// AI 추천 — 우선순위: ① Gemini (키 설정 시) ② 백엔드 서버 ③ 규칙 기반 Mock.
+/// ⚠️ 현재 서버 /api/ai/search 미구현 상태라 Gemini를 1순위로 둠.
+///    백엔드가 구현하면 ①② 순서를 교체할 것.
 /// 시연(Mock) 모드에서는 항상 ③ (오프라인 안전).
 final aiRepositoryProvider = Provider<AiRepository>((ref) {
   if (ref.watch(useSupabaseProvider)) {
-    if (ref.watch(apiClientProvider).isReady) {
-      return ApiAiRepository(ref.watch(apiClientProvider));
-    }
     if (Env.hasGemini) {
       return GeminiAiRepository(Env.geminiApiKey);
+    }
+    if (ref.watch(apiClientProvider).isReady) {
+      return ApiAiRepository(ref.watch(apiClientProvider));
     }
   }
   return MockAiRepository();
