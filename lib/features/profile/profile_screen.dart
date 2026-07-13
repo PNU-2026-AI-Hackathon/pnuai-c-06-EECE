@@ -320,18 +320,22 @@ class _MenuGroup extends StatelessWidget {
         borderRadius: BorderRadius.circular(kRadiusCard),
         boxShadow: kCardShadow,
       ),
-      child: Column(
-        children: [
-          for (final (i, child) in children.indexed) ...[
-            if (i > 0)
-              const Divider(
-                height: 1,
-                indent: 52,
-                color: Color(0xFFF0F2F7),
-              ),
-            child,
+      // ListTile은 Material 조상 위에 잉크를 그리므로 투명 Material로 감싼다
+      child: Material(
+        color: Colors.transparent,
+        child: Column(
+          children: [
+            for (final (i, child) in children.indexed) ...[
+              if (i > 0)
+                const Divider(
+                  height: 1,
+                  indent: 52,
+                  color: Color(0xFFF0F2F7),
+                ),
+              child,
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

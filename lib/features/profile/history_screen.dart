@@ -74,7 +74,9 @@ class _HistoryTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: kCardShadow,
       ),
-      child: ListTile(
+      child: Material(
+        color: Colors.transparent,
+        child: ListTile(
         dense: true,
         leading: Container(
           width: 40,
@@ -111,6 +113,7 @@ class _HistoryTile extends StatelessWidget {
             fontWeight: FontWeight.w800,
             color: AppColors.textStrong,
           ),
+        ),
         ),
       ),
     );

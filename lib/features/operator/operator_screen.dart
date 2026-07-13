@@ -516,7 +516,9 @@ class _OperatorScreenState extends ConsumerState<OperatorScreen> {
               borderRadius: BorderRadius.circular(kRadiusCard),
               boxShadow: kCardShadow,
             ),
-            child: Column(
+            child: Material(
+              color: Colors.transparent,
+              child: Column(
               children: [
                 ListTile(
                   dense: true,
@@ -553,6 +555,7 @@ class _OperatorScreenState extends ConsumerState<OperatorScreen> {
                   ),
                 ),
               ],
+              ),
             ),
           ),
           const SizedBox(height: 16),
