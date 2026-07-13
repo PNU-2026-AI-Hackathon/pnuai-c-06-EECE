@@ -114,10 +114,28 @@ final onboardingDoneProvider = StateProvider<bool>((ref) => false);
 final cafeteriaLinesProvider = StreamProvider<List<CafeteriaLine>>((ref) {
   final pnuMenu = ref.watch(pnuMenuProvider).valueOrNull;
   return ref.watch(cafeteriaRepositoryProvider).watchLines().map((lines) {
-    final base = lines.isEmpty ? _fallbackLines : lines;
+    final base = lines.isEmpty ? _fallbackLines : _dedupeByName(lines);
     return _overlayRealMenus(base, pnuMenu);
   });
 });
+
+/// 같은 이름의 라인이 DB에 중복 시드된 경우 방어적으로 하나만 표시.
+/// 대기 인원이 더 많은 쪽(=실제로 쓰이는 라인)을 남긴다.
+/// ⚠️ 근본 해결은 DB에서 중복 행 삭제 — docs/backend_handoff.md 참고.
+List<CafeteriaLine> _dedupeByName(List<CafeteriaLine> lines) {
+  final byName = <String, CafeteriaLine>{};
+  final order = <String>[];
+  for (final line in lines) {
+    final prev = byName[line.name];
+    if (prev == null) {
+      byName[line.name] = line;
+      order.add(line.name);
+    } else if (line.waitingCount > prev.waitingCount) {
+      byName[line.name] = line; // 더 활성화된 라인 우선
+    }
+  }
+  return [for (final n in order) byName[n]!];
+}
 
 /// DB 시드 전 폴백 라인 (금정회관 실구조)
 const _fallbackLines = [

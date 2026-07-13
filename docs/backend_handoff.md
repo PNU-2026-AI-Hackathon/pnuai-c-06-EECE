@@ -27,6 +27,34 @@
 5. **웹 배포 URL Redirect 등록** — 프론트 배포 URL을 Supabase Redirect URLs에 추가.
 6. **확인**: 카카오 가입 시 `users` 행 트리거 생성 여부 (성공 사례 1건).
 
+### 🆕 dining_lines 중복 시드 정리 (2026-07-13 추가) 🔴
+
+통합 테스트 성공! (구매 → QR → 대기번호까지 실서버 동작 확인)
+다만 **같은 이름의 라인이 중복 시드**되어 홈에 "1층 정식" "1층 일품"이 2개씩 뜸.
+프론트에 이름 기준 중복 제거를 넣어 화면은 정리했지만, **대기열이 두 행으로 쪼개지면
+대기번호가 실제와 어긋나므로 DB에서 중복 행을 지워야 함**:
+
+```sql
+-- 이름별로 티켓이 가장 많이 달린 행(=실사용 행) 하나만 남기고 삭제
+with ranked as (
+  select d.id,
+         row_number() over (
+           partition by d.name
+           order by (select count(*) from tickets t where t.dining_line_id = d.id) desc,
+                    d.id
+         ) as rn
+  from dining_lines d
+)
+delete from dining_lines
+where id in (select id from ranked where rn > 1);
+```
+
+(⚠️ 삭제될 행을 티켓이 참조 중이면 FK 에러가 남 — 그 경우 먼저
+`update tickets set dining_line_id = <남길 행 id> where dining_line_id = <지울 행 id>;`)
+
+또 하나 결정: 현재 "2층 정식"과 "2층 교직원 정식"이 둘 다 있음. 금정회관 2층은
+교직원식당 하나(정식 6,500원)뿐이니 **한 행으로 통일 권장** — 이름은 "2층 교직원 정식".
+
 ### 🆕 식단 자동 수집 (서버 크론 요청 — 2026-07-09 추가)
 
 프론트가 부산대 공식 식단 페이지 파싱을 구현·검증 완료함. **수집 URL 파라미터 확보**:
