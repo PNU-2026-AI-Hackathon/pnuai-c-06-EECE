@@ -37,6 +37,22 @@ Flutter (Dart) ─ Riverpod 상태관리 ─ go_router 라우팅
 스위치 하나로 Mock(시연) ↔ 실서버 전환. 발표 중 네트워크가 죽어도
 시연 모드로 즉시 폴백 가능 (데모 리스크 대비 설계).
 
+## 3-1. 개발 환경 & 툴
+
+| 분류 | 사용 툴 |
+| :-- | :-- |
+| 언어/프레임워크 | Flutter 3.x · Dart 3.4+ (단일 코드베이스로 3플랫폼) |
+| IDE | VS Code (Flutter/Dart 확장) · Android Studio (SDK·에뮬레이터) · Xcode (iOS 빌드·서명) |
+| 실행/테스트 환경 | Android Emulator · Chrome (웹 디버그, 포트 3000 고정) · Android 실기기(USB) · iPhone 실기기 |
+| 상태관리/라우팅 | Riverpod 2.6 · go_router 14 |
+| 주요 패키지 | supabase_flutter(인증·DB·Realtime) · qr_flutter(QR 생성) · mobile_scanner(카메라 스캔) · flutter_local_notifications(푸시) · http/html(식단 파싱) · shared_preferences(로컬 저장) |
+| BaaS/배포 | Supabase (Auth·PostgreSQL·Realtime) · Vercel (백엔드 API) · Netlify (웹 배포) |
+| 외부 API | Kakao Developers (OAuth 로그인·로컬 API) · Google AI Studio (Gemini 무료 API) |
+| 디자인 | 부산대 공식 교색 #005BAA · Pretendard 폰트 · 자체 디자인 토큰(theme.dart) |
+| 협업/버전관리 | Git + GitHub (브랜치 전략: feat/* → PR → main, 발표 버전 태그) · Notion (개발일지·핸드오프 문서) |
+| 시크릿 관리 | `--dart-define-from-file` + gitignore (API 키를 코드·저장소에 노출하지 않음) |
+| AI 활용 | AI 페어 프로그래밍으로 개발 속도 가속 (PAI+X 트랙 취지 부합) |
+
 ## 4. 구현 완료 기능 (사용자 흐름 순)
 
 ### 학생 앱
