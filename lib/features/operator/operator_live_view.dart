@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../app/theme.dart';
 import 'operator_providers.dart';
+import 'qr_scan_screen.dart';
 
 /// 운영자 대시보드 — 실서버 모드.
 ///
@@ -69,19 +70,32 @@ class _OperatorLiveViewState extends ConsumerState<OperatorLiveView> {
     return queues[id];
   }
 
-  /// 대기열 맨 앞 티켓 verify — 실서비스의 "QR 스캔"과 동일한 서버 호출
+  /// 카메라로 학생 QR을 스캔 → 읽은 토큰으로 verify
+  Future<void> _scanAndVerify() async {
+    final token = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const QrScanScreen()),
+    );
+    if (token == null || !mounted) return;
+    await _verifyToken(token);
+  }
+
+  /// 대기열 맨 앞 티켓 verify — 카메라 없이도 같은 서버 동작을 하는 시연 버튼
   Future<void> _verifyHead(OperatorLineQueue queue, {bool silent = false}) async {
     if (queue.waiting.isEmpty || _busy) return;
-    final head = queue.waiting.first;
-    final token = head.qrToken;
-    final messenger = ScaffoldMessenger.of(context);
-
+    final token = queue.waiting.first.qrToken;
     if (token == null || token.isEmpty) {
-      messenger.showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('맨 앞 식권에 qr_token이 없습니다 — 백엔드 확인 필요')),
       );
       return;
     }
+    await _verifyToken(token, silent: silent);
+  }
+
+  /// verify API 호출 공통부 — 성공 시 학생 앱에 Realtime 반영
+  Future<void> _verifyToken(String token, {bool silent = false}) async {
+    if (_busy) return;
+    final messenger = ScaffoldMessenger.of(context);
 
     setState(() => _busy = true);
     try {
@@ -255,27 +269,46 @@ class _OperatorLiveViewState extends ConsumerState<OperatorLiveView> {
               ),
               const SizedBox(height: 12),
               // ── QR 스캔(배식 완료) 버튼 ──
-              SizedBox(
-                height: 52,
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.accent,
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: SizedBox(
+                      height: 52,
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.accent,
+                        ),
+                        icon: _busy
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.4,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.qr_code_scanner),
+                        label: Text(_busy ? '처리 중...' : 'QR 카메라 스캔'),
+                        onPressed:
+                            (_busy || _autoMode) ? null : _scanAndVerify,
+                      ),
+                    ),
                   ),
-                  icon: _busy
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.4,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.qr_code_scanner),
-                  label: Text(_busy ? '처리 중...' : 'QR 스캔 · 배식 완료'),
-                  onPressed: (queue.waiting.isEmpty || _busy || _autoMode)
-                      ? null
-                      : () => _verifyHead(queue),
-                ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 2,
+                    child: SizedBox(
+                      height: 52,
+                      child: OutlinedButton(
+                        onPressed: (queue.waiting.isEmpty || _busy || _autoMode)
+                            ? null
+                            : () => _verifyHead(queue),
+                        child: const Text('맨 앞 처리'),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 20),
               // ── 대기열 (실제 티켓, 학생 대기번호와 동일 순번) ──
@@ -356,7 +389,7 @@ class _OperatorLiveViewState extends ConsumerState<OperatorLiveView> {
               const SizedBox(height: 16),
               const Text(
                 '※ 실서버 모드 — 이 화면의 처리가 학생 앱에 실시간 반영됩니다.\n'
-                '카메라 QR 스캔(mobile_scanner)과 자동 다음 호출(서버 called 전이)은 연동 예정.',
+                '자동 다음 호출(서버 called 전이)은 백엔드 구현 후 연결됩니다.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 11, color: AppColors.textWeak),
               ),

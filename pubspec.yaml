@@ -17,9 +17,7 @@ dependencies:
   supabase_flutter: ^2.8.0
   http: ^1.2.2
   html: ^0.15.4
-
-  # ── 추후 연동 ──
-  # mobile_scanner: ^5.2.3     # 운영자 QR 체크인 데모 시
+  mobile_scanner: ^5.2.3 # 운영자 카메라 QR 체크인
 
 dev_dependencies:
   flutter_test:
