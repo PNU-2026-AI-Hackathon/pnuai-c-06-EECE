@@ -6,15 +6,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme.dart';
+import 'operator_live_view.dart';
 
-/// 운영자 대시보드 (Mock) — 식당 관계자 협의·시연용.
-/// 학생 앱의 반대편: 대기열 확인 → 호출 → QR 검증 → 메뉴/품절 관리.
-/// 전부 로컬 Mock 상태로 동작 (실서버 연동은 백엔드 운영자 API 이후).
-class OperatorScreen extends ConsumerStatefulWidget {
+/// 운영자 대시보드 — 모드에 따라 자동 분기.
+/// · 실서버 모드: 실제 대기열 + verify API (OperatorLiveView)
+/// · 시연(Mock) 모드: 로컬 시뮬레이션 (서버 없이 언제나 동작)
+class OperatorScreen extends ConsumerWidget {
   const OperatorScreen({super.key});
 
   @override
-  ConsumerState<OperatorScreen> createState() => _OperatorScreenState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ref.watch(useSupabaseProvider)
+        ? const OperatorLiveView()
+        : const _MockOperatorView();
+  }
+}
+
+/// 시연(Mock) 모드 — 식당 관계자 협의·시연용 로컬 시뮬레이션.
+/// 학생 앱의 반대편: 대기열 확인 → 호출 → QR 검증 → 메뉴/품절 관리.
+class _MockOperatorView extends ConsumerStatefulWidget {
+  const _MockOperatorView();
+
+  @override
+  ConsumerState<_MockOperatorView> createState() => _MockOperatorViewState();
 }
 
 /// 라인별 운영 상태 (로컬 Mock)
@@ -36,7 +50,7 @@ class _OpLine {
   int servedCount = 0; // 오늘 검증(배식) 완료 수
 }
 
-class _OperatorScreenState extends ConsumerState<OperatorScreen> {
+class _MockOperatorViewState extends ConsumerState<_MockOperatorView> {
   final _random = Random();
   List<_OpLine>? _lines;
   int _selected = 0;
