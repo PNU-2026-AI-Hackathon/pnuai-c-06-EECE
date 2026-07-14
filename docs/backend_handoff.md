@@ -1,5 +1,37 @@
 # 백엔드 전달 사항 정리
 
+## 🔴 최신 요청 (2026-07-14) — 중간발표(7/23) 전 필수
+
+프론트 완료: 운영자 대시보드 실서버 전환(tickets Realtime 대기열 집계) + **카메라 QR 스캔
+(mobile_scanner) 동작 확인**. 이제 "학생 구매 → 운영자 스캔 → 학생 앱 사용완료" 체인이
+실서버로 돌아감. 발표 전 백엔드에 필요한 것, 우선순위순:
+
+### 1. verify 성공 시 다음 티켓 `called` 전이 (자동 호출의 마지막 조각) ⭐
+
+- `POST /api/tickets/verify` 성공(티켓 used 처리) 직후, **같은 라인의 paid 티켓 중
+  paid_at이 가장 빠른 1장을 `status='called'`로 업데이트**해주면 끝.
+- `tickets.status` 허용값에 `'called'` 추가 필요 (paid/used/expired에).
+- 프론트는 이미 완성: called 전환을 Realtime으로 감지 → 학생 폰에 푸시 알림.
+  이거 하나면 시연의 하이라이트("스캔하자마자 다음 학생 폰이 울림")가 완성됨.
+- 학생이 배식대 도착해 called 티켓을 스캔하면 그대로 used 처리 (별도 로직 불필요).
+
+### 2. Vercel API CORS 헤더 (웹 배포 링크용)
+
+- Netlify 웹 배포에서 구매/verify가 동작하려면 필요 (모바일 앱은 무관).
+- 응답 헤더: `Access-Control-Allow-Origin: https://pnu-bapmukja.netlify.app`
+  + `Access-Control-Allow-Headers: authorization, content-type`
+  + OPTIONS 프리플라이트 200 응답.
+
+### 3. Supabase Redirect 등록 (URL 확정 시)
+
+- Auth → URL Configuration → Redirect URLs에
+  `https://pnu-bapmukja.netlify.app`와 `https://pnu-bapmukja.netlify.app/**` 두 줄.
+- Site URL도 같은 주소로 변경 (localhost면 로그인 후 남의 PC에서 localhost로 튕김).
+
+### 4. 여유 시: 식단 수집 크론 (아래 2026-07-09 섹션 참고)
+
+---
+
 ## 📌 현재 상태 요약 (2026-07-08 2차 갱신)
 
 **완료된 것**: 카카오 OAuth 로그인 ✅ · Supabase 조회 ✅ · **AI 추천 ✅ (프론트가 Gemini
