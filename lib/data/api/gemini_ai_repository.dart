@@ -1,10 +1,12 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:http/http.dart' as http;
 
 import '../../core/formatters.dart';
 import '../models/cafeteria_line.dart';
 import '../repositories/ai_repository.dart';
+import 'kakao_local_service.dart';
 
 /// Google Gemini 무료 API 기반 AI 추천.
 ///
@@ -16,9 +18,12 @@ import '../repositories/ai_repository.dart';
 /// ⚠️ 키를 앱에 내장하는 방식은 해커톤 MVP용. 정식 배포 시에는 백엔드
 ///    /api/ai/search 뒤로 숨길 것 (providers.dart에서 서버 우선으로 전환됨).
 class GeminiAiRepository implements AiRepository {
-  GeminiAiRepository(this._apiKey);
+  GeminiAiRepository(this._apiKey, {KakaoLocalService? local}) : _local = local;
 
   final String _apiKey;
+
+  /// 주변 상권 검색 (없으면 학식만으로 추천 — Phase B 선택 기능)
+  final KakaoLocalService? _local;
 
   static const _model = 'gemini-2.5-flash';
   static const _endpoint =
@@ -36,16 +41,33 @@ class GeminiAiRepository implements AiRepository {
             '${won(l.price)} | 오늘 메뉴: ${l.todayMenu.join(', ')}')
         .join('\n');
 
+    // 주변 상권 (카카오 로컬 API) — 실패해도 학식만으로 추천 가능
+    var nearbyContext = '';
+    if (_local != null) {
+      final places = await _local.nearbyRestaurants();
+      if (places.isNotEmpty) {
+        nearbyContext = '\n\n[부산대 주변 음식점 — 거리순, 대기 정보 없음]\n'
+            '${places.map((p) => p.contextLine).join('\n')}';
+      }
+    }
+
     // 역할·규칙은 systemInstruction으로 분리 (대화 턴과 섞이지 않게)
     const systemPrompt = '''
-너는 부산대학교 학생식당(금정회관) 메뉴 추천 챗봇 "밥묵자 AI"다.
-사용자 메시지에 포함된 실시간 대기 현황을 근거로 답해라.
+너는 부산대학교 점심 추천 챗봇 "밥묵자 AI"다.
+사용자 메시지에 포함된 실시간 대기 현황과 주변 음식점 목록을 근거로 답해라.
 이전 대화 맥락을 기억하고 후속 질문("그럼 두 번째로 빠른 건?" 등)에 자연스럽게 이어서 답해라.
+
+[추천 우선순위]
+1. 기본은 학생식당(금정회관) — 대기 인원·예상 시간을 근거로 추천
+2. 학식 메뉴가 사용자 취향과 안 맞거나, 학식이 모두 혼잡하거나, 사용자가 다른 음식을
+   원하면 [부산대 주변 음식점]에서 골라 이름·종류·도보 시간을 알려줘라
+3. 주변 음식점은 실시간 대기 정보가 없다 — 대기 시간을 지어내지 말 것
 
 [규칙]
 - 한국어로 2~3문장, 친근한 반말 섞인 존댓말 톤 (예: "~어때요?", "~빨라요!")
-- 반드시 현황의 대기 인원·예상 시간을 근거로 추천할 것
-- 특정 라인을 추천하면 그 라인의 id를 lineId에 넣을 것 (추천 없으면 null)
+- 학식 추천 근거는 반드시 현황의 대기 인원·예상 시간일 것
+- 특정 학식 라인을 추천하면 그 라인의 id를 lineId에 넣을 것
+  (주변 음식점 추천이거나 추천 없으면 null)
 - 아래 JSON 형식으로만 응답: {"answer": "...", "lineId": "..." 또는 null}
 ''';
 
@@ -65,11 +87,17 @@ class GeminiAiRepository implements AiRepository {
         'role': 'user',
         'parts': [
           {
-            'text': '[실시간 대기 현황]\n$context\n\n[질문]\n$question',
+            'text': '[실시간 대기 현황]\n$context$nearbyContext\n\n[질문]\n$question',
           }
         ],
       },
     ];
+
+    // 컨텍스트 튜닝용 — 디버그 빌드에서 AI에게 전달되는 원문 확인
+    if (kDebugMode) {
+      debugPrint('───[GeminiAI 컨텍스트]───\n'
+          '[실시간 대기 현황]\n$context$nearbyContext\n──────────────');
+    }
 
     final res = await http
         .post(

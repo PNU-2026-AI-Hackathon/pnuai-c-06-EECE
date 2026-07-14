@@ -37,4 +37,14 @@ class Env {
   );
 
   static bool get hasGemini => geminiApiKey.isNotEmpty;
+
+  /// 카카오 REST API 키 — 주변 상권 검색(카카오 로컬 API)용.
+  /// 카카오 로그인에 쓰는 REST 키와 동일. env.local.json의 KAKAO_REST_API_KEY.
+  /// ⚠️ 클라이언트 내장은 MVP용 — 정식 배포 시 서버 경유로 전환.
+  static const kakaoRestApiKey = String.fromEnvironment(
+    'KAKAO_REST_API_KEY',
+    defaultValue: '',
+  );
+
+  static bool get hasKakaoLocal => kakaoRestApiKey.isNotEmpty;
 }

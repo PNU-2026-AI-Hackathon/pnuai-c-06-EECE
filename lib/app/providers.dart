@@ -12,6 +12,7 @@ import '../data/models/restaurant.dart';
 import '../data/api/api_client.dart';
 import '../data/api/api_ai_repository.dart';
 import '../data/api/gemini_ai_repository.dart';
+import '../data/api/kakao_local_service.dart';
 import '../data/api/pnu_menu_service.dart';
 import '../data/mock/mock_ai_repository.dart';
 import '../data/repositories/ai_repository.dart';
@@ -83,10 +84,18 @@ final restaurantRepositoryProvider = Provider<RestaurantRepository>((ref) {
 /// ⚠️ 현재 서버 /api/ai/search 미구현 상태라 Gemini를 1순위로 둠.
 ///    백엔드가 구현하면 ①② 순서를 교체할 것.
 /// 시연(Mock) 모드에서는 항상 ③ (오프라인 안전).
+/// 주변 상권 검색 (카카오 로컬 API) — 키 없으면 null (학식만 추천)
+final kakaoLocalProvider = Provider<KakaoLocalService?>(
+  (ref) => Env.hasKakaoLocal ? KakaoLocalService(Env.kakaoRestApiKey) : null,
+);
+
 final aiRepositoryProvider = Provider<AiRepository>((ref) {
   if (ref.watch(useSupabaseProvider)) {
     if (Env.hasGemini) {
-      return GeminiAiRepository(Env.geminiApiKey);
+      return GeminiAiRepository(
+        Env.geminiApiKey,
+        local: ref.watch(kakaoLocalProvider),
+      );
     }
     if (ref.watch(apiClientProvider).isReady) {
       return ApiAiRepository(ref.watch(apiClientProvider));
