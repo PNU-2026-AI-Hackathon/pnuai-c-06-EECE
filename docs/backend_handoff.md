@@ -28,7 +28,35 @@
   `https://pnu-bapmukja.netlify.app`와 `https://pnu-bapmukja.netlify.app/**` 두 줄.
 - Site URL도 같은 주소로 변경 (localhost면 로그인 후 남의 PC에서 localhost로 튕김).
 
-### 4. 여유 시: 식단 수집 크론 (아래 2026-07-09 섹션 참고)
+### 4. 주변 상권 프록시 `GET /api/nearby` (웹용, 30분 작업)
+
+프론트가 AI 추천에 카카오 로컬 API(부산대 주변 음식점)를 연결함. 모바일은 직접 호출로
+동작하지만 **웹은 카카오가 CORS를 막아서 서버 프록시가 필요**. 카카오 응답 JSON을
+그대로 중계하면 됨 (프론트는 이미 `/api/nearby`를 바라보게 구현돼 있음):
+
+```ts
+// app/api/nearby/route.ts
+import { NextResponse } from 'next/server';
+
+const KAKAO_URL =
+  'https://dapi.kakao.com/v2/local/search/category.json' +
+  '?category_group_code=FD6&x=129.0843&y=35.2318&radius=800&size=15&sort=distance';
+
+export async function GET() {
+  const res = await fetch(KAKAO_URL, {
+    headers: { Authorization: `KakaoAK ${process.env.KAKAO_REST_KEY}` },
+    next: { revalidate: 600 }, // 10분 캐시
+  });
+  return NextResponse.json(await res.json(), {
+    headers: { 'Access-Control-Allow-Origin': '*' }, // 공개 데이터라 * 허용 무방
+  });
+}
+```
+
+- Vercel 환경변수 `KAKAO_REST_KEY` = 카카오 로그인에 쓰는 REST API 키
+- 덤: 이 방식이 정착되면 모바일도 프록시로 전환해 키를 서버로 숨길 예정
+
+### 5. 여유 시: 식단 수집 크론 (아래 2026-07-09 섹션 참고)
 
 ---
 

@@ -5,15 +5,18 @@ import 'package:http/http.dart' as http;
 
 /// 카카오 로컬 API — 부산대 정문 반경 음식점 검색 (AI 추천 컨텍스트용).
 ///
-/// - 인증: `KakaoAK <REST API 키>` (카카오 로그인과 동일한 키)
+/// - 모바일: dapi.kakao.com 직접 호출 (인증: `KakaoAK <REST API 키>`)
+/// - 웹: 카카오 REST API가 브라우저 fetch를 CORS로 막음
+///   → 백엔드 프록시 `GET {API_BASE_URL}/api/nearby` 경유 (배포 전엔 빈 목록 폴백)
 /// - 공개 지도 데이터 기반이라 식당 제휴·동의 불필요 (Phase B: 정보 추천)
-/// - 웹(브라우저)은 카카오 REST API의 CORS 제한으로 미지원 → 빈 목록 반환
-///   (모바일 앱은 무관 — 시연은 실기기 기준)
 /// - 10분 캐시로 API 호출 최소화 (일 쿼터 보호)
 class KakaoLocalService {
   KakaoLocalService(this._restApiKey);
 
   final String _restApiKey;
+
+  static const _apiBaseUrl =
+      String.fromEnvironment('API_BASE_URL', defaultValue: '');
 
   /// 검색 중심 좌표 — 부산대 정문 인근.
   /// 상권 범위를 조정하고 싶으면 이 좌표/반경만 바꾸면 됨.
@@ -27,7 +30,8 @@ class KakaoLocalService {
 
   /// 반경 내 음식점 — 거리순. 실패 시 이전 캐시 또는 빈 목록 (AI는 학식만으로 답함).
   Future<List<NearbyPlace>> nearbyRestaurants() async {
-    if (kIsWeb || _restApiKey.isEmpty) return const [];
+    if (_restApiKey.isEmpty && !kIsWeb) return const [];
+    if (kIsWeb && _apiBaseUrl.isEmpty) return const [];
 
     final now = DateTime.now();
     if (_cache != null &&
@@ -37,14 +41,17 @@ class KakaoLocalService {
     }
 
     try {
-      final uri = Uri.parse(
-        'https://dapi.kakao.com/v2/local/search/category.json'
-        '?category_group_code=FD6' // 음식점
-        '&x=$_lng&y=$_lat&radius=$_radiusM&size=$_size&sort=distance',
-      );
+      // 웹은 CORS 때문에 백엔드 프록시 경유, 모바일은 카카오 직접 호출
+      final uri = kIsWeb
+          ? Uri.parse('$_apiBaseUrl/api/nearby')
+          : Uri.parse(
+              'https://dapi.kakao.com/v2/local/search/category.json'
+              '?category_group_code=FD6' // 음식점
+              '&x=$_lng&y=$_lat&radius=$_radiusM&size=$_size&sort=distance',
+            );
       final res = await http.get(
         uri,
-        headers: {'Authorization': 'KakaoAK $_restApiKey'},
+        headers: kIsWeb ? null : {'Authorization': 'KakaoAK $_restApiKey'},
       ).timeout(const Duration(seconds: 8));
 
       if (res.statusCode >= 400) {
