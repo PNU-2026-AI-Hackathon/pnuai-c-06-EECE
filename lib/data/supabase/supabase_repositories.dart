@@ -221,14 +221,32 @@ class SupabaseTicketRepository implements TicketRepository {
     };
     final menuRows = await _client.from(_tMenus).select().eq('menu_date', _today());
 
-    // 대기번호는 같은 라인 내 status='paid' 티켓을 paid_at 순으로 정렬한 순번으로 계산.
-    final paidTickets = await _client.from(_tTickets).select().eq('status', 'paid');
-    paidTickets.sort((a, b) =>
-        (a['paid_at']?.toString() ?? '').compareTo(b['paid_at']?.toString() ?? ''));
-    final queueByLine = <String, List<String>>{};
-    for (final t in paidTickets) {
+    // ── 고정 대기번호 (은행 번호표 방식) ─────────────────────
+    // 오늘 그 라인에서 발급된 순서(paid_at)로 번호를 확정하고, 앞사람이
+    // 빠져도(호출/사용완료) 번호는 유지한다. 줄어드는 것은 aheadCount뿐.
+    // (예전엔 남은 paid 중 순위로 재계산 → 한 명이 3장 사면 전부 "1번"이 되는 혼란)
+    final allTickets = await _client.from(_tTickets).select();
+    final now = DateTime.now();
+    bool isToday(DateTime d) =>
+        d.year == now.year && d.month == now.month && d.day == now.day;
+
+    DateTime paidLocal(Map<String, dynamic> t) =>
+        (DateTime.tryParse(t['paid_at']?.toString() ?? '') ??
+                DateTime.fromMillisecondsSinceEpoch(0))
+            .toLocal();
+
+    final todayByLine = <String, List<Map<String, dynamic>>>{};
+    for (final t in allTickets) {
+      if (!isToday(paidLocal(t))) continue;
       final lineId = t['dining_line_id']?.toString() ?? '';
-      (queueByLine[lineId] ??= []).add(t['id'].toString());
+      (todayByLine[lineId] ??= []).add(t);
+    }
+    final stableNo = <String, int>{}; // ticketId → 고정 번호
+    for (final list in todayByLine.values) {
+      list.sort((a, b) => paidLocal(a).compareTo(paidLocal(b)));
+      for (var i = 0; i < list.length; i++) {
+        stableNo[list[i]['id'].toString()] = i + 1;
+      }
     }
 
     return rows.map((t) {
@@ -243,8 +261,15 @@ class SupabaseTicketRepository implements TicketRepository {
           break;
         }
       }
-      final queue = queueByLine[lineId] ?? const <String>[];
-      final rank = queue.indexOf(id); // -1이면 paid 상태 아님(used/expired)
+
+      final myPaidAt = paidLocal(t);
+      // 내 앞 대기 = 같은 라인에서 나보다 먼저 산 "아직 paid"인 티켓 수
+      final aheadCount = t['status'] == 'paid'
+          ? (todayByLine[lineId] ?? const [])
+              .where((x) =>
+                  x['status'] == 'paid' && paidLocal(x).isBefore(myPaidAt))
+              .length
+          : 0;
 
       return MealTicket(
         id: id,
@@ -252,13 +277,10 @@ class SupabaseTicketRepository implements TicketRepository {
         lineName: (line?['name'] as String?) ?? '',
         menuName: menu != null ? SupabaseMappers.menuName(menu) : '',
         price: menu != null ? SupabaseMappers.menuPrice(menu) : 0,
-        queueNumber: rank >= 0 ? rank + 1 : 0,
-        aheadCount: rank >= 0 ? rank : 0,
+        queueNumber: stableNo[id] ?? 0, // 0 = 오늘 발급분 아님 → '—' 표시
+        aheadCount: aheadCount,
         status: SupabaseMappers.ticketStatus(t['status'] as String?),
-        // 서버는 UTC로 저장 → 표시 전 로컬(KST) 변환 필수
-        purchasedAt:
-            (DateTime.tryParse(t['paid_at']?.toString() ?? '') ?? DateTime.now())
-                .toLocal(),
+        purchasedAt: myPaidAt, // UTC → KST 변환됨
         qrToken: t['qr_token']?.toString(),
       );
     }).toList();

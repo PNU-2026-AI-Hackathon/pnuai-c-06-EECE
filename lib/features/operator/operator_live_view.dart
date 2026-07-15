@@ -315,10 +315,18 @@ class _OperatorLiveViewState extends ConsumerState<OperatorLiveView> {
                     child: SizedBox(
                       height: 52,
                       child: OutlinedButton(
-                        onPressed: (queue.waiting.isEmpty || _busy || _autoMode)
+                        // 호출된 학생이 있으면 그 사람 먼저 — 건너뛰기 방지
+                        onPressed: (queue.waiting.isEmpty ||
+                                queue.called.isNotEmpty ||
+                                _busy ||
+                                _autoMode)
                             ? null
                             : () => _verifyHead(queue),
-                        child: const Text('맨 앞 처리'),
+                        child: Text(
+                          queue.waiting.isEmpty
+                              ? '맨 앞 처리'
+                              : '${queue.waiting.first.queueNo}번 처리',
+                        ),
                       ),
                     ),
                   ),
@@ -331,7 +339,10 @@ class _OperatorLiveViewState extends ConsumerState<OperatorLiveView> {
                   height: 48,
                   child: FilledButton.tonalIcon(
                     icon: const Icon(Icons.restaurant, size: 20),
-                    label: Text('호출자 도착 · 배식 완료 (${queue.called.length}명 이동 중)'),
+                    label: Text(
+                      '${queue.called.map((t) => t.queueNo).join(', ')}번 호출됨 '
+                      '— 도착 확인 · 배식 완료',
+                    ),
                     onPressed:
                         (_busy || _autoMode) ? null : () => _verifyCalled(queue),
                   ),
@@ -372,7 +383,7 @@ class _OperatorLiveViewState extends ConsumerState<OperatorLiveView> {
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          for (final (i, _) in queue.waiting.take(20).indexed)
+                          for (final (i, t) in queue.waiting.take(20).indexed)
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 12,
@@ -389,7 +400,8 @@ class _OperatorLiveViewState extends ConsumerState<OperatorLiveView> {
                                     : null,
                               ),
                               child: Text(
-                                i == 0 ? '${i + 1} 다음' : '${i + 1}',
+                                // 고정 번호표 — 학생 앱 대기번호와 동일
+                                i == 0 ? '${t.queueNo} 다음' : '${t.queueNo}',
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w800,
