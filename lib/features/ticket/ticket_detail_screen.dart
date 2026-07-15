@@ -77,7 +77,13 @@ class _TicketBody extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _BigMetric(label: '대기번호', value: '${ticket.queueNumber}'),
+                    _BigMetric(
+                      label: '대기번호',
+                      // 호출/사용완료는 대기 순번이 없음 → '—'
+                      value: ticket.queueNumber > 0
+                          ? '${ticket.queueNumber}'
+                          : '—',
+                    ),
                     if (ticket.status == TicketStatus.waiting) ...[
                       Container(
                         width: 1,

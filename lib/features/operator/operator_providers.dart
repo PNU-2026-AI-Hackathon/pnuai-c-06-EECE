@@ -72,7 +72,8 @@ final operatorQueuesProvider =
         entry.key: OperatorLineQueue(
           waiting: entry.value.where((t) => t.status == 'paid').toList()
             ..sort((a, b) => a.paidAt.compareTo(b.paidAt)),
-          called: entry.value.where((t) => t.status == 'called').toList(),
+          called: entry.value.where((t) => t.status == 'called').toList()
+            ..sort((a, b) => a.paidAt.compareTo(b.paidAt)),
           servedToday: entry.value
               .where((t) => t.status == 'used' && isToday(t.paidAt))
               .length,

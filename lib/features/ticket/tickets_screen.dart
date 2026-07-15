@@ -142,7 +142,10 @@ class _TicketCard extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              '${ticket.queueNumber}',
+                              // 호출/사용완료는 대기 순번이 없음 → '—'
+                              ticket.queueNumber > 0
+                                  ? '${ticket.queueNumber}'
+                                  : '—',
                               style: const TextStyle(
                                 fontSize: 26,
                                 fontWeight: FontWeight.w900,

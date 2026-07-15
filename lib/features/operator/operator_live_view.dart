@@ -79,6 +79,20 @@ class _OperatorLiveViewState extends ConsumerState<OperatorLiveView> {
     await _verifyToken(token);
   }
 
+  /// 호출된 학생이 배식대 도착 → QR 확인 = 배식 완료 처리
+  /// (완료되면 서버가 그다음 대기자를 자동 호출 — 체인이 이어짐)
+  Future<void> _verifyCalled(OperatorLineQueue queue) async {
+    if (queue.called.isEmpty || _busy) return;
+    final token = queue.called.first.qrToken;
+    if (token == null || token.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('호출된 식권에 qr_token이 없습니다 — 백엔드 확인 필요')),
+      );
+      return;
+    }
+    await _verifyToken(token);
+  }
+
   /// 대기열 맨 앞 티켓 verify — 카메라 없이도 같은 서버 동작을 하는 시연 버튼
   Future<void> _verifyHead(OperatorLineQueue queue, {bool silent = false}) async {
     if (queue.waiting.isEmpty || _busy) return;
@@ -310,6 +324,19 @@ class _OperatorLiveViewState extends ConsumerState<OperatorLiveView> {
                   ),
                 ],
               ),
+              // ── 호출된 학생 도착 처리 (호출됨 → 사용완료 → 다음 자동 호출) ──
+              if (queue.called.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 48,
+                  child: FilledButton.tonalIcon(
+                    icon: const Icon(Icons.restaurant, size: 20),
+                    label: Text('호출자 도착 · 배식 완료 (${queue.called.length}명 이동 중)'),
+                    onPressed:
+                        (_busy || _autoMode) ? null : () => _verifyCalled(queue),
+                  ),
+                ),
+              ],
               const SizedBox(height: 20),
               // ── 대기열 (실제 티켓, 학생 대기번호와 동일 순번) ──
               const Text(
