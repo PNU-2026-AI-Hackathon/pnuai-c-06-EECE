@@ -54,12 +54,25 @@ class GeminiAiRepository implements AiRepository {
       // null = 검색 불가(웹 프록시 미지원 등) → 섹션 생략, "없다" 단정 방지
       final keyword = _extractFoodKeyword(question);
       if (keyword != null) {
-        final found = await _local.searchKeyword(keyword);
+        var found = await _local.searchKeyword(keyword);
+        var label = keyword;
+        // 여러 단어 키워드가 0건이면 가장 긴 단어 하나로 재검색
+        // (예: "코하루 어디있어" → 0건 → "코하루"로 재시도하면 잡힘)
+        if (found != null && found.isEmpty && keyword.contains(' ')) {
+          final longest = keyword
+              .split(' ')
+              .reduce((a, b) => a.length >= b.length ? a : b);
+          final retry = await _local.searchKeyword(longest);
+          if (retry != null && retry.isNotEmpty) {
+            found = retry;
+            label = longest;
+          }
+        }
         if (found != null) {
           nearbyContext += found.isNotEmpty
-              ? '\n\n["$keyword" 검색 결과 — 부산대 반경 1.2km]\n'
+              ? '\n\n["$label" 검색 결과 — 부산대 반경 1.2km]\n'
                   '${found.map((p) => p.contextLine).join('\n')}'
-              : '\n\n["$keyword" 검색 결과: 반경 1.2km 내 없음]';
+              : '\n\n["$label" 키워드 검색은 0건 — 단, 위 목록에 있으면 그 정보는 유효함]';
         }
       }
     }
@@ -80,10 +93,12 @@ ${hasNearby ? '''
 1. 기본은 학생식당(금정회관) — 대기 인원·예상 시간을 근거로 추천
 2. 학식 메뉴가 취향과 안 맞거나 모두 혼잡하거나 사용자가 다른 음식을 원하면,
    [부산대 주변 음식점] 목록에 있는 곳"만" 골라 이름·종류·도보 시간을 알려줘라
-3. ["..." 검색 결과] 섹션이 있으면 그 목록을 최우선 근거로 써라.
-   "검색 결과: 없음"이면 반경 내에 없다고 솔직히 말해라
-4. 주변 음식점의 메뉴·가격·대기 시간은 데이터에 없다 — 언급하지 마라
-   (종류와 도보 시간까지만)''' : '''
+3. ["..." 검색 결과] 섹션이 있으면 그 목록을 최우선 근거로 써라
+4. 키워드 검색이 0건이어도 [부산대 주변 음식점] 목록이나 이전 대화에서 언급한
+   가게는 여전히 실존한다 — 방금 소개한 가게를 "없다"고 번복하지 마라.
+   어느 목록에도 없을 때만 "찾지 못했다"고 말해라
+5. 주변 음식점의 메뉴·가격·대기 시간은 데이터에 없다 — 솔직히 모른다고 하고,
+   가게 이름·종류·도보 시간까지만 알려줘라''' : '''
 [제한]
 - 지금은 주변 음식점 데이터가 없다 — 학생식당(금정회관)만 추천해라.
 - 학식 외 음식을 원하면 "지금은 학식 정보만 갖고 있어요"라고 솔직히 말하고,
@@ -168,8 +183,8 @@ ${hasNearby ? '''
           '(Gemini ${res.statusCode})');
     }
 
-    final body = jsonDecode(utf8.decode(res.bodyBytes));
-    final text = body['candidates']?[0]?['content']?['parts']?[0]?['text']
+    final resBody = jsonDecode(utf8.decode(res.bodyBytes));
+    final text = resBody['candidates']?[0]?['content']?['parts']?[0]?['text']
         as String?;
     if (text == null || text.isEmpty) {
       throw Exception('Gemini 응답이 비어 있습니다.');
@@ -189,6 +204,8 @@ ${hasNearby ? '''
       '있어', '있나', '있나요', '있는', '알려줘', '알려줘요', '알려', '말해줘',
       '말해', '추천', '추천해줘', '추천해', '해줘', '해줘요', '해봐',
       '검색해봐', '검색해줘', '검색', '찾아줘', '찾아봐', '찾아', '맛집',
+      '메뉴', '정보', '위치', '어디있어', '어디야', '어딨어', '가는법',
+      '가격', '얼마', '얼마야', '얼마임',
       '거', '게', '것', '곳', '데',
     };
     final tokens = question
