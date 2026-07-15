@@ -49,6 +49,18 @@ class GeminiAiRepository implements AiRepository {
         nearbyContext = '\n\n[부산대 주변 음식점 — 거리순, 대기 정보 없음]\n'
             '${places.map((p) => p.contextLine).join('\n')}';
       }
+      // 질문에 특정 음식/가게 키워드가 있으면 반경 내 키워드 검색을 추가
+      // (예: "라멘집" — 위 45곳 목록에 없어도 카카오에서 직접 찾아줌)
+      final keyword = _extractFoodKeyword(question);
+      if (keyword != null) {
+        final found = await _local.searchKeyword(keyword);
+        if (found.isNotEmpty) {
+          nearbyContext += '\n\n["$keyword" 검색 결과 — 부산대 반경 1.2km]\n'
+              '${found.map((p) => p.contextLine).join('\n')}';
+        } else {
+          nearbyContext += '\n\n["$keyword" 검색 결과: 반경 1.2km 내 없음]';
+        }
+      }
     }
 
     // 역할·규칙은 systemInstruction으로 분리 (대화 턴과 섞이지 않게).
@@ -67,7 +79,9 @@ ${hasNearby ? '''
 1. 기본은 학생식당(금정회관) — 대기 인원·예상 시간을 근거로 추천
 2. 학식 메뉴가 취향과 안 맞거나 모두 혼잡하거나 사용자가 다른 음식을 원하면,
    [부산대 주변 음식점] 목록에 있는 곳"만" 골라 이름·종류·도보 시간을 알려줘라
-3. 주변 음식점의 메뉴·가격·대기 시간은 데이터에 없다 — 언급하지 마라
+3. ["..." 검색 결과] 섹션이 있으면 그 목록을 최우선 근거로 써라.
+   "검색 결과: 없음"이면 반경 내에 없다고 솔직히 말해라
+4. 주변 음식점의 메뉴·가격·대기 시간은 데이터에 없다 — 언급하지 마라
    (종류와 도보 시간까지만)''' : '''
 [제한]
 - 지금은 주변 음식점 데이터가 없다 — 학생식당(금정회관)만 추천해라.
@@ -146,6 +160,29 @@ ${hasNearby ? '''
     }
 
     return _parseRecommendation(text);
+  }
+
+  /// 질문에서 음식/가게 키워드 추출 — 불용어를 걷어내고 남는 말을 검색어로.
+  /// (예: "주변 라멘집 모두 알려줘" → "라멘집", "매운 게 땡겨" → null에 가까운 일반어)
+  String? _extractFoodKeyword(String question) {
+    const stop = {
+      '주변', '근처', '부산대', '캠퍼스', '학교', '정문', '앞', '주위',
+      '모두', '전부', '다', '좀', '그럼', '다른', '또', '더',
+      '오늘', '지금', '점심', '저녁', '뭐', '어디', '먹을', '먹고', '싶어',
+      '싶은데', '땡겨', '땡기는', '당겨', '먹을까', '갈까', '있어', '있나',
+      '있나요', '알려줘', '알려줘요', '추천', '추천해줘', '추천해', '해줘', '해줘요',
+      '거', '게', '것', '곳',
+    };
+    final tokens = question
+        .replaceAll(RegExp(r'[?!.,~]'), ' ')
+        .split(RegExp(r'\s+'))
+        .where((t) => t.isNotEmpty && !stop.contains(t))
+        .toList();
+    if (tokens.isEmpty) return null;
+    final keyword = tokens.join(' ');
+    // 너무 짧거나(1글자) 문장 수준으로 길면 검색어로 부적합
+    if (keyword.length < 2 || keyword.length > 12) return null;
+    return keyword;
   }
 
   /// JSON 파싱 — 코드펜스 제거, 중괄호 범위 추출, 잘린 응답 복구까지 시도.

@@ -56,6 +56,34 @@ export async function GET() {
 - Vercel 환경변수 `KAKAO_REST_KEY` = 카카오 로그인에 쓰는 REST API 키
 - 덤: 이 방식이 정착되면 모바일도 프록시로 전환해 키를 서버로 숨길 예정
 
+**🆕 배포 확인 완료 (2026-07-15) — 확장 요청 2가지** (프론트는 이미 이 파라미터로 호출 중):
+
+1. `?page=N` 지원 — 카카오는 페이지당 15곳뿐이라 가까운 순 15곳이 전부
+   정문 앞 60m로 채워짐. page를 카카오에 그대로 전달해주면 45곳 확보 가능.
+2. `?q=키워드` 지원 — 있으면 category 검색 대신 keyword 검색으로:
+   `https://dapi.kakao.com/v2/local/search/keyword.json?query={q}&category_group_code=FD6&x=129.0843&y=35.2318&radius=1200&size=15&sort=distance`
+3. radius를 800 → **1200**으로 (캠퍼스~부산대역 상권 커버)
+
+```ts
+// app/api/nearby/route.ts (수정판)
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const q = searchParams.get('q');
+  const page = searchParams.get('page') ?? '1';
+  const base = q
+    ? `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(q)}`
+    : 'https://dapi.kakao.com/v2/local/search/category.json?';
+  const url = `${base}&category_group_code=FD6&x=129.0843&y=35.2318&radius=1200&size=15&page=${page}&sort=distance`;
+  const res = await fetch(url, {
+    headers: { Authorization: `KakaoAK ${process.env.KAKAO_REST_KEY}` },
+    next: { revalidate: 600 },
+  });
+  return NextResponse.json(await res.json(), {
+    headers: { 'Access-Control-Allow-Origin': '*' },
+  });
+}
+```
+
 ### 5. 여유 시: 식단 수집 크론 (아래 2026-07-09 섹션 참고)
 
 ---
