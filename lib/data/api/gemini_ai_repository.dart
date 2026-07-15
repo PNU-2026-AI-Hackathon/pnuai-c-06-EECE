@@ -51,14 +51,15 @@ class GeminiAiRepository implements AiRepository {
       }
       // 질문에 특정 음식/가게 키워드가 있으면 반경 내 키워드 검색을 추가
       // (예: "라멘집" — 위 45곳 목록에 없어도 카카오에서 직접 찾아줌)
+      // null = 검색 불가(웹 프록시 미지원 등) → 섹션 생략, "없다" 단정 방지
       final keyword = _extractFoodKeyword(question);
       if (keyword != null) {
         final found = await _local.searchKeyword(keyword);
-        if (found.isNotEmpty) {
-          nearbyContext += '\n\n["$keyword" 검색 결과 — 부산대 반경 1.2km]\n'
-              '${found.map((p) => p.contextLine).join('\n')}';
-        } else {
-          nearbyContext += '\n\n["$keyword" 검색 결과: 반경 1.2km 내 없음]';
+        if (found != null) {
+          nearbyContext += found.isNotEmpty
+              ? '\n\n["$keyword" 검색 결과 — 부산대 반경 1.2km]\n'
+                  '${found.map((p) => p.contextLine).join('\n')}'
+              : '\n\n["$keyword" 검색 결과: 반경 1.2km 내 없음]';
         }
       }
     }

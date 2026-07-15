@@ -32,7 +32,7 @@ class KakaoLocalService {
 
   List<NearbyPlace>? _cache;
   DateTime? _cachedAt;
-  final _keywordCache = <String, List<NearbyPlace>>{};
+  final _keywordCache = <String, List<NearbyPlace>?>{};
 
   bool get _unavailable =>
       (kIsWeb && _apiBaseUrl.isEmpty) || (!kIsWeb && _restApiKey.isEmpty);
@@ -84,8 +84,11 @@ class KakaoLocalService {
 
   /// 키워드 검색 — 질문에서 뽑은 음식/가게 키워드로 반경 내 검색.
   /// ("라멘집" 처럼 특정 종류를 물으면 45곳 목록에 없어도 찾아준다)
-  Future<List<NearbyPlace>> searchKeyword(String keyword) async {
-    if (_unavailable || keyword.trim().isEmpty) return const [];
+  ///
+  /// 반환 규약: `null` = 검색 자체가 불가(프록시 미지원/에러 — "없다"고 단정 금지),
+  ///           `[]` = 진짜로 반경 내에 없음.
+  Future<List<NearbyPlace>?> searchKeyword(String keyword) async {
+    if (_unavailable || keyword.trim().isEmpty) return null;
     final key = keyword.trim();
     final cached = _keywordCache[key];
     if (cached != null) return cached;
@@ -100,13 +103,23 @@ class KakaoLocalService {
               '&x=$_lng&y=$_lat&radius=$_radiusM'
               '&size=$_pageSize&sort=distance',
             );
-      final result = _dedupe(_parseDocs(await _get(uri)));
+      final body = await _get(uri);
+
+      // 웹 프록시가 q를 아직 지원 안 하면 category 결과를 그대로 돌려준다.
+      // keyword 검색 응답은 meta.same_name이 객체, category 검색은 null →
+      // null이면 "검색이 수행되지 않음"으로 판단하고 섹션을 만들지 않는다.
+      if (kIsWeb && body['meta']?['same_name'] == null) {
+        debugPrint('[KakaoLocal] 웹 프록시가 q 미지원 → 키워드 검색 생략');
+        return null;
+      }
+
+      final result = _dedupe(_parseDocs(body));
       _keywordCache[key] = result;
       debugPrint('[KakaoLocal] 키워드 "$key" 검색: ${result.length}곳');
       return result;
     } catch (e) {
       debugPrint('[KakaoLocal] 키워드 "$key" 검색 실패: $e');
-      return const [];
+      return null;
     }
   }
 

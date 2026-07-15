@@ -57,8 +57,10 @@ final operatorQueuesProvider =
         id: t['id'].toString(),
         lineId: t['dining_line_id']?.toString() ?? '',
         status: (t['status'] as String?) ?? '',
-        paidAt: DateTime.tryParse(t['paid_at']?.toString() ?? '') ??
-            DateTime.fromMillisecondsSinceEpoch(0),
+        // UTC → 로컬(KST) 변환 (오늘 배식 집계·정렬 기준)
+        paidAt: (DateTime.tryParse(t['paid_at']?.toString() ?? '') ??
+                DateTime.fromMillisecondsSinceEpoch(0))
+            .toLocal(),
         qrToken: t['qr_token']?.toString(),
       );
       if (ticket.lineId.isEmpty) continue;

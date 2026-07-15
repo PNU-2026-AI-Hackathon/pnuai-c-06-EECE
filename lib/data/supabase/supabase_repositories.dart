@@ -158,7 +158,9 @@ class SupabaseRestaurantRepository implements RestaurantRepository {
         number: myQueueNo,
         teamsAhead: teamsAhead,
         status: SupabaseMappers.waitingStatus(w['status'] as String?),
-        joinedAt: DateTime.tryParse(w['created_at']?.toString() ?? '') ?? DateTime.now(),
+        joinedAt:
+            (DateTime.tryParse(w['created_at']?.toString() ?? '') ?? DateTime.now())
+                .toLocal(),
       );
     }).toList();
   }
@@ -250,8 +252,10 @@ class SupabaseTicketRepository implements TicketRepository {
         queueNumber: rank >= 0 ? rank + 1 : 0,
         aheadCount: rank >= 0 ? rank : 0,
         status: SupabaseMappers.ticketStatus(t['status'] as String?),
+        // 서버는 UTC로 저장 → 표시 전 로컬(KST) 변환 필수
         purchasedAt:
-            DateTime.tryParse(t['paid_at']?.toString() ?? '') ?? DateTime.now(),
+            (DateTime.tryParse(t['paid_at']?.toString() ?? '') ?? DateTime.now())
+                .toLocal(),
         qrToken: t['qr_token']?.toString(),
       );
     }).toList();
