@@ -87,6 +87,12 @@ class ApiClient {
     await _post('/api/tickets/verify', {'qrToken': qrToken});
   }
 
+  /// POST /api/tickets/cancel  {ticketId} → {ok}
+  /// 호출 전(paid) 식권만 취소 가능 — 검증은 서버가 (본인 소유·상태 확인)
+  Future<void> cancelTicket(String ticketId) async {
+    await _post('/api/tickets/cancel', {'ticketId': ticketId});
+  }
+
   /// POST /api/waitings  {restaurantId} → {waitingId, queueNo}
   Future<RemoteWaiting> joinWaiting(String restaurantId) async {
     final data = await _post('/api/waitings', {'restaurantId': restaurantId});

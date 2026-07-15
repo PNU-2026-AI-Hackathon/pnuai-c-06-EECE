@@ -43,6 +43,9 @@ class MockTicketRepository implements TicketRepository {
 
   @override
   Future<void> checkIn(String ticketId) async => _ds.checkIn(ticketId);
+
+  @override
+  Future<void> cancelTicket(String ticketId) async => _ds.cancelTicket(ticketId);
 }
 
 class MockRestaurantRepository implements RestaurantRepository {

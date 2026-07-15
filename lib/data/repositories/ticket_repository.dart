@@ -14,4 +14,7 @@ abstract class TicketRepository {
 
   /// 배식대 QR 스캔 체크인 → 대기열에서 제거
   Future<void> checkIn(String ticketId);
+
+  /// 실수 구매 취소 — 호출 전(대기중)만 가능, 대기열에서 자동 제거
+  Future<void> cancelTicket(String ticketId);
 }

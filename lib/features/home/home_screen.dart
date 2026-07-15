@@ -720,6 +720,13 @@ Future<void> showPurchaseSheet(
       );
     return;
   }
+  // 실수 방지: 같은 라인에 이미 대기중/호출된 식권이 있으면 경고 배너 표시
+  final duplicates = (ref.read(myTicketsProvider).valueOrNull ?? const [])
+      .where((t) =>
+          t.lineId == line.id &&
+          (t.status == TicketStatus.waiting || t.status == TicketStatus.called))
+      .toList();
+
   final confirmed = await showModalBottomSheet<bool>(
     context: context,
     shape: const RoundedRectangleBorder(
@@ -745,6 +752,39 @@ Future<void> showPurchaseSheet(
             style: const TextStyle(fontSize: 14, color: AppColors.textStrong),
           ),
           const SizedBox(height: 12),
+          if (duplicates.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.crowded.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.crowded.withValues(alpha: 0.35),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline,
+                      color: AppColors.crowded, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '이미 이 라인 식권이 ${duplicates.length}장 있어요 '
+                      '(대기번호 ${duplicates.first.queueNumber}번).\n'
+                      '친구 것 등 추가 구매가 맞는지 확인해 주세요.',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.crowded,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -771,7 +811,9 @@ Future<void> showPurchaseSheet(
           const SizedBox(height: 16),
           FilledButton(
             onPressed: () => Navigator.pop(sheetContext, true),
-            child: const Text('구매하기 (Mock 결제)'),
+            child: Text(
+              duplicates.isNotEmpty ? '한 장 더 구매하기 (Mock 결제)' : '구매하기 (Mock 결제)',
+            ),
           ),
         ],
       ),

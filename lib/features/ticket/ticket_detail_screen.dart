@@ -129,9 +129,65 @@ class _TicketBody extends ConsumerWidget {
               onPressed: () =>
                   ref.read(ticketRepositoryProvider).checkIn(ticket.id),
             ),
+          // ── 실수 구매 취소 (호출 전만) ──
+          if (ticket.status == TicketStatus.waiting) ...[
+            const SizedBox(height: 4),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: AppColors.textWeak),
+              onPressed: () => _confirmCancel(context, ref),
+              child: const Text(
+                '잘못 구매하셨나요? 구매 취소',
+                style: TextStyle(fontSize: 13),
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  /// 취소 확인 → 실행. 호출 전(대기중)만 가능 — 대기열에서 자동 제거됨.
+  Future<void> _confirmCancel(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('식권을 취소할까요?'),
+        content: Text(
+          '${ticket.lineName} · ${won(ticket.price)}\n'
+          '대기열에서 제거되며 되돌릴 수 없어요.',
+          style: const TextStyle(fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('유지하기'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.crowded),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('취소하기'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      await ref.read(ticketRepositoryProvider).cancelTicket(ticket.id);
+      if (context.mounted) {
+        Navigator.of(context).pop(); // 상세 화면 닫기
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(const SnackBar(content: Text('식권이 취소되었습니다.')));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('취소 실패: $e', maxLines: 3)),
+        );
+      }
+    }
   }
 }
 

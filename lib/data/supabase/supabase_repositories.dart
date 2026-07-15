@@ -175,6 +175,9 @@ class SupabaseTicketRepository implements TicketRepository {
   Future<MealTicket> purchaseTicket(String lineId) => _api.purchaseTicket(lineId);
 
   @override
+  Future<void> cancelTicket(String ticketId) => _api.cancelTicket(ticketId);
+
+  @override
   Future<void> checkIn(String ticketId) async {
     // verify API는 qrToken 기준 — 티켓 id로 qr_token을 조회해 전달
     final row = await _client

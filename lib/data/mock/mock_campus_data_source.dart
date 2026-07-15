@@ -283,6 +283,21 @@ class MockCampusDataSource {
     _emitAll();
   }
 
+  /// 실수 구매 취소 — 호출 전(대기중)만 가능, 대기열에서 제거
+  void cancelTicket(String ticketId) {
+    final t = _tickets[ticketId];
+    if (t == null || t.status != TicketStatus.waiting) {
+      throw StateError('호출 전 식권만 취소할 수 있어요.');
+    }
+    _tickets.remove(ticketId);
+    final line = _lines[t.lineId];
+    if (line != null) {
+      _lines[t.lineId] =
+          line.copyWith(waitingCount: max(0, line.waitingCount - 1));
+    }
+    _emitAll();
+  }
+
   /// 원격 웨이팅 등록
   RemoteWaiting joinWaiting(String restaurantId) {
     final r = _restaurants[restaurantId];

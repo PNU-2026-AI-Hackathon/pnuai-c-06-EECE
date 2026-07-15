@@ -84,7 +84,18 @@ export async function GET(req: Request) {
 }
 ```
 
-### 5. 여유 시: 식단 수집 크론 (아래 2026-07-09 섹션 참고)
+### 5. 🆕 식권 취소 API `POST /api/tickets/cancel` (2026-07-15 추가)
+
+실수 구매 대응 — 프론트는 UI·호출 코드 구현 완료 (식권 상세의 "구매 취소" 버튼).
+
+- 요청: `{ticketId}` (Authorization: Bearer — 기존과 동일)
+- 서버 검증: ① 본인 소유 티켓인지 ② `status='paid'`(호출 전)인지 — 아니면 4xx
+- 처리: `status='canceled'`로 업데이트 (또는 행 삭제 — canceled 권장, 이력 보존)
+  ※ `tickets.status` 허용값에 `'canceled'` 추가 필요
+- 대기번호는 paid 순번으로 계산되므로 취소 시 뒷사람 번호가 자동으로 당겨짐 (추가 작업 없음)
+- 정책: called/used 상태는 취소 불가 (실서비스에선 환불 규정과 연결 — 생협 협의 항목)
+
+### 6. 여유 시: 식단 수집 크론 (아래 2026-07-09 섹션 참고)
 
 ---
 
