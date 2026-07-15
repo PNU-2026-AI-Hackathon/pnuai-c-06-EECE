@@ -89,11 +89,12 @@ class SupabaseMappers {
     );
   }
 
-  // ── tickets → TicketStatus (확정 컬럼: status = 'paid'|'used'|'expired') ──
-  // 앱 모델의 TicketStatus.called(직원이 호출)에 대응하는 DB 상태가 없음 → 발생 안 함.
+  // ── tickets → TicketStatus (status = 'paid'|'called'|'used'|'expired') ──
+  // 'called' = 배식대 호출됨 (2026-07-15 백엔드 verify→called 전이 배포로 활성화).
   // 'expired'는 앱에 별도 상태가 없어 'used'(비활성)로 합쳐서 표시.
   static TicketStatus ticketStatus(String? dbStatus) => switch (dbStatus) {
         'paid' => TicketStatus.waiting,
+        'called' => TicketStatus.called,
         _ => TicketStatus.used, // 'used' | 'expired' | null
       };
 
