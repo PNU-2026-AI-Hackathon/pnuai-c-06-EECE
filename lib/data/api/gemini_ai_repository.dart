@@ -125,32 +125,47 @@ ${hasNearby ? '''
           '[실시간 대기 현황]\n$context$nearbyContext\n──────────────');
     }
 
-    final res = await http
-        .post(
-          Uri.parse('$_endpoint/$_model:generateContent?key=$_apiKey'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'systemInstruction': {
-              'parts': [
-                {'text': systemPrompt}
-              ]
-            },
-            'contents': turns,
-            'generationConfig': {
-              'responseMimeType': 'application/json',
-              'temperature': 0.7,
-              // thinking 모델이라 사고 토큰이 출력 예산을 소진하면 JSON이 잘림
-              // → 사고 비활성화 + 여유 있는 출력 한도
-              'maxOutputTokens': 1024,
-              'thinkingConfig': {'thinkingBudget': 0},
-            },
-          }),
-        )
-        .timeout(const Duration(seconds: 20));
+    final body = jsonEncode({
+      'systemInstruction': {
+        'parts': [
+          {'text': systemPrompt}
+        ]
+      },
+      'contents': turns,
+      'generationConfig': {
+        'responseMimeType': 'application/json',
+        'temperature': 0.7,
+        // thinking 모델이라 사고 토큰이 출력 예산을 소진하면 JSON이 잘림
+        // → 사고 비활성화 + 여유 있는 출력 한도
+        'maxOutputTokens': 1024,
+        'thinkingConfig': {'thinkingBudget': 0},
+      },
+    });
 
+    // 무료 티어 특성상 일시 혼잡(503)·쿼터(429)가 흔함 → 1회 재시도 후
+    // 그래도 실패하면 원문 JSON 대신 사람이 읽을 메시지로 던진다.
+    http.Response res;
+    for (var attempt = 1; ; attempt++) {
+      res = await http
+          .post(
+            Uri.parse('$_endpoint/$_model:generateContent?key=$_apiKey'),
+            headers: {'Content-Type': 'application/json'},
+            body: body,
+          )
+          .timeout(const Duration(seconds: 20));
+
+      final retryable = res.statusCode == 503 || res.statusCode == 429;
+      if (!retryable || attempt >= 2) break;
+      await Future<void>.delayed(const Duration(seconds: 2));
+    }
+
+    if (res.statusCode == 503 || res.statusCode == 429) {
+      throw Exception('지금 AI 사용량이 몰려 잠시 응답이 어려워요.\n'
+          '몇 초 뒤 다시 시도해 주세요. (Gemini ${res.statusCode})');
+    }
     if (res.statusCode >= 400) {
-      throw Exception('Gemini API 오류 (${res.statusCode}): '
-          '${utf8.decode(res.bodyBytes)}');
+      throw Exception('AI 응답에 실패했어요. 잠시 후 다시 시도해 주세요. '
+          '(Gemini ${res.statusCode})');
     }
 
     final body = jsonDecode(utf8.decode(res.bodyBytes));
@@ -167,17 +182,22 @@ ${hasNearby ? '''
   /// (예: "주변 라멘집 모두 알려줘" → "라멘집", "매운 게 땡겨" → null에 가까운 일반어)
   String? _extractFoodKeyword(String question) {
     const stop = {
-      '주변', '근처', '부산대', '캠퍼스', '학교', '정문', '앞', '주위',
-      '모두', '전부', '다', '좀', '그럼', '다른', '또', '더',
-      '오늘', '지금', '점심', '저녁', '뭐', '어디', '먹을', '먹고', '싶어',
-      '싶은데', '땡겨', '땡기는', '당겨', '먹을까', '갈까', '있어', '있나',
-      '있나요', '알려줘', '알려줘요', '추천', '추천해줘', '추천해', '해줘', '해줘요',
-      '거', '게', '것', '곳',
+      '주변', '주별', '근처', '부산대', '캠퍼스', '학교', '정문', '앞', '주위',
+      '모두', '전부', '다', '좀', '그럼', '다른', '또', '더', '제일', '가장',
+      '오늘', '지금', '점심', '저녁', '뭐', '뭔가', '어디', '먹을', '먹고',
+      '싶어', '싶은데', '땡겨', '땡기는', '당겨', '먹을까', '갈까', '갈만한',
+      '있어', '있나', '있나요', '있는', '알려줘', '알려줘요', '알려', '말해줘',
+      '말해', '추천', '추천해줘', '추천해', '해줘', '해줘요', '해봐',
+      '검색해봐', '검색해줘', '검색', '찾아줘', '찾아봐', '찾아', '맛집',
+      '거', '게', '것', '곳', '데',
     };
     final tokens = question
         .replaceAll(RegExp(r'[?!.,~]'), ' ')
         .split(RegExp(r'\s+'))
         .where((t) => t.isNotEmpty && !stop.contains(t))
+        // 카카오는 "라멘집"보다 "라멘"이 상호 매칭이 잘 됨 → 접미사 '집' 제거
+        .map((t) =>
+            t.length >= 3 && t.endsWith('집') ? t.substring(0, t.length - 1) : t)
         .toList();
     if (tokens.isEmpty) return null;
     final keyword = tokens.join(' ');
