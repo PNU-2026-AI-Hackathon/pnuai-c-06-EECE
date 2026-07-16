@@ -106,24 +106,57 @@ class _OperatorLiveViewState extends ConsumerState<OperatorLiveView> {
     await _verifyToken(token, silent: silent);
   }
 
-  /// verify API 호출 공통부 — 성공 시 학생 앱에 Realtime 반영
+  /// verify API 호출 공통부 — 성공 시 학생 앱에 Realtime 반영.
+  /// QR은 라인 무관 통합 처리(서버가 토큰으로 라인 식별) — 태블릿 1대로 전 라인 커버.
+  /// 대신 어느 라인 식권인지 결과에 표시해, 다른 줄에 잘못 선 학생을 직원이 알아챌 수 있게 함.
   Future<void> _verifyToken(String token, {bool silent = false}) async {
     if (_busy) return;
     final messenger = ScaffoldMessenger.of(context);
+
+    // 스캔한 식권 식별 (라인·번호 표시용)
+    final queues = ref.read(operatorQueuesProvider).valueOrNull ??
+        const <String, OperatorLineQueue>{};
+    OperatorTicket? scanned;
+    for (final q in queues.values) {
+      for (final t in [...q.called, ...q.waiting]) {
+        if (t.qrToken == token) {
+          scanned = t;
+          break;
+        }
+      }
+      if (scanned != null) break;
+    }
+    String? scannedLineName;
+    if (scanned != null) {
+      final lines = ref.read(cafeteriaLinesProvider).valueOrNull ?? const [];
+      for (final l in lines) {
+        if (l.id == scanned.lineId) {
+          scannedLineName = l.name;
+          break;
+        }
+      }
+    }
+    final otherLine = scanned != null && scanned.lineId != _selectedLineId;
 
     setState(() => _busy = true);
     try {
       await ref.read(apiClientProvider).verifyTicket(token);
       if (!silent && mounted) {
+        final desc = scanned == null
+            ? ''
+            : ' — ${scannedLineName ?? '라인 미확인'} ${scanned.queueNo}번';
         messenger
           ..clearSnackBars()
           ..showSnackBar(
-            const SnackBar(
-              backgroundColor: AppColors.relaxed,
+            SnackBar(
+              backgroundColor:
+                  otherLine ? AppColors.accent : AppColors.relaxed,
               behavior: SnackBarBehavior.floating,
               content: Text(
-                '✅ 배식 완료 — 학생 앱에 실시간 반영됩니다.',
-                style: TextStyle(fontWeight: FontWeight.w800),
+                otherLine
+                    ? '⚠️ 다른 라인 식권입니다$desc · 배식 완료 처리됨'
+                    : '✅ 배식 완료$desc · 학생 앱에 실시간 반영',
+                style: const TextStyle(fontWeight: FontWeight.w800),
               ),
             ),
           );
