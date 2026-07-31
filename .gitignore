@@ -1,3 +1,28 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Platform (flutter create 재생성 가능하지만 커밋 권장 — 필요 시 제외 해제)
+# android/
+# ios/
+
+# 기타
+*.log
+.DS_Store
+
+# 로컬 시크릿 (--dart-define-from-file 용) — 커밋 금지
+env.local.json
+
+# --- Next.js 백엔드 ---
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
@@ -21,7 +46,6 @@
 /build
 
 # misc
-.DS_Store
 *.pem
 
 # debug

@@ -1,0 +1,539 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../app/providers.dart';
+import '../../app/theme.dart';
+import 'operator_providers.dart';
+import 'qr_scan_screen.dart';
+
+/// 운영자 대시보드 — 실서버 모드.
+///
+/// · tickets 테이블 Realtime 구독 → 라인별 실제 대기열 표시
+/// · "QR 스캔 · 배식 완료" = 대기열 맨 앞 티켓의 qr_token으로 verify API 호출
+///   (카메라 스캔(mobile_scanner) 연동 전까지 동일 효과의 시연 버튼)
+/// · 자동 운영 = 일정 간격으로 맨 앞 티켓을 자동 verify (배식 속도 시뮬레이션)
+/// · 처리 결과는 Realtime으로 학생 앱에 즉시 반영된다.
+class OperatorLiveView extends ConsumerStatefulWidget {
+  const OperatorLiveView({super.key});
+
+  @override
+  ConsumerState<OperatorLiveView> createState() => _OperatorLiveViewState();
+}
+
+class _OperatorLiveViewState extends ConsumerState<OperatorLiveView> {
+  String? _selectedLineId;
+  bool _busy = false;
+
+  /// 자동 운영 — 배식 간격마다 맨 앞 티켓을 자동 verify
+  bool _autoMode = false;
+  Timer? _autoTimer;
+  static const _autoInterval = Duration(seconds: 6);
+
+  @override
+  void dispose() {
+    _autoTimer?.cancel();
+    super.dispose();
+  }
+
+  void _toggleAuto(bool on) {
+    setState(() => _autoMode = on);
+    _autoTimer?.cancel();
+    if (on) {
+      _autoTimer = Timer.periodic(_autoInterval, (_) => _autoTick());
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('자동 운영 시작 — 배식 간격마다 맨 앞 식권을 자동 처리합니다.'),
+          ),
+        );
+    }
+  }
+
+  Future<void> _autoTick() async {
+    if (!mounted || _busy) return;
+    final queue = _currentQueue();
+    if (queue == null || queue.waiting.isEmpty) {
+      _autoTimer?.cancel();
+      if (mounted) setState(() => _autoMode = false);
+      return;
+    }
+    await _verifyHead(queue, silent: true);
+  }
+
+  OperatorLineQueue? _currentQueue() {
+    final queues = ref.read(operatorQueuesProvider).valueOrNull;
+    final id = _selectedLineId;
+    if (queues == null || id == null) return null;
+    return queues[id];
+  }
+
+  /// 카메라로 학생 QR을 스캔 → 읽은 토큰으로 verify
+  Future<void> _scanAndVerify() async {
+    final token = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const QrScanScreen()),
+    );
+    if (token == null || !mounted) return;
+    await _verifyToken(token);
+  }
+
+  /// 호출된 학생이 배식대 도착 → QR 확인 = 배식 완료 처리
+  /// (완료되면 서버가 그다음 대기자를 자동 호출 — 체인이 이어짐)
+  Future<void> _verifyCalled(OperatorLineQueue queue) async {
+    if (queue.called.isEmpty || _busy) return;
+    final token = queue.called.first.qrToken;
+    if (token == null || token.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('호출된 식권에 qr_token이 없습니다 — 백엔드 확인 필요')),
+      );
+      return;
+    }
+    await _verifyToken(token);
+  }
+
+  /// 대기열 맨 앞 티켓 verify — 카메라 없이도 같은 서버 동작을 하는 시연 버튼
+  Future<void> _verifyHead(OperatorLineQueue queue, {bool silent = false}) async {
+    if (queue.waiting.isEmpty || _busy) return;
+    final token = queue.waiting.first.qrToken;
+    if (token == null || token.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('맨 앞 식권에 qr_token이 없습니다 — 백엔드 확인 필요')),
+      );
+      return;
+    }
+    await _verifyToken(token, silent: silent);
+  }
+
+  /// verify API 호출 공통부 — 성공 시 학생 앱에 Realtime 반영.
+  /// QR은 라인 무관 통합 처리(서버가 토큰으로 라인 식별) — 태블릿 1대로 전 라인 커버.
+  /// 대신 어느 라인 식권인지 결과에 표시해, 다른 줄에 잘못 선 학생을 직원이 알아챌 수 있게 함.
+  Future<void> _verifyToken(String token, {bool silent = false}) async {
+    if (_busy) return;
+    final messenger = ScaffoldMessenger.of(context);
+
+    // 스캔한 식권 식별 (라인·번호 표시용)
+    final queues = ref.read(operatorQueuesProvider).valueOrNull ??
+        const <String, OperatorLineQueue>{};
+    OperatorTicket? scanned;
+    for (final q in queues.values) {
+      for (final t in [...q.called, ...q.waiting]) {
+        if (t.qrToken == token) {
+          scanned = t;
+          break;
+        }
+      }
+      if (scanned != null) break;
+    }
+    String? scannedLineName;
+    if (scanned != null) {
+      final lines = ref.read(cafeteriaLinesProvider).valueOrNull ?? const [];
+      for (final l in lines) {
+        if (l.id == scanned.lineId) {
+          scannedLineName = l.name;
+          break;
+        }
+      }
+    }
+    final otherLine = scanned != null && scanned.lineId != _selectedLineId;
+
+    setState(() => _busy = true);
+    try {
+      await ref.read(apiClientProvider).verifyTicket(token);
+      if (!silent && mounted) {
+        final desc = scanned == null
+            ? ''
+            : ' — ${scannedLineName ?? '라인 미확인'} ${scanned.queueNo}번';
+        messenger
+          ..clearSnackBars()
+          ..showSnackBar(
+            SnackBar(
+              backgroundColor:
+                  otherLine ? AppColors.accent : AppColors.relaxed,
+              behavior: SnackBarBehavior.floating,
+              content: Text(
+                otherLine
+                    ? '⚠️ 다른 라인 식권입니다$desc · 배식 완료 처리됨'
+                    : '✅ 배식 완료$desc · 학생 앱에 실시간 반영',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger
+          ..clearSnackBars()
+          ..showSnackBar(
+            SnackBar(
+              backgroundColor: AppColors.crowded,
+              content: Text('검증 실패: $e', maxLines: 3),
+            ),
+          );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final linesAsync = ref.watch(cafeteriaLinesProvider);
+    final queues =
+        ref.watch(operatorQueuesProvider).valueOrNull ?? const <String, OperatorLineQueue>{};
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Row(
+          children: [
+            Text('운영자 대시보드'),
+            SizedBox(width: 8),
+            _LiveBadge(),
+          ],
+        ),
+      ),
+      body: linesAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text('라인 정보를 불러오지 못했습니다.\n$e', textAlign: TextAlign.center),
+          ),
+        ),
+        data: (lines) {
+          if (lines.isEmpty) {
+            return const Center(child: Text('등록된 배식 라인이 없습니다.'));
+          }
+          if (_selectedLineId == null ||
+              !lines.any((l) => l.id == _selectedLineId)) {
+            _selectedLineId = lines.first.id;
+          }
+          final selectedIndex =
+              lines.indexWhere((l) => l.id == _selectedLineId);
+          final queue = queues[_selectedLineId] ?? const OperatorLineQueue();
+
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+            children: [
+              // ── 라인 선택 ──
+              SizedBox(
+                height: 40,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: lines.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (_, i) => ChoiceChip(
+                    label: Text(lines[i].name),
+                    selected: selectedIndex == i,
+                    selectedColor: AppColors.primary,
+                    labelStyle: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      color: selectedIndex == i
+                          ? Colors.white
+                          : AppColors.textStrong,
+                    ),
+                    onSelected: (_) =>
+                        setState(() => _selectedLineId = lines[i].id),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              // ── 실시간 현황 카드 ──
+              Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [AppColors.gradientTop, AppColors.gradientBottom],
+                  ),
+                  borderRadius: BorderRadius.circular(kRadiusCard),
+                  boxShadow: kCardShadow,
+                ),
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    _Stat(label: '대기', value: '${queue.waiting.length}명'),
+                    _statDivider,
+                    _Stat(label: '호출됨', value: '${queue.called.length}명'),
+                    _statDivider,
+                    _Stat(label: '오늘 배식', value: '${queue.servedToday}'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              // ── 자동 운영 모드 ──
+              Container(
+                decoration: BoxDecoration(
+                  color: _autoMode ? AppColors.accentSoft : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: _autoMode ? Border.all(color: AppColors.accent) : null,
+                  boxShadow: kCardShadow,
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                child: Row(
+                  children: [
+                    Icon(
+                      _autoMode ? Icons.autorenew : Icons.autorenew_outlined,
+                      size: 22,
+                      color: _autoMode ? AppColors.accent : AppColors.textWeak,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _autoMode ? '자동 운영 중 (실서버)' : '자동 운영 모드',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: _autoMode
+                                  ? AppColors.accent
+                                  : AppColors.textStrong,
+                            ),
+                          ),
+                          const Text(
+                            '배식 간격마다 맨 앞 식권 자동 처리 → 학생 앱 실시간 반영',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textWeak,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: _autoMode,
+                      activeThumbColor: AppColors.accent,
+                      onChanged: queue.waiting.isEmpty && !_autoMode
+                          ? null
+                          : _toggleAuto,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              // ── QR 스캔(배식 완료) 버튼 ──
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: SizedBox(
+                      height: 52,
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.accent,
+                        ),
+                        icon: _busy
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.4,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.qr_code_scanner),
+                        label: Text(_busy ? '처리 중...' : 'QR 카메라 스캔'),
+                        onPressed:
+                            (_busy || _autoMode) ? null : _scanAndVerify,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 2,
+                    child: SizedBox(
+                      height: 52,
+                      child: OutlinedButton(
+                        // 호출된 학생이 있으면 그 사람 먼저 — 건너뛰기 방지
+                        onPressed: (queue.waiting.isEmpty ||
+                                queue.called.isNotEmpty ||
+                                _busy ||
+                                _autoMode)
+                            ? null
+                            : () => _verifyHead(queue),
+                        child: Text(
+                          queue.waiting.isEmpty
+                              ? '맨 앞 처리'
+                              : '${queue.waiting.first.queueNo}번 처리',
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              // ── 호출된 학생 도착 처리 (호출됨 → 사용완료 → 다음 자동 호출) ──
+              if (queue.called.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 48,
+                  child: FilledButton.tonalIcon(
+                    icon: const Icon(Icons.restaurant, size: 20),
+                    label: Text(
+                      '${queue.called.map((t) => t.queueNo).join(', ')}번 호출됨 '
+                      '— 도착 확인 · 배식 완료',
+                    ),
+                    onPressed:
+                        (_busy || _autoMode) ? null : () => _verifyCalled(queue),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+              // ── 대기열 (실제 티켓, 학생 대기번호와 동일 순번) ──
+              const Text(
+                '대기열',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.textStrong,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(kRadiusCard),
+                  boxShadow: kCardShadow,
+                ),
+                padding: const EdgeInsets.all(12),
+                child: queue.waiting.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Text(
+                          '대기 중인 식권이 없습니다.\n학생 앱에서 구매하면 실시간으로 표시됩니다.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textWeak,
+                            height: 1.5,
+                          ),
+                        ),
+                      )
+                    : Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final (i, t) in queue.waiting.take(20).indexed)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: i == 0
+                                    ? AppColors.accentSoft
+                                    : const Color(0xFFF3F6FB),
+                                borderRadius:
+                                    BorderRadius.circular(kRadiusPill),
+                                border: i == 0
+                                    ? Border.all(color: AppColors.accent)
+                                    : null,
+                              ),
+                              child: Text(
+                                // 고정 번호표 — 학생 앱 대기번호와 동일
+                                i == 0 ? '${t.queueNo} 다음' : '${t.queueNo}',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: i == 0
+                                      ? AppColors.accent
+                                      : AppColors.textStrong,
+                                ),
+                              ),
+                            ),
+                          if (queue.waiting.length > 20)
+                            Padding(
+                              padding: const EdgeInsets.all(6),
+                              child: Text(
+                                '외 ${queue.waiting.length - 20}명',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textWeak,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '※ 실서버 모드 — 이 화면의 처리가 학생 앱에 실시간 반영됩니다.\n'
+                '자동 다음 호출(서버 called 전이)은 백엔드 구현 후 연결됩니다.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11, color: AppColors.textWeak),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+const _statDivider = SizedBox(
+  height: 48,
+  child: VerticalDivider(color: Colors.white24, width: 1),
+);
+
+class _Stat extends StatelessWidget {
+  const _Stat({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 34,
+              fontWeight: FontWeight.w900,
+              height: 1.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveBadge extends StatelessWidget {
+  const _LiveBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.relaxed.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(kRadiusPill),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.circle, size: 8, color: AppColors.relaxed),
+          SizedBox(width: 4),
+          Text(
+            'LIVE',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: AppColors.relaxed,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
