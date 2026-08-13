@@ -7,7 +7,7 @@
 import type { DashboardData } from "@/types";
 import { mockContentGeneration } from "./content";
 import { mockForecastConfident, mockForecastInsufficient } from "./forecast";
-import { mockMissedOpportunities } from "./missed-opportunity";
+import { mockEarlySalesEnds } from "./early-sales-end";
 import { mockStore, mockStoreNew } from "./store";
 import type { Mock } from "./types";
 import { mockValidationMissed } from "./verification";
@@ -19,7 +19,7 @@ export * from "./recommendation";
 export * from "./content";
 export * from "./daily-sales";
 export * from "./forecast";
-export * from "./missed-opportunity";
+export * from "./early-sales-end";
 export * from "./store";
 export * from "./types";
 export * from "./upload";
@@ -31,7 +31,7 @@ export const mockDashboardData: Mock<DashboardData> = {
   store: mockStore,
   weeklyAnalysis: mockAnalysisNormal,
   forecast: mockForecastConfident,
-  missedOpportunities: mockMissedOpportunities,
+  earlySalesEnds: mockEarlySalesEnds,
   verification: mockValidationMissed,
   isMockData: true,
 };
@@ -53,7 +53,7 @@ export const mockDashboardDataInsufficient: Mock<DashboardData> = {
     })),
   },
   forecast: mockForecastInsufficient,
-  missedOpportunities: [],
+  earlySalesEnds: [],
   verification: null,
   isMockData: true,
 };

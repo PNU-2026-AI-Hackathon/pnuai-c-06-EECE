@@ -1,7 +1,7 @@
 {
   "meta": {
     "generatedFrom": "data/pub-sales-pnu-2025.csv",
-    "generatedAt": "2026-08-13T07:03:13.311Z",
+    "generatedAt": "2026-08-13T10:49:40.334Z",
     "demoToday": "2025-10-19",
     "estimatedPrices": {
       "소주": 5000,
@@ -124,8 +124,23 @@
     },
     "targetWeekLabel": "10월 중간고사 주간",
     "expectedChangeRate": -27,
+    "expectedRange": {
+      "low": -32,
+      "high": -22,
+      "coverage": 60
+    },
+    "comparableCases": {
+      "eventName": "중간고사",
+      "caseCount": 1,
+      "dayCount": 5,
+      "caution": "비교할 수 있는 중간고사 기간이 1번(5일)뿐이라 실제와 차이가 클 수 있습니다."
+    },
     "expectedRevenue": 4922400,
-    "confidence": "medium",
+    "expectedRevenueRange": {
+      "low": 4585200,
+      "high": 5259500
+    },
+    "confidence": "low",
     "evidence": [
       {
         "label": "중간고사 기간 진입",
@@ -156,7 +171,7 @@
     ],
     "dataSufficiency": {
       "level": "sufficient",
-      "message": "매출 33주치와 같은 학사일정 5일치 기록으로 계산했습니다.",
+      "message": "매출 33주치를 학습했지만, 비교할 수 있는 중간고사 기간은 1번(5일)입니다.",
       "weeksAvailable": 33,
       "weeksRequired": 8
     },
@@ -172,7 +187,7 @@
     "actualChangeRate": 13.9,
     "errorPoints": 6.4,
     "predictedConfidence": "medium",
-    "errorAnalysis": "10월 07일(화)이 예측보다 19만원 높아 오차의 대부분을 만들었습니다. 학사일정과 요일 패턴만 보고 있어 날씨·행사 같은 그날의 사정은 아직 반영하지 못합니다.",
+    "errorAnalysis": "10월 07일(화)이 예측보다 19만원 높아 오차의 대부분을 만들었습니다. 가능한 원인으로 날씨, 주변 행사, 영업시간 변경, 품절 등이 있지만 무엇이었는지는 확인이 필요합니다. 지금은 학사일정과 요일 패턴만 보고 있습니다.",
     "reflectedInModel": false,
     "reflectionNote": null,
     "origin": "sample"

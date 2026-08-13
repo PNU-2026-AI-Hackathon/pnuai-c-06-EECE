@@ -41,6 +41,8 @@ export const mockForecastConfident: Mock<Forecast> = {
   targetWeek: { start: "2026-10-19", end: "2026-10-25" },
   targetWeekLabel: "2026년 10월 4주차 (중간고사)",
   expectedChangeRate: 13,
+  expectedRange: { low: 7, high: 19, coverage: 60 },
+  comparableCases: { eventName: "중간고사", caseCount: 2, dayCount: 12, caution: null },
   confidence: "high",
   evidence: mockForecastEvidence,
   academicEvents: mockEventsForTargetWeek,
@@ -63,6 +65,13 @@ export const mockForecastInsufficient: Mock<Forecast> = {
   targetWeek: { start: "2026-10-19", end: "2026-10-25" },
   targetWeekLabel: "2026년 10월 4주차 (중간고사)",
   expectedChangeRate: null,
+  expectedRange: null,
+  comparableCases: {
+    eventName: "중간고사",
+    caseCount: 0,
+    dayCount: 0,
+    caution: "이 매장은 아직 시험 기간을 한 번도 겪지 않아 비교할 기록이 없습니다.",
+  },
   confidence: null,
   evidence: [],
   academicEvents: mockEventsForTargetWeek,
@@ -85,6 +94,13 @@ export const mockForecastLimited: Mock<Forecast> = {
   targetWeek: { start: "2026-11-02", end: "2026-11-08" },
   targetWeekLabel: "2026년 11월 1주차 (대학축제)",
   expectedChangeRate: 6,
+  expectedRange: { low: -9, high: 21, coverage: 60 },
+  comparableCases: {
+    eventName: "대학축제",
+    caseCount: 1,
+    dayCount: 3,
+    caution: "비교할 수 있는 축제 기간이 1번(3일)뿐이라 실제와 차이가 클 수 있습니다.",
+  },
   confidence: "low",
   evidence: [
     {

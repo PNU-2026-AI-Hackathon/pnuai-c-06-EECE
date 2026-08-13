@@ -4,12 +4,12 @@ import { MetricCard } from "@/components/common/metric-card";
 import { HourlyRevenueChart } from "@/components/charts/hourly-revenue-chart";
 import { WeekdayRevenueChart } from "@/components/charts/weekday-revenue-chart";
 import { PageHeader } from "@/components/layout/page-header";
-import { MissedOpportunityCard } from "@/components/missed/missed-opportunity-card";
+import { EarlySalesEndCard } from "@/components/early-sales-end/early-sales-end-card";
 import { MenuSalesTable } from "@/components/weekly/menu-sales-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  getMissedOpportunities,
-  getMissedOpportunityLimitation,
+  getEarlySalesEndLimitation,
+  getEarlySalesEnds,
   getWeeklyAnalysis,
   parseScenario,
 } from "@/lib/data";
@@ -18,10 +18,10 @@ import { formatPeriod, formatWon, formatWonShort, weekdayLabel } from "@/lib/for
 /** 주간 리포트 — 지난주에 무슨 일이 있었는지 */
 export default async function WeeklyPage({ searchParams }: { searchParams: { scenario?: string } }) {
   const scenario = parseScenario(searchParams.scenario);
-  const [analysis, missed, missedLimitation] = await Promise.all([
+  const [analysis, earlyEnds, earlyEndLimitation] = await Promise.all([
     getWeeklyAnalysis(scenario),
-    getMissedOpportunities(scenario),
-    getMissedOpportunityLimitation(scenario),
+    getEarlySalesEnds(scenario),
+    getEarlySalesEndLimitation(scenario),
   ]);
 
   const isMock = analysis.origin === "sample";
@@ -108,20 +108,27 @@ export default async function WeeklyPage({ searchParams }: { searchParams: { sce
 
       <MenuSalesTable menus={analysis.topMenus} isMockData={isMock} />
 
-      <section className="space-y-4" aria-label="놓친 기회">
-        <h2 className="text-2xl font-bold">놓친 판매 기회 {missed.length > 0 && `${missed.length}건`}</h2>
-        {missed.length === 0 ? (
+      <section className="space-y-4" aria-label="판매 조기 종료">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-bold">
+            평소보다 일찍 끝난 판매 {earlyEnds.length > 0 && `${earlyEnds.length}건`}
+          </h2>
+          <p className="text-base text-muted-foreground">
+            품절인지 아닌지는 기록만으로 알 수 없어, 사장님 확인을 거쳐 기록합니다.
+          </p>
+        </div>
+        {earlyEnds.length === 0 ? (
           <EmptyState
-            title="놓친 기회를 판단할 수 없습니다"
+            title="판매 조기 종료를 판단할 수 없습니다"
             description={
-              missedLimitation ??
-              "품절로 판단할 만한 패턴이 아직 없습니다. 데이터가 더 쌓이면 다시 확인해 드립니다."
+              earlyEndLimitation ??
+              "평소보다 일찍 끝난 판매가 아직 없습니다. 데이터가 더 쌓이면 다시 확인해 드립니다."
             }
           />
         ) : (
           <div className="space-y-4">
-            {missed.map((m) => (
-              <MissedOpportunityCard key={m.id} item={m} isMockData={m.origin === "sample"} />
+            {earlyEnds.map((e) => (
+              <EarlySalesEndCard key={e.id} item={e} />
             ))}
           </div>
         )}

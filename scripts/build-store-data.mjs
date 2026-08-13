@@ -17,7 +17,9 @@ import { fileURLToPath } from "node:url";
 import {
   MENU_COLUMNS,
   addDays,
+  countEventCases,
   decomposeContributions,
+  forecastSpread,
   estimateMenuPrices,
   groupFullWeeks,
   momentumFactor,
@@ -102,9 +104,10 @@ function buildWeeklyAnalysis(week, prevWeek, prices) {
 }
 
 /** 다음 주 예측과 근거 */
-function buildForecast(model, analysisWeek, targetDays, momentum, weeksAvailable) {
+function buildForecast(model, analysisWeek, targetDays, momentum, weeks, history) {
   const baselineOfAnalysis = sum(analysisWeek.days.map((d) => predictDay(model, d.weekday, d.event)));
   const target = predictWeek(model, targetDays, momentum);
+  const weeksAvailable = weeks.length;
 
   const fLevel = baselineOfAnalysis / analysisWeek.revenue;
   const fEvent = target.raw / baselineOfAnalysis;
@@ -146,18 +149,46 @@ function buildForecast(model, analysisWeek, targetDays, momentum, weeksAvailable
   );
   const expectedChangeRate = sum(evidence.map((e) => e.contribution));
 
+  // 과거에 같은 이벤트가 몇 번 있었는지 — "33주"보다 이 숫자가 신뢰도를 정확히 말해준다
+  const cases = countEventCases(history, mainEvent);
+  const eventLabel = EVENT_META[mainEvent]?.name ?? mainEvent;
+  const comparableCases = {
+    eventName: eventLabel,
+    caseCount: cases.caseCount,
+    dayCount: cases.dayCount,
+    caution:
+      cases.caseCount >= 3
+        ? null
+        : `비교할 수 있는 ${eventLabel} 기간이 ${cases.caseCount}번(${cases.dayCount}일)뿐이라 실제와 차이가 클 수 있습니다.`,
+  };
+
+  // 과거 주간 예측이 빗나간 폭으로 범위를 만든다
+  const spread = forecastSpread(model, weeks, momentum, cases.dayCount);
+  const expectedRange = {
+    low: Math.round((target.adjusted * spread.low) / analysisWeek.revenue * 100 - 100),
+    high: Math.round((target.adjusted * spread.high) / analysisWeek.revenue * 100 - 100),
+    coverage: spread.coverage,
+  };
+
   return {
     storeId: STORE.id,
     targetWeek: { start: targetDays[0].date, end: targetDays[targetDays.length - 1].date },
     targetWeekLabel: `${targetDays[0].date.slice(5, 7)}월 ${EVENT_META[mainEvent]?.name ?? "다음"} 주간`,
     expectedChangeRate,
+    expectedRange,
+    comparableCases,
     expectedRevenue: round100(analysisWeek.revenue * (1 + expectedChangeRate / 100)),
-    confidence: eventDays >= 10 ? "high" : eventDays >= 5 ? "medium" : "low",
+    expectedRevenueRange: {
+      low: round100(analysisWeek.revenue * (1 + expectedRange.low / 100)),
+      high: round100(analysisWeek.revenue * (1 + expectedRange.high / 100)),
+    },
+    // 사례가 3회 미만이면 신뢰 수준을 올리지 않는다
+    confidence: cases.caseCount >= 3 ? "high" : cases.caseCount >= 2 ? "medium" : "low",
     evidence,
     academicEvents: eventsOfWeek(targetDays),
     dataSufficiency: {
       level: "sufficient",
-      message: `매출 ${weeksAvailable}주치와 같은 학사일정 ${eventDays}일치 기록으로 계산했습니다.`,
+      message: `매출 ${weeksAvailable}주치를 학습했지만, 비교할 수 있는 ${eventLabel} 기간은 ${cases.caseCount}번(${cases.dayCount}일)입니다.`,
       weeksAvailable,
       weeksRequired: 8,
     },
@@ -194,10 +225,10 @@ function buildVerification(rows, weeks, targetWeek, priorWeek) {
     predictedConfidence: "medium",
     errorAnalysis: `${worst.date.slice(5).replace("-", "월 ")}일(${worst.weekdayName})이 예측보다 ${Math.abs(
       Math.round(worst.diff / 10000)
-    )}만원 ${worst.diff > 0 ? "높아" : "낮아"} 오차의 대부분을 만들었습니다. 학사일정과 요일 패턴만 보고 있어 날씨·행사 같은 그날의 사정은 아직 반영하지 못합니다.`,
+    )}만원 ${worst.diff > 0 ? "높아" : "낮아"} 오차의 대부분을 만들었습니다. 가능한 원인으로 날씨, 주변 행사, 영업시간 변경, 품절 등이 있지만 무엇이었는지는 확인이 필요합니다. 지금은 학사일정과 요일 패턴만 보고 있습니다.`,
     reflectedInModel: missedBig,
     reflectionNote: missedBig
-      ? "이번 오차를 최근 3주 추세 보정에 반영했습니다. 다음 예측부터 적용됩니다."
+      ? "최근 3주 추세를 예측 조건에 더 크게 반영합니다. 다음 예측부터 적용됩니다."
       : null,
     origin: "sample",
   };
@@ -271,7 +302,7 @@ function main() {
     },
     store: { ...STORE, openedAt: rows[0].date, origin: "real" },
     weeklyAnalysis: buildWeeklyAnalysis(analysisWeek, prevWeek, prices),
-    forecast: buildForecast(model, analysisWeek, targetDays, momentum, weeks.length),
+    forecast: buildForecast(model, analysisWeek, targetDays, momentum, weeks, history),
     verification: buildVerification(history, weeks, prevWeek, priorWeek),
     upload: buildUploadResult(rows, prices, maxRelError),
     missedOpportunities: [],

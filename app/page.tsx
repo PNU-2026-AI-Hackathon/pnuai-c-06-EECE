@@ -7,21 +7,22 @@ import { DataInsufficientNotice } from "@/components/common/data-insufficient-no
 import { EvidenceList } from "@/components/common/evidence-list";
 import { MetricCard } from "@/components/common/metric-card";
 import { AcademicEventList } from "@/components/forecast/academic-event-list";
+import { ForecastRangeCard } from "@/components/forecast/forecast-range-card";
 import { VerificationCard } from "@/components/forecast/verification-card";
 import { PageHeader } from "@/components/layout/page-header";
-import { MissedOpportunityCard } from "@/components/missed/missed-opportunity-card";
+import { EarlySalesEndCard } from "@/components/early-sales-end/early-sales-end-card";
 import { Button } from "@/components/ui/button";
 import {
   getDataFreshness,
   getForecast,
   getLatestVerification,
-  getMissedOpportunities,
+  getEarlySalesEnds,
   getRecommendations,
   getStore,
   getWeeklyAnalysis,
   parseScenario,
 } from "@/lib/data";
-import { formatChangeRate, formatPeriod, formatWon, formatWonShort } from "@/lib/format";
+import { formatPeriod, formatWon, formatWonShort } from "@/lib/format";
 
 /** 홈 — 사장님이 오늘 봐야 할 것만 위에서부터 순서대로 */
 export default async function HomePage({
@@ -30,19 +31,19 @@ export default async function HomePage({
   searchParams: { scenario?: string };
 }) {
   const scenario = parseScenario(searchParams.scenario);
-  const [store, analysis, forecast, missed, verification, recommendations, freshness] =
+  const [store, analysis, forecast, earlyEnds, verification, recommendations, freshness] =
     await Promise.all([
       getStore(scenario),
       getWeeklyAnalysis(scenario),
       getForecast(scenario),
-      getMissedOpportunities(scenario),
+      getEarlySalesEnds(scenario),
       getLatestVerification(scenario),
       getRecommendations(scenario),
       getDataFreshness(scenario),
     ]);
 
   const isMock = analysis.origin === "sample";
-  const topMissed = missed[0];
+  const topEarlyEnd = earlyEnds.find((e) => e.ownerConfirmation === "unconfirmed");
   // 데이터가 오래되면 낡은 기준으로 계산한 예측을 보여주지 않는다
   const canForecast = forecast.expectedChangeRate !== null && !freshness.blocksForecast;
   const topRecommendations = recommendations.slice(0, 2);
@@ -65,14 +66,7 @@ export default async function HomePage({
         />
 
         {canForecast ? (
-          <MetricCard
-            label={`다음 주 예상 (${forecast.targetWeekLabel})`}
-            value={formatChangeRate(forecast.expectedChangeRate!)}
-            change={forecast.expectedChangeRate!}
-            comparedTo="이번 주"
-            note={forecast.dataSufficiency.message}
-            emphasis="lg"
-          />
+          <ForecastRangeCard forecast={forecast} baseRevenue={analysis.totalRevenue} />
         ) : freshness.blocksForecast ? (
           <DataFreshnessNotice freshness={freshness} />
         ) : (
@@ -113,18 +107,18 @@ export default async function HomePage({
         </section>
       )}
 
-      {topMissed && (
-        <section className="space-y-4" aria-label="놓친 기회">
+      {topEarlyEnd && (
+        <section className="space-y-4" aria-label="판매 조기 종료">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-2xl font-bold">놓친 판매 기회</h2>
+            <h2 className="text-2xl font-bold">확인해 주실 것</h2>
             <Button asChild variant="ghost" size="lg">
               <Link href="/weekly">
-                {missed.length}건 모두 보기
+                {earlyEnds.length}건 모두 보기
                 <ArrowRight aria-hidden className="ml-2 size-4" />
               </Link>
             </Button>
           </div>
-          <MissedOpportunityCard item={topMissed} isMockData={topMissed.origin === "sample"} />
+          <EarlySalesEndCard item={topEarlyEnd} />
         </section>
       )}
 

@@ -6,7 +6,7 @@ import type {
   DataFreshness,
   Forecast,
   ForecastVerification,
-  MissedOpportunity,
+  EarlySalesEnd,
   Recommendation,
   Store,
   UploadResult,
@@ -23,7 +23,7 @@ import {
   mockForecastInsufficient,
   mockDataFreshness,
   mockDataFreshnessStale,
-  mockMissedOpportunities,
+  mockEarlySalesEnds,
   mockRecommendations,
   mockStore,
   mockStoreNew,
@@ -88,17 +88,21 @@ export async function getForecast(scenario: Scenario = "default"): Promise<Forec
   return generatedForecast;
 }
 
-/** 놓친 기회 목록 (반복 횟수가 많은 순) */
-export async function getMissedOpportunities(scenario: Scenario = "default"): Promise<MissedOpportunity[]> {
-  if (scenario === "cafe") return [...mockMissedOpportunities].sort((a, b) => b.repeatedWeeks - a.repeatedWeeks);
-  // 술집 CSV는 일별 집계라 품절 시각을 알 수 없다 → 추측하지 않고 비워 둔다
+/** 판매 조기 종료 후보 (확인 안 된 것부터) */
+export async function getEarlySalesEnds(scenario: Scenario = "default"): Promise<EarlySalesEnd[]> {
+  if (scenario === "cafe") {
+    return [...mockEarlySalesEnds].sort((a, b) =>
+      a.ownerConfirmation === b.ownerConfirmation ? 0 : a.ownerConfirmation === "unconfirmed" ? -1 : 1
+    );
+  }
+  // 술집 CSV는 일별 집계라 판매 시각을 알 수 없다 → 추측하지 않고 비워 둔다
   return [];
 }
 
-/** 놓친 기회를 만들 수 없는 이유 — 빈 목록 자리에 그대로 보여준다 */
-export async function getMissedOpportunityLimitation(scenario: Scenario = "default"): Promise<string | null> {
+/** 조기 종료를 탐지할 수 없는 이유 — 빈 목록 자리에 그대로 보여준다 */
+export async function getEarlySalesEndLimitation(scenario: Scenario = "default"): Promise<string | null> {
   if (scenario === "cafe") return null;
-  if (scenario === "insufficient") return "매출 데이터가 3주치뿐이라 반복되는 품절 패턴을 판단할 수 없습니다.";
+  if (scenario === "insufficient") return "매출 데이터가 3주치뿐이라 반복되는 패턴을 판단할 수 없습니다.";
   return dataLimitations[1] ?? null;
 }
 

@@ -161,6 +161,63 @@ export function momentumFactor(model, rows, weeks = 3) {
   return predicted === 0 ? 1 : actual / predicted;
 }
 
+/** 정렬된 배열에서 분위수 (선형 보간) */
+function quantile(sorted, p) {
+  if (sorted.length === 0) return 1;
+  const idx = (sorted.length - 1) * p;
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+}
+
+/**
+ * 주 단위 예측이 과거에 얼마나 빗나갔는지로 예측 범위를 만든다.
+ * 실제/예측 비율의 20~80% 분위를 쓰고, 비교 사례가 적으면 범위를 넓힌다.
+ * 좁은 범위로 확신하는 것보다 넓은 범위로 정직한 편이 낫다.
+ */
+export function forecastSpread(model, weeks, momentum, eventDayCount) {
+  const ratios = weeks
+    .map((week) => {
+      const predicted =
+        week.days.reduce((acc, d) => acc + predictDay(model, d.weekday, d.event), 0) * momentum;
+      return predicted > 0 ? week.revenue / predicted : null;
+    })
+    .filter((r) => r !== null)
+    .sort((a, b) => a - b);
+
+  const low = quantile(ratios, 0.2);
+  const high = quantile(ratios, 0.8);
+
+  // 같은 이벤트 표본이 10일 미만이면 그만큼 범위를 넓힌다
+  const widen = eventDayCount >= 10 ? 1 : Math.sqrt(10 / Math.max(eventDayCount, 1));
+  return {
+    low: 1 - (1 - low) * widen,
+    high: 1 + (high - 1) * widen,
+    coverage: 60,
+  };
+}
+
+/**
+ * 과거에 같은 학사이벤트가 몇 번 있었는지 센다.
+ * 연속된 날짜는 한 번으로 묶는다 (중간고사 5일 = 1회).
+ */
+export function countEventCases(rows, eventLabel) {
+  let caseCount = 0;
+  let dayCount = 0;
+  let inRun = false;
+
+  for (const row of rows) {
+    if (row.event === eventLabel) {
+      dayCount += 1;
+      if (!inRun) caseCount += 1;
+      inRun = true;
+    } else {
+      inRun = false;
+    }
+  }
+  return { caseCount, dayCount };
+}
+
 /**
  * 곱셈 요인들의 기여도를 합이 정확히 총 증감률이 되도록 분해한다.
  * factors: [{ label, factor, source, detail }]

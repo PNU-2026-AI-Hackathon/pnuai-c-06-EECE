@@ -29,7 +29,8 @@ Pydantic 모델을 새로 설계하지 말고 이 타입을 옮겨 적는 방식
 | 3 | `GET /stores/{storeId}/forecast` | `Forecast` | 다음 주. **evidence contribution 합 == expectedChangeRate 필수** |
 | 4 | `GET /stores/{storeId}/verification` | `ForecastVerification \| null` | 백테스트. 첫 주면 null |
 | 5 | `GET /stores/{storeId}` | `Store` | |
-| 6 | `GET /stores/{storeId}/missed-opportunities` | `MissedOpportunity[]` | 시각 데이터 없으면 빈 배열 + 이유 |
+| 6 | `GET /stores/{storeId}/early-sales-ends` | `EarlySalesEnd[]` | 시각 데이터 없으면 빈 배열 + 이유 |
+| 6b | `PATCH /early-sales-ends/{id}` | `EarlySalesEnd` | 사장님 확인 `{ ownerConfirmation, ownerNote }` |
 | 7 | `POST /stores/{storeId}/content` | `ContentGeneration` | 후순위. LLM 프롬프트에 forecast·missed 주입 |
 
 ## 에이전트 (Phase 2 — 여기가 제품의 핵심입니다)
@@ -60,7 +61,7 @@ AgentRun으로 전 과정 기록 (감사 로그 겸 화면 타임라인)
 | `analyze_weekly` | 2번 |
 | `forecast_next_week` | 3번 |
 | `verify_last_forecast` | 4번 |
-| `detect_missed_opportunity` | 6번 |
+| `detect_early_sales_end` | 6번 |
 | `get_academic_events` | 학사일정 DB |
 | `check_data_freshness` | 신규 (아래 참고) |
 | `generate_content` | 7번 |
@@ -108,6 +109,10 @@ agent_runs         (id, store_id, trigger_kind, status, started_at, finished_at,
                     headline, notified, skip_reason, error)
 agent_steps        (id, run_id, order, tool, label, status, started_at,
                     duration_ms, summary, reason)
+early_sales_ends   (id, store_id, date, menu_name, last_sold_at, usual_closing_at,
+                    earlier_by_minutes, opportunity_low, opportunity_high, repeated_weeks,
+                    possible_causes JSONB, reasoning, confidence,
+                    owner_confirmation, owner_note)
 recommendations    (id, store_id, run_id, type, priority, action, description,
                     evidence JSONB, confidence, action_window_start, action_window_end,
                     estimated_impact, status, decided_at, decline_reason, created_at)
@@ -128,9 +133,12 @@ APScheduler 또는 Celery beat. 매장별 `AgentPolicy.schedule`(cron)을 읽어
 
 1. **예측에는 근거가 붙는다** — `Forecast.evidence[].contribution`의 합이 `expectedChangeRate`와 정확히 일치해야 합니다. 프론트가 합계를 검증해서 불일치하면 빨간 경고를 띄웁니다. 곱셈 모형이면 로그 분해를 쓰세요 (`decomposeContributions` 참고).
 2. **추측하지 않는다** — 데이터가 부족하면 `expectedChangeRate: null` + `dataSufficiency.level: "insufficient"` + 사장님이 읽을 `message`. 현재 기준: 8주 미만이면 예측 금지.
-3. **만들 수 없는 값은 비운다** — 결제 시각 없는 CSV면 `hourlySales: []`, 놓친 기회는 빈 배열. 임의로 채우지 마세요.
+3. **만들 수 없는 값은 비운다** — 결제 시각 없는 CSV면 `hourlySales: []`, 조기 종료 후보는 빈 배열. 임의로 채우지 마세요.
 4. **`origin` 필드** — 실데이터면 `"real"`, 예시면 `"sample"`. 프론트가 이 값으로 "예시 데이터" 배지를 자동 표시합니다.
 5. 사장님에게 보이는 `message`·`errorAnalysis`·`reasoning` 문장은 **존댓말 한국어**로, 전문용어 없이.
+6. **품절을 확정하지 않는다** — 판매가 일찍 끝난 것은 `EarlySalesEnd` 후보로만 내리고, `possibleCauses`에 원인 후보를 담습니다. `ownerConfirmation`은 사장님이 6b로 확정하기 전까지 `"unconfirmed"`입니다. 금액도 단일 값이 아니라 `opportunityRange`로 내려주세요.
+7. **오차 원인을 확정하지 않는다** — `errorAnalysis`는 "비 때문입니다"가 아니라 "가능한 원인으로 …가 있지만 확인이 필요합니다" 형태로 씁니다.
+8. **예측은 범위로** — `expectedRange`(하한·상한·coverage)와 `comparableCases`(같은 이벤트 사례 수)를 반드시 채웁니다. 신뢰 수준은 데이터 기간이 아니라 **사례 수**로 정합니다 (3회↑ high / 2회 medium / 1회 low).
 
 ## CSV 입력 스펙 (두 가지 형태 모두 처리)
 
@@ -147,7 +155,8 @@ APScheduler 또는 Celery beat. 매장별 `AgentPolicy.schedule`(cron)을 읽어
 일매출 = 기준(일반학기 평균) × 요일계수 × 학사이벤트계수 × 최근3주추세
 ```
 
-- 백테스트 결과(술집 CSV, 학습 33주): 중간고사 주 예측 −27% vs 실제 −24%, 매출 오차 3.9%
+- 백테스트 결과(술집 CSV, 학습 33주): 중간고사 주 예측 범위 −32~−22% vs 실제 −24% (범위 안), 중앙값 −27%
+- 범위는 과거 주간 예측 오차의 20~80% 분위에서 만들고, 같은 이벤트 표본이 10일 미만이면 `√(10/표본일수)` 만큼 넓힙니다 (`forecastSpread` 참고)
 - 검증 엔드포인트는 대상 주 **이전 데이터만으로** 재학습해 예측→실제 비교 (미래 누출 금지)
 - 학사일정: 샘플 CSV엔 라벨이 있지만, 실서비스는 부산대 학사일정을 서버가 보유해야 합니다 (`mocks/academic-calendar.ts` 참고)
 

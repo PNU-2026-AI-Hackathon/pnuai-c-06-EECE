@@ -39,12 +39,25 @@ export function AgentHealthCard({
       <CardContent className="space-y-5">
         <div className="grid gap-5 sm:grid-cols-3">
           <div>
-            <p className="text-base text-muted-foreground">예측 평균 오차</p>
+            <p className="text-base text-muted-foreground">범위 안에 들어온 비율</p>
             <p className="tnum text-metric">
-              {health.avgAbsErrorPoints}
-              <span className="ml-1 text-xl font-semibold text-muted-foreground">%p</span>
+              {Math.round(health.rangeHitRate * 100)}
+              <span className="ml-1 text-xl font-semibold text-muted-foreground">%</span>
             </p>
-            <p className="text-sm text-muted-foreground">검증 {health.verifiedForecastCount}건</p>
+            <p className="text-sm text-muted-foreground">
+              검증 {health.verifiedForecastCount}건 중{" "}
+              {Math.round(health.rangeHitRate * health.verifiedForecastCount)}건
+            </p>
+          </div>
+          <div>
+            <p className="text-base text-muted-foreground">오르내림 방향</p>
+            <p className="tnum text-metric">
+              {Math.round(health.directionAccuracy * 100)}
+              <span className="ml-1 text-xl font-semibold text-muted-foreground">%</span>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              평균 오차 {health.avgAbsErrorPoints}%p · {Math.round(health.avgAbsErrorWon / 10000)}만원
+            </p>
           </div>
           <div>
             <p className="text-base text-muted-foreground">추천 채택률</p>

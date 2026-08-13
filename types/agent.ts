@@ -39,8 +39,8 @@ export type AgentToolName =
   | "forecast_next_week"
   /** 지난 예측과 실제 비교 */
   | "verify_last_forecast"
-  /** 품절로 인한 판매 기회 추정 */
-  | "detect_missed_opportunity"
+  /** 평소보다 일찍 끝난 판매 탐지 (품절 확정이 아니라 후보) */
+  | "detect_early_sales_end"
   /** 학사일정 조회 */
   | "get_academic_events"
   /** 데이터 신선도 확인 */
@@ -179,6 +179,12 @@ export interface AgentHealth {
   verifiedForecastCount: number;
   /** 예측 오차 평균 (%포인트, 절댓값) */
   avgAbsErrorPoints: number;
+  /** 실제 매출 기준 평균 금액 오차 (원) — 매출이 낮은 주에서 비율 지표가 튀는 것을 보완한다 */
+  avgAbsErrorWon: number;
+  /** 실제값이 예상 범위 안에 들어온 비율 (0~1) — 범위를 제대로 잡았는지 보는 지표 */
+  rangeHitRate: number;
+  /** 증가·감소 방향을 맞힌 비율 (0~1) — 사장님에게는 이 지표가 가장 와닿는다 */
+  directionAccuracy: number;
   /** 만든 추천 수 */
   recommendationCount: number;
   /** 사장님이 채택한 비율 (0~1) — 낮으면 추천이 쓸모없다는 뜻이다 */

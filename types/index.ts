@@ -238,6 +238,35 @@ export interface AcademicEvent {
   type: AcademicEventType;
 }
 
+/**
+ * 예상 증감률의 범위.
+ * 표본이 적을수록 넓어지며, 넓은 범위 자체가 "아직 확신하기 어렵다"는 신호다.
+ * 단일 숫자만 보여주면 실제보다 확실해 보이므로 화면에는 범위를 함께 표시한다.
+ */
+export interface ChangeRateRange {
+  /** 범위 하한 (%) */
+  low: number;
+  /** 범위 상한 (%) */
+  high: number;
+  /** 이 범위가 실제값을 포함할 것으로 보는 비율 (예: 60) */
+  coverage: number;
+}
+
+/**
+ * 예측의 근거가 된 과거 사례 수.
+ * "데이터 33주"보다 "중간고사 사례 1회"가 신뢰도를 훨씬 정확하게 말해준다.
+ */
+export interface ComparableCases {
+  /** 비교 대상 이벤트 이름 (예: "중간고사") */
+  eventName: string;
+  /** 과거에 같은 이벤트가 몇 번 있었는지 (연속 구간 기준) */
+  caseCount: number;
+  /** 그 이벤트에 해당하는 총 일수 */
+  dayCount: number;
+  /** 사례가 부족할 때 사장님에게 보여줄 한 줄 (충분하면 null) */
+  caution: string | null;
+}
+
 /** 다음 주 수요 예측 결과 */
 export interface Forecast {
   /** 대상 매장 id */
@@ -246,8 +275,16 @@ export interface Forecast {
   targetWeek: DateRange;
   /** 예측 대상 주차 라벨 (예: "2026년 8월 3주차") */
   targetWeekLabel: string;
-  /** 직전 주 대비 예상 증감률 (%, 음수는 감소) — dataSufficiency.level이 insufficient면 null */
+  /**
+   * 직전 주 대비 예상 증감률의 중앙값 (%, 음수는 감소).
+   * dataSufficiency.level이 insufficient면 null.
+   * 화면에서는 이 값 단독이 아니라 expectedRange와 함께 표시한다.
+   */
   expectedChangeRate: number | null;
+  /** 예상 증감률의 범위 — 예측이 없으면 null */
+  expectedRange: ChangeRateRange | null;
+  /** 이 예측이 참고한 과거 사례 수 — 예측이 없어도 채운다 */
+  comparableCases: ComparableCases;
   /** 예측 신뢰 수준 — 예측이 없으면 null */
   confidence: ConfidenceLevel | null;
   /** 증감률의 근거 목록. contribution의 합은 expectedChangeRate와 일치해야 한다 */
@@ -261,15 +298,48 @@ export interface Forecast {
 }
 
 /* ------------------------------------------------------------------ */
-/* 놓친 기회                                                            */
+/* 판매 조기 종료                                                       */
 /* ------------------------------------------------------------------ */
 
+/** 판매가 일찍 끝난 이유로 시스템이 떠올린 후보 */
+export type SalesEndCause =
+  | "sold_out"
+  | "no_demand"
+  | "stopped_selling"
+  | "early_closing"
+  | "menu_renamed"
+  | "pos_missing";
+
 /**
- * 품절·재고 부족으로 팔지 못했다고 추정되는 판매 기회 한 건.
- * 실제로 발생한 손실이 아니라 추정치이므로, 화면에서도 "손실"이 아니라
- * "예상 판매 기회"로만 표현한다.
+ * 사장님 확인 상태.
+ * POS 기록만으로는 품절인지 수요 부재인지 알 수 없으므로,
+ * 사장님이 확인해 주기 전까지는 "후보"로만 둔다.
  */
-export interface MissedOpportunity {
+export type OwnerConfirmation =
+  /** 아직 확인 전 */
+  | "unconfirmed"
+  /** 품절이 맞았다 */
+  | "confirmed_sold_out"
+  /** 다른 이유였다 */
+  | "other_reason";
+
+/** 추정 금액의 범위 (단일 금액으로 단정하지 않는다) */
+export interface WonRange {
+  /** 하한 */
+  low: Won;
+  /** 상한 */
+  high: Won;
+}
+
+/**
+ * 판매가 평소보다 일찍 끝난 날 한 건.
+ *
+ * 중요: 이것은 "품절"이 아니라 **품절 후보**다.
+ * 판매가 없었다는 사실만으로는 재고 소진인지, 수요가 없었는지,
+ * 판매를 중단했는지 알 수 없다. 확정은 사장님이 한다.
+ * 금액도 실제 손실이 아니라 "팔렸을 수도 있는 범위"로만 표현한다.
+ */
+export interface EarlySalesEnd {
   /** 고유 식별자 */
   id: string;
   /** 대상 매장 id */
@@ -278,18 +348,26 @@ export interface MissedOpportunity {
   date: ISODate;
   /** 표준 메뉴명 */
   menuName: string;
-  /** 추정 품절 시각 (HH:mm) */
-  estimatedSoldOutAt: string;
+  /** 그날 마지막으로 팔린 시각 (HH:mm) */
+  lastSoldAt: string;
   /** 평소 마감 시각 (HH:mm) */
   usualClosingAt: string;
-  /** 팔 수 있었을 것으로 추정되는 금액 (실제 손실액이 아님) */
-  estimatedOpportunity: Won;
+  /** 평소보다 몇 분 일찍 끝났는지 */
+  earlierByMinutes: number;
+  /** 팔렸을 수도 있는 금액 범위 (실제 손실액이 아님) */
+  opportunityRange: WonRange;
   /** 같은 패턴이 몇 주 연속 반복됐는지 (1이면 이번이 처음) */
   repeatedWeeks: number;
-  /** 이 추정의 근거를 설명하는 한 문장 */
+  /** 시스템이 떠올린 원인 후보 — 확정이 아니다 */
+  possibleCauses: SalesEndCause[];
+  /** 이렇게 본 근거를 설명하는 한 문장 */
   reasoning: string;
-  /** 추정 신뢰 수준 */
+  /** 이 탐지 자체의 신뢰 수준 */
   confidence: ConfidenceLevel;
+  /** 사장님 확인 상태 */
+  ownerConfirmation: OwnerConfirmation;
+  /** 사장님이 "다른 이유"라고 답한 경우 그 이유 */
+  ownerNote: string | null;
   /** 실측 데이터인지 예시 데이터인지 */
   origin: DataOrigin;
 }
@@ -376,8 +454,8 @@ export interface DashboardData {
   weeklyAnalysis: WeeklyAnalysis;
   /** 다음 주 예측 */
   forecast: Forecast;
-  /** 놓친 기회 목록 */
-  missedOpportunities: MissedOpportunity[];
+  /** 판매 조기 종료 후보 목록 */
+  earlySalesEnds: EarlySalesEnd[];
   /** 지난주 예측 검증 — 첫 주에는 null */
   verification: ForecastVerification | null;
 }
