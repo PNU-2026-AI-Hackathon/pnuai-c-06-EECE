@@ -1,0 +1,81 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* 뉴트럴 베이스 — 종이에 가까운 회백색 */
+    --background: 40 14% 98%;
+    --foreground: 220 16% 16%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 16% 16%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 16% 16%;
+
+    /* 포인트 컬러 하나 — 차분한 청록. 흰 배경 대비 5.6:1 (WCAG AA) */
+    --primary: 196 64% 28%;
+    --primary-foreground: 0 0% 100%;
+    --brand-soft: 196 44% 94%;
+
+    --secondary: 40 12% 94%;
+    --secondary-foreground: 220 16% 22%;
+    --muted: 40 12% 94%;
+    /* 보조 텍스트 — 흰 배경 대비 4.8:1 (AA) */
+    --muted-foreground: 220 10% 40%;
+    --accent: 196 44% 94%;
+    --accent-foreground: 196 64% 22%;
+
+    /* 증가/감소 — 채도를 낮춘 초록·빨강. 색만으로 구분하지 않고 화살표·부호를 함께 쓴다 */
+    --up: 152 42% 28%;
+    --up-soft: 152 34% 94%;
+    --down: 6 52% 38%;
+    --down-soft: 6 48% 96%;
+
+    --destructive: 6 52% 38%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 40 10% 88%;
+    /* 입력 요소 테두리는 흰 배경 대비 3:1 이상 (WCAG AA 비텍스트 대비) */
+    --input: 40 10% 58%;
+    --ring: 196 64% 28%;
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-family:
+      "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    /* 40~60대 사용자 기준 본문을 17px로 키운다 */
+    font-size: 17px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    word-break: keep-all;
+  }
+
+  /* 숫자는 자릿수가 흔들리지 않게 */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  /* 키보드 포커스는 항상 굵게 보이도록 */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* 화면에는 안 보이지만 스크린리더는 읽는 텍스트 (차트 텍스트 대안용) */
+  .sr-only-table {
+    @apply sr-only;
+  }
+}

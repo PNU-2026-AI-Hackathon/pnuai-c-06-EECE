@@ -1,0 +1,680 @@
+{
+  "meta": {
+    "generatedFrom": "data/pub-sales-pnu-2025.csv",
+    "generatedAt": "2026-08-13T07:03:13.311Z",
+    "demoToday": "2025-10-19",
+    "estimatedPrices": {
+      "소주": 5000,
+      "맥주": 5000,
+      "하이볼": 7000,
+      "닭발": 18000,
+      "오돌뼈": 17000,
+      "김치전": 15000,
+      "계란찜": 7000
+    },
+    "priceEstimationMaxError": 0,
+    "weeksAvailable": 33,
+    "note": "이 파일은 scripts/build-store-data.mjs 가 CSV에서 생성합니다. 직접 수정하지 마세요."
+  },
+  "store": {
+    "id": "store_pnu_pub_001",
+    "name": "장전동 포차",
+    "category": "pub",
+    "openedAt": "2025-03-01",
+    "origin": "real"
+  },
+  "weeklyAnalysis": {
+    "storeId": "store_pnu_pub_001",
+    "period": {
+      "start": "2025-10-13",
+      "end": "2025-10-19"
+    },
+    "totalRevenue": 6743000,
+    "changeRateVsPrevWeek": 2.1,
+    "prevWeekRevenue": 6603000,
+    "topMenus": [
+      {
+        "menuName": "닭발",
+        "quantity": 98,
+        "revenue": 1764000,
+        "share": 26.2
+      },
+      {
+        "menuName": "오돌뼈",
+        "quantity": 76,
+        "revenue": 1292000,
+        "share": 19.2
+      },
+      {
+        "menuName": "김치전",
+        "quantity": 64,
+        "revenue": 960000,
+        "share": 14.2
+      },
+      {
+        "menuName": "소주",
+        "quantity": 180,
+        "revenue": 900000,
+        "share": 13.3
+      },
+      {
+        "menuName": "맥주",
+        "quantity": 154,
+        "revenue": 770000,
+        "share": 11.4
+      },
+      {
+        "menuName": "하이볼",
+        "quantity": 93,
+        "revenue": 651000,
+        "share": 9.7
+      },
+      {
+        "menuName": "계란찜",
+        "quantity": 58,
+        "revenue": 406000,
+        "share": 6
+      }
+    ],
+    "weekdaySales": [
+      {
+        "weekday": 1,
+        "revenue": 637000,
+        "orderCount": 68
+      },
+      {
+        "weekday": 2,
+        "revenue": 773000,
+        "orderCount": 86
+      },
+      {
+        "weekday": 3,
+        "revenue": 889000,
+        "orderCount": 95
+      },
+      {
+        "weekday": 4,
+        "revenue": 942000,
+        "orderCount": 101
+      },
+      {
+        "weekday": 5,
+        "revenue": 1326000,
+        "orderCount": 141
+      },
+      {
+        "weekday": 6,
+        "revenue": 1666000,
+        "orderCount": 178
+      },
+      {
+        "weekday": 0,
+        "revenue": 510000,
+        "orderCount": 54
+      }
+    ],
+    "hourlySales": [],
+    "origin": "sample"
+  },
+  "forecast": {
+    "storeId": "store_pnu_pub_001",
+    "targetWeek": {
+      "start": "2025-10-20",
+      "end": "2025-10-26"
+    },
+    "targetWeekLabel": "10월 중간고사 주간",
+    "expectedChangeRate": -27,
+    "expectedRevenue": 4922400,
+    "confidence": "medium",
+    "evidence": [
+      {
+        "label": "중간고사 기간 진입",
+        "contribution": -23,
+        "source": "지난 1년 중 같은 기간 5일 실적",
+        "detail": "중간고사 기간의 하루 매출은 평소의 68% 수준이었습니다."
+      },
+      {
+        "label": "지난주가 평소 수준과 달랐던 부분",
+        "contribution": -4,
+        "source": "매장 데이터 33주",
+        "detail": "지난주 실적은 모델이 본 평소 수준의 105%였습니다."
+      },
+      {
+        "label": "최근 3주 추세",
+        "contribution": 0,
+        "source": "직전 3주 실적과 모델 기준 비교",
+        "detail": "최근 3주는 모델 기준보다 0% 낮았습니다."
+      }
+    ],
+    "academicEvents": [
+      {
+        "name": "중간고사",
+        "startDate": "2025-10-20",
+        "endDate": "2025-10-24",
+        "type": "midterm"
+      }
+    ],
+    "dataSufficiency": {
+      "level": "sufficient",
+      "message": "매출 33주치와 같은 학사일정 5일치 기록으로 계산했습니다.",
+      "weeksAvailable": 33,
+      "weeksRequired": 8
+    },
+    "origin": "sample"
+  },
+  "verification": {
+    "storeId": "store_pnu_pub_001",
+    "period": {
+      "start": "2025-10-06",
+      "end": "2025-10-12"
+    },
+    "predictedChangeRate": 7.5,
+    "actualChangeRate": 13.9,
+    "errorPoints": 6.4,
+    "predictedConfidence": "medium",
+    "errorAnalysis": "10월 07일(화)이 예측보다 19만원 높아 오차의 대부분을 만들었습니다. 학사일정과 요일 패턴만 보고 있어 날씨·행사 같은 그날의 사정은 아직 반영하지 못합니다.",
+    "reflectedInModel": false,
+    "reflectionNote": null,
+    "origin": "sample"
+  },
+  "upload": {
+    "id": "upload_pub_2025",
+    "storeId": "store_pnu_pub_001",
+    "fileName": "캠퍼스알바_가상매출데이터_부산대_술집.csv",
+    "uploadedAt": "2025-10-19T21:40:00",
+    "processedRows": 365,
+    "skippedRows": 0,
+    "period": {
+      "start": "2025-03-01",
+      "end": "2026-02-28"
+    },
+    "recognizedMenuCount": 7,
+    "menuNormalizations": [
+      {
+        "rawName": "소주_판매수량",
+        "normalizedName": "소주",
+        "confidence": 1,
+        "occurrences": 7079
+      },
+      {
+        "rawName": "맥주_판매수량",
+        "normalizedName": "맥주",
+        "confidence": 1,
+        "occurrences": 6154
+      },
+      {
+        "rawName": "하이볼_판매수량",
+        "normalizedName": "하이볼",
+        "confidence": 1,
+        "occurrences": 3363
+      },
+      {
+        "rawName": "닭발_판매수량",
+        "normalizedName": "닭발",
+        "confidence": 1,
+        "occurrences": 3663
+      },
+      {
+        "rawName": "오돌뼈_판매수량",
+        "normalizedName": "오돌뼈",
+        "confidence": 1,
+        "occurrences": 3045
+      },
+      {
+        "rawName": "김치전_판매수량",
+        "normalizedName": "김치전",
+        "confidence": 1,
+        "occurrences": 2531
+      },
+      {
+        "rawName": "계란찜_판매수량",
+        "normalizedName": "계란찜",
+        "confidence": 1,
+        "occurrences": 2226
+      }
+    ],
+    "warnings": [
+      {
+        "code": "MISSING_VALUE",
+        "level": "warning",
+        "message": "결제 시각이 없는 일별 집계 파일입니다. 시간대별 매출과 품절 시각은 계산할 수 없어 화면에서 제외했습니다.",
+        "affectedRows": 365
+      },
+      {
+        "code": "UNKNOWN_MENU",
+        "level": "warning",
+        "message": "메뉴 단가가 파일에 없어 1년치 매출과 판매 수량으로 역산했습니다. 역산 오차는 0.00%입니다.",
+        "affectedRows": 0
+      }
+    ],
+    "origin": "sample"
+  },
+  "missedOpportunities": [],
+  "dataLimitations": [
+    "결제 시각이 없어 시간대별 매출을 만들 수 없습니다.",
+    "개별 결제 내역이 아닌 일별 집계라 품절 시각과 놓친 기회를 판단할 수 없습니다.",
+    "메뉴 단가는 1년치 매출과 판매 수량으로 역산한 값입니다."
+  ],
+  "dailySeries": [
+    {
+      "date": "2025-08-11",
+      "weekday": 1,
+      "event": "여름방학",
+      "revenue": 154000
+    },
+    {
+      "date": "2025-08-12",
+      "weekday": 2,
+      "event": "여름방학",
+      "revenue": 221000
+    },
+    {
+      "date": "2025-08-13",
+      "weekday": 3,
+      "event": "여름방학",
+      "revenue": 198000
+    },
+    {
+      "date": "2025-08-14",
+      "weekday": 4,
+      "event": "여름방학",
+      "revenue": 294000
+    },
+    {
+      "date": "2025-08-15",
+      "weekday": 5,
+      "event": "여름방학",
+      "revenue": 365000
+    },
+    {
+      "date": "2025-08-16",
+      "weekday": 6,
+      "event": "여름방학",
+      "revenue": 359000
+    },
+    {
+      "date": "2025-08-17",
+      "weekday": 0,
+      "event": "여름방학",
+      "revenue": 99000
+    },
+    {
+      "date": "2025-08-18",
+      "weekday": 1,
+      "event": "여름방학",
+      "revenue": 152000
+    },
+    {
+      "date": "2025-08-19",
+      "weekday": 2,
+      "event": "여름방학",
+      "revenue": 217000
+    },
+    {
+      "date": "2025-08-20",
+      "weekday": 3,
+      "event": "여름방학",
+      "revenue": 174000
+    },
+    {
+      "date": "2025-08-21",
+      "weekday": 4,
+      "event": "여름방학",
+      "revenue": 289000
+    },
+    {
+      "date": "2025-08-22",
+      "weekday": 5,
+      "event": "여름방학",
+      "revenue": 258000
+    },
+    {
+      "date": "2025-08-23",
+      "weekday": 6,
+      "event": "여름방학",
+      "revenue": 431000
+    },
+    {
+      "date": "2025-08-24",
+      "weekday": 0,
+      "event": "여름방학",
+      "revenue": 168000
+    },
+    {
+      "date": "2025-08-25",
+      "weekday": 1,
+      "event": "여름방학",
+      "revenue": 219000
+    },
+    {
+      "date": "2025-08-26",
+      "weekday": 2,
+      "event": "여름방학",
+      "revenue": 317000
+    },
+    {
+      "date": "2025-08-27",
+      "weekday": 3,
+      "event": "여름방학",
+      "revenue": 228000
+    },
+    {
+      "date": "2025-08-28",
+      "weekday": 4,
+      "event": "여름방학",
+      "revenue": 231000
+    },
+    {
+      "date": "2025-08-29",
+      "weekday": 5,
+      "event": "여름방학",
+      "revenue": 312000
+    },
+    {
+      "date": "2025-08-30",
+      "weekday": 6,
+      "event": "여름방학",
+      "revenue": 515000
+    },
+    {
+      "date": "2025-08-31",
+      "weekday": 0,
+      "event": "여름방학",
+      "revenue": 199000
+    },
+    {
+      "date": "2025-09-01",
+      "weekday": 1,
+      "event": "개강 초기",
+      "revenue": 740000
+    },
+    {
+      "date": "2025-09-02",
+      "weekday": 2,
+      "event": "개강 초기",
+      "revenue": 963000
+    },
+    {
+      "date": "2025-09-03",
+      "weekday": 3,
+      "event": "개강 초기",
+      "revenue": 1269000
+    },
+    {
+      "date": "2025-09-04",
+      "weekday": 4,
+      "event": "개강 초기",
+      "revenue": 1509000
+    },
+    {
+      "date": "2025-09-05",
+      "weekday": 5,
+      "event": "개강 초기",
+      "revenue": 1860000
+    },
+    {
+      "date": "2025-09-06",
+      "weekday": 6,
+      "event": "개강 초기",
+      "revenue": 1572000
+    },
+    {
+      "date": "2025-09-07",
+      "weekday": 0,
+      "event": "개강 초기",
+      "revenue": 654000
+    },
+    {
+      "date": "2025-09-08",
+      "weekday": 1,
+      "event": "개강 초기",
+      "revenue": 838000
+    },
+    {
+      "date": "2025-09-09",
+      "weekday": 2,
+      "event": "개강 초기",
+      "revenue": 1018000
+    },
+    {
+      "date": "2025-09-10",
+      "weekday": 3,
+      "event": "개강 초기",
+      "revenue": 1466000
+    },
+    {
+      "date": "2025-09-11",
+      "weekday": 4,
+      "event": "개강 초기",
+      "revenue": 1252000
+    },
+    {
+      "date": "2025-09-12",
+      "weekday": 5,
+      "event": "개강 초기",
+      "revenue": 1740000
+    },
+    {
+      "date": "2025-09-13",
+      "weekday": 6,
+      "event": "개강 초기",
+      "revenue": 1767000
+    },
+    {
+      "date": "2025-09-14",
+      "weekday": 0,
+      "event": "개강 초기",
+      "revenue": 647000
+    },
+    {
+      "date": "2025-09-15",
+      "weekday": 1,
+      "event": "개강 초기",
+      "revenue": 1168000
+    },
+    {
+      "date": "2025-09-16",
+      "weekday": 2,
+      "event": "개강 초기",
+      "revenue": 1087000
+    },
+    {
+      "date": "2025-09-17",
+      "weekday": 3,
+      "event": "개강 초기",
+      "revenue": 1386000
+    },
+    {
+      "date": "2025-09-18",
+      "weekday": 4,
+      "event": "개강 초기",
+      "revenue": 1479000
+    },
+    {
+      "date": "2025-09-19",
+      "weekday": 5,
+      "event": "개강 초기",
+      "revenue": 1586000
+    },
+    {
+      "date": "2025-09-20",
+      "weekday": 6,
+      "event": "일반 학기",
+      "revenue": 1139000
+    },
+    {
+      "date": "2025-09-21",
+      "weekday": 0,
+      "event": "일반 학기",
+      "revenue": 498000
+    },
+    {
+      "date": "2025-09-22",
+      "weekday": 1,
+      "event": "일반 학기",
+      "revenue": 527000
+    },
+    {
+      "date": "2025-09-23",
+      "weekday": 2,
+      "event": "일반 학기",
+      "revenue": 752000
+    },
+    {
+      "date": "2025-09-24",
+      "weekday": 3,
+      "event": "일반 학기",
+      "revenue": 724000
+    },
+    {
+      "date": "2025-09-25",
+      "weekday": 4,
+      "event": "일반 학기",
+      "revenue": 1027000
+    },
+    {
+      "date": "2025-09-26",
+      "weekday": 5,
+      "event": "일반 학기",
+      "revenue": 1347000
+    },
+    {
+      "date": "2025-09-27",
+      "weekday": 6,
+      "event": "일반 학기",
+      "revenue": 1245000
+    },
+    {
+      "date": "2025-09-28",
+      "weekday": 0,
+      "event": "일반 학기",
+      "revenue": 543000
+    },
+    {
+      "date": "2025-09-29",
+      "weekday": 1,
+      "event": "일반 학기",
+      "revenue": 550000
+    },
+    {
+      "date": "2025-09-30",
+      "weekday": 2,
+      "event": "일반 학기",
+      "revenue": 662000
+    },
+    {
+      "date": "2025-10-01",
+      "weekday": 3,
+      "event": "일반 학기",
+      "revenue": 911000
+    },
+    {
+      "date": "2025-10-02",
+      "weekday": 4,
+      "event": "일반 학기",
+      "revenue": 1009000
+    },
+    {
+      "date": "2025-10-03",
+      "weekday": 5,
+      "event": "일반 학기",
+      "revenue": 1287000
+    },
+    {
+      "date": "2025-10-04",
+      "weekday": 6,
+      "event": "일반 학기",
+      "revenue": 923000
+    },
+    {
+      "date": "2025-10-05",
+      "weekday": 0,
+      "event": "일반 학기",
+      "revenue": 457000
+    },
+    {
+      "date": "2025-10-06",
+      "weekday": 1,
+      "event": "일반 학기",
+      "revenue": 565000
+    },
+    {
+      "date": "2025-10-07",
+      "weekday": 2,
+      "event": "일반 학기",
+      "revenue": 993000
+    },
+    {
+      "date": "2025-10-08",
+      "weekday": 3,
+      "event": "일반 학기",
+      "revenue": 989000
+    },
+    {
+      "date": "2025-10-09",
+      "weekday": 4,
+      "event": "일반 학기",
+      "revenue": 1024000
+    },
+    {
+      "date": "2025-10-10",
+      "weekday": 5,
+      "event": "일반 학기",
+      "revenue": 1260000
+    },
+    {
+      "date": "2025-10-11",
+      "weekday": 6,
+      "event": "일반 학기",
+      "revenue": 1190000
+    },
+    {
+      "date": "2025-10-12",
+      "weekday": 0,
+      "event": "일반 학기",
+      "revenue": 582000
+    },
+    {
+      "date": "2025-10-13",
+      "weekday": 1,
+      "event": "일반 학기",
+      "revenue": 637000
+    },
+    {
+      "date": "2025-10-14",
+      "weekday": 2,
+      "event": "일반 학기",
+      "revenue": 773000
+    },
+    {
+      "date": "2025-10-15",
+      "weekday": 3,
+      "event": "일반 학기",
+      "revenue": 889000
+    },
+    {
+      "date": "2025-10-16",
+      "weekday": 4,
+      "event": "일반 학기",
+      "revenue": 942000
+    },
+    {
+      "date": "2025-10-17",
+      "weekday": 5,
+      "event": "일반 학기",
+      "revenue": 1326000
+    },
+    {
+      "date": "2025-10-18",
+      "weekday": 6,
+      "event": "일반 학기",
+      "revenue": 1666000
+    },
+    {
+      "date": "2025-10-19",
+      "weekday": 0,
+      "event": "일반 학기",
+      "revenue": 510000
+    }
+  ]
+}
