@@ -1,19 +1,30 @@
 import type {
+  AgentAction,
+  AgentHealth,
+  AgentRun,
   ContentGeneration,
+  DataFreshness,
   Forecast,
   ForecastVerification,
   MissedOpportunity,
+  Recommendation,
   Store,
   UploadResult,
   WeeklyAnalysis,
 } from "@/types";
 
 import {
+  mockAgentAction,
+  mockAgentHealth,
+  mockAgentRun,
   mockAnalysisNormal,
   mockContentGeneration,
   mockForecastConfident,
   mockForecastInsufficient,
+  mockDataFreshness,
+  mockDataFreshnessStale,
   mockMissedOpportunities,
+  mockRecommendations,
   mockStore,
   mockStoreNew,
   mockUploadResult,
@@ -37,12 +48,13 @@ import {
  */
 
 /** 화면 전환용 시나리오 — ?scenario=cafe 처럼 쿼리스트링으로 지정한다 */
-export type Scenario = "default" | "cafe" | "insufficient";
+export type Scenario = "default" | "cafe" | "insufficient" | "stale";
 
 /** 쿼리스트링 값을 시나리오로 변환 */
 export function parseScenario(value?: string | string[]): Scenario {
   if (value === "cafe") return "cafe";
   if (value === "insufficient") return "insufficient";
+  if (value === "stale") return "stale";
   return "default";
 }
 
@@ -114,4 +126,35 @@ export async function getDataLimitations(scenario: Scenario = "default"): Promis
 /** 홍보 콘텐츠 생성 결과 */
 export async function getContent(): Promise<ContentGeneration> {
   return mockContentGeneration;
+}
+
+/* ------------------------------------------------------------------ */
+/* 에이전트                                                            */
+/* ------------------------------------------------------------------ */
+
+/** 가장 최근 에이전트 실행 기록 */
+export async function getLatestAgentRun(): Promise<AgentRun> {
+  return mockAgentRun;
+}
+
+/** 아직 결정하지 않은 추천 (우선순위 높은 순) */
+export async function getRecommendations(scenario: Scenario = "default"): Promise<Recommendation[]> {
+  if (scenario === "insufficient") return [];
+  const order = { high: 0, medium: 1, low: 2 };
+  return [...mockRecommendations].sort((a, b) => order[a.priority] - order[b.priority]);
+}
+
+/** 추천에 딸린 실행 행동 — 없으면 undefined */
+export async function getActionFor(recommendationId: string): Promise<AgentAction | undefined> {
+  return mockAgentAction.recommendationId === recommendationId ? mockAgentAction : undefined;
+}
+
+/** 에이전트 성적표 */
+export async function getAgentHealth(): Promise<AgentHealth> {
+  return mockAgentHealth;
+}
+
+/** 데이터 신선도 — ?scenario=stale 로 예측 중단 화면을 확인할 수 있다 */
+export async function getDataFreshness(scenario: Scenario = "default"): Promise<DataFreshness> {
+  return scenario === "stale" ? mockDataFreshnessStale : mockDataFreshness;
 }

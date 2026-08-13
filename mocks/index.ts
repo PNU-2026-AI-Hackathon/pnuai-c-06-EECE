@@ -14,6 +14,8 @@ import { mockValidationMissed } from "./verification";
 import { mockAnalysisNormal } from "./weekly-analysis";
 
 export * from "./academic-calendar";
+export * from "./agent";
+export * from "./recommendation";
 export * from "./content";
 export * from "./daily-sales";
 export * from "./forecast";

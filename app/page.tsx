@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
+import { DataFreshnessNotice } from "@/components/agent/data-freshness-notice";
+import { RecommendationCard } from "@/components/agent/recommendation-card";
 import { DataInsufficientNotice } from "@/components/common/data-insufficient-notice";
 import { EvidenceList } from "@/components/common/evidence-list";
 import { MetricCard } from "@/components/common/metric-card";
@@ -10,9 +12,11 @@ import { PageHeader } from "@/components/layout/page-header";
 import { MissedOpportunityCard } from "@/components/missed/missed-opportunity-card";
 import { Button } from "@/components/ui/button";
 import {
+  getDataFreshness,
   getForecast,
   getLatestVerification,
   getMissedOpportunities,
+  getRecommendations,
   getStore,
   getWeeklyAnalysis,
   parseScenario,
@@ -26,17 +30,22 @@ export default async function HomePage({
   searchParams: { scenario?: string };
 }) {
   const scenario = parseScenario(searchParams.scenario);
-  const [store, analysis, forecast, missed, verification] = await Promise.all([
-    getStore(scenario),
-    getWeeklyAnalysis(scenario),
-    getForecast(scenario),
-    getMissedOpportunities(scenario),
-    getLatestVerification(scenario),
-  ]);
+  const [store, analysis, forecast, missed, verification, recommendations, freshness] =
+    await Promise.all([
+      getStore(scenario),
+      getWeeklyAnalysis(scenario),
+      getForecast(scenario),
+      getMissedOpportunities(scenario),
+      getLatestVerification(scenario),
+      getRecommendations(scenario),
+      getDataFreshness(scenario),
+    ]);
 
   const isMock = analysis.origin === "sample";
   const topMissed = missed[0];
-  const canForecast = forecast.expectedChangeRate !== null;
+  // 데이터가 오래되면 낡은 기준으로 계산한 예측을 보여주지 않는다
+  const canForecast = forecast.expectedChangeRate !== null && !freshness.blocksForecast;
+  const topRecommendations = recommendations.slice(0, 2);
 
   return (
     <>
@@ -64,6 +73,8 @@ export default async function HomePage({
             note={forecast.dataSufficiency.message}
             emphasis="lg"
           />
+        ) : freshness.blocksForecast ? (
+          <DataFreshnessNotice freshness={freshness} />
         ) : (
           <DataInsufficientNotice sufficiency={forecast.dataSufficiency} />
         )}
@@ -85,10 +96,27 @@ export default async function HomePage({
         </section>
       )}
 
+      {topRecommendations.length > 0 && (
+        <section className="space-y-4" aria-label="지금 하실 일">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-2xl font-bold">그래서 지금 하실 일</h2>
+            <Button asChild variant="ghost" size="lg">
+              <Link href="/agent">
+                {recommendations.length}건 모두 보기
+                <ArrowRight aria-hidden className="ml-2 size-4" />
+              </Link>
+            </Button>
+          </div>
+          {topRecommendations.map((r) => (
+            <RecommendationCard key={r.id} recommendation={r} />
+          ))}
+        </section>
+      )}
+
       {topMissed && (
         <section className="space-y-4" aria-label="놓친 기회">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-2xl font-bold">이번 주에 놓친 매출</h2>
+            <h2 className="text-2xl font-bold">놓친 판매 기회</h2>
             <Button asChild variant="ghost" size="lg">
               <Link href="/weekly">
                 {missed.length}건 모두 보기

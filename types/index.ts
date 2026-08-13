@@ -1,7 +1,14 @@
 /**
  * 백엔드(FastAPI)와 주고받는 데이터 계약.
  * 프론트엔드는 이 파일의 타입만 신뢰하며, 목 데이터도 이 타입을 따른다.
+ *
+ * - 분석·예측 계약: 이 파일
+ * - 행동 추천 계약: ./recommendation
+ * - 에이전트 실행 계약: ./agent
  */
+
+export * from "./agent";
+export * from "./recommendation";
 
 /* ------------------------------------------------------------------ */
 /* 공통                                                                */
@@ -257,7 +264,11 @@ export interface Forecast {
 /* 놓친 기회                                                            */
 /* ------------------------------------------------------------------ */
 
-/** 품절·재고 부족으로 팔지 못했다고 추정되는 매출 기회 한 건 */
+/**
+ * 품절·재고 부족으로 팔지 못했다고 추정되는 판매 기회 한 건.
+ * 실제로 발생한 손실이 아니라 추정치이므로, 화면에서도 "손실"이 아니라
+ * "예상 판매 기회"로만 표현한다.
+ */
 export interface MissedOpportunity {
   /** 고유 식별자 */
   id: string;
@@ -271,8 +282,8 @@ export interface MissedOpportunity {
   estimatedSoldOutAt: string;
   /** 평소 마감 시각 (HH:mm) */
   usualClosingAt: string;
-  /** 추정 손실 금액 */
-  estimatedLoss: Won;
+  /** 팔 수 있었을 것으로 추정되는 금액 (실제 손실액이 아님) */
+  estimatedOpportunity: Won;
   /** 같은 패턴이 몇 주 연속 반복됐는지 (1이면 이번이 처음) */
   repeatedWeeks: number;
   /** 이 추정의 근거를 설명하는 한 문장 */

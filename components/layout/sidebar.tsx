@@ -23,8 +23,8 @@ export function Sidebar() {
       <aside className="hidden w-64 shrink-0 border-r bg-card lg:block">
         <div className="sticky top-0 flex h-screen flex-col">
           <div className="border-b px-6 py-6">
-            <p className="text-xl font-bold tracking-tight">캠퍼스알바</p>
-            <p className="mt-1 text-sm text-muted-foreground">대학상권 AI 매장 매니저</p>
+            <p className="text-xl font-bold tracking-tight">STAFFI</p>
+            <p className="mt-1 text-sm text-muted-foreground">Your AI Staff</p>
           </div>
 
           <nav aria-label="주요 메뉴" className="flex-1 space-y-1 p-3">
@@ -62,7 +62,7 @@ export function Sidebar() {
 
       <nav
         aria-label="주요 메뉴"
-        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t bg-card lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-6 border-t bg-card lg:hidden"
       >
         {NAV_ITEMS.map((item) => {
           const active = isActive(pathname, item.href);

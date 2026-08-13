@@ -5,8 +5,8 @@ import { Sidebar } from "@/components/layout/sidebar";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "캠퍼스알바 | 대학상권 AI 매장 매니저",
-  description: "학사일정과 매출 데이터를 연결해 다음 주 수요를 예측하고 할 일을 알려드립니다.",
+  title: "STAFFI | 대학상권 AI 매장 직원",
+  description: "부산대학교 학사일정과 매장 데이터를 분석해, 다음에 무엇이 달라질지와 지금 무엇을 해야 하는지 알려드립니다.",
 };
 
 export const viewport: Viewport = {

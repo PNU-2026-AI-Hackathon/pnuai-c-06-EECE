@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { BarChart3, Home, Megaphone, Settings, TrendingUp } from "lucide-react";
+import { BarChart3, Bot, Home, Megaphone, Settings, TrendingUp } from "lucide-react";
 
 /** 사이드바 메뉴 한 개 */
 export interface NavItem {
@@ -16,6 +16,7 @@ export interface NavItem {
 /** 사이드바 메뉴 — 사장님이 보는 순서대로 */
 export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "홈", icon: Home, description: "오늘 봐야 할 것만" },
+  { href: "/agent", label: "STAFFI 활동", icon: Bot, description: "한 일과 해야 할 일" },
   { href: "/weekly", label: "주간 리포트", icon: BarChart3, description: "지난주 매출 정리" },
   { href: "/forecast", label: "수요 예측", icon: TrendingUp, description: "다음 주 어떻게 될까" },
   { href: "/content", label: "홍보 콘텐츠", icon: Megaphone, description: "릴스·게시글 만들기" },

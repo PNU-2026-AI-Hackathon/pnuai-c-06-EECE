@@ -41,8 +41,9 @@ export function MissedOpportunityCard({
 
         <div className="flex flex-wrap gap-x-10 gap-y-4">
           <div>
-            <p className="text-base text-muted-foreground">추정 손실</p>
-            <p className="tnum text-metric text-down">{formatWon(item.estimatedLoss)}</p>
+            <p className="text-base text-muted-foreground">예상 판매 기회</p>
+            <p className="tnum text-metric">약 {formatWon(item.estimatedOpportunity)}</p>
+            <p className="text-sm text-muted-foreground">실제 손실액이 아니라 추정치입니다</p>
           </div>
           <div>
             <p className="text-base text-muted-foreground">품절 추정 시각</p>

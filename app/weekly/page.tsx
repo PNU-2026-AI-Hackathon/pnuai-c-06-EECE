@@ -109,7 +109,7 @@ export default async function WeeklyPage({ searchParams }: { searchParams: { sce
       <MenuSalesTable menus={analysis.topMenus} isMockData={isMock} />
 
       <section className="space-y-4" aria-label="놓친 기회">
-        <h2 className="text-2xl font-bold">놓친 매출 {missed.length > 0 && `${missed.length}건`}</h2>
+        <h2 className="text-2xl font-bold">놓친 판매 기회 {missed.length > 0 && `${missed.length}건`}</h2>
         {missed.length === 0 ? (
           <EmptyState
             title="놓친 기회를 판단할 수 없습니다"
