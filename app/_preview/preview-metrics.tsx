@@ -2,7 +2,7 @@ import { ChangeIndicator } from "@/components/common/change-indicator";
 import { ChartFrame } from "@/components/common/chart-frame";
 import { EvidenceList } from "@/components/common/evidence-list";
 import { MetricCard } from "@/components/common/metric-card";
-import { MockDataBadge } from "@/components/common/mock-data-badge";
+import { MockDataBadge } from "@/components/common/data-origin-badge";
 
 /** 프리뷰용 고정 값 — 목 데이터 파일과 연결하지 않고 이 자리에서만 쓴다 */
 const SAMPLE_EVIDENCE = [

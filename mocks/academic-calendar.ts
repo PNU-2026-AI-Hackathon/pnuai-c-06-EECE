@@ -20,3 +20,15 @@ export const mockAcademicCalendar2026Fall: AcademicEvent[] = [
 export const mockEventsForTargetWeek: AcademicEvent[] = [
   mockAcademicCalendar2026Fall[4],
 ];
+
+/**
+ * 부산대학교 2025학년도 2학기 — 술집 실데이터 시연용.
+ * 날짜는 data/pub-sales-pnu-2025.csv 의 학사이벤트 라벨 구간과 일치한다.
+ */
+export const mockPnuFall2025: AcademicEvent[] = [
+  { name: "개강", startDate: "2025-09-01", endDate: "2025-09-19", type: "semester_start" },
+  { name: "중간고사", startDate: "2025-10-20", endDate: "2025-10-24", type: "midterm" },
+  { name: "대학축제", startDate: "2025-11-10", endDate: "2025-11-14", type: "festival" },
+  { name: "기말고사", startDate: "2025-12-15", endDate: "2025-12-19", type: "final" },
+  { name: "겨울방학", startDate: "2025-12-20", endDate: "2026-02-28", type: "vacation" },
+];

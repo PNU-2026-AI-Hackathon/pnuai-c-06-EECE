@@ -89,6 +89,15 @@ export const mockUploadResult: Mock<UploadResult> = {
   recognizedMenuCount: 11,
   menuNormalizations: mockMenuNormalizations,
   warnings: mockUploadWarnings,
+  capabilities: [
+    { kind: "daily_sales", label: "일별 매출", available: true, missingReason: null },
+    { kind: "weekday_pattern", label: "요일별 패턴", available: true, missingReason: null },
+    { kind: "menu_analysis", label: "메뉴별 분석", available: true, missingReason: null },
+    { kind: "hourly_pattern", label: "시간대별 매출", available: true, missingReason: null },
+    { kind: "academic_event", label: "학사일정 비교", available: true, missingReason: null },
+    { kind: "early_sales_end", label: "판매 조기 종료 탐지", available: true, missingReason: null },
+  ],
+  weeksCovered: 33,
   isMockData: true,
 };
 
@@ -111,5 +120,24 @@ export const mockUploadResultShort: Mock<UploadResult> = {
       affectedRows: 0,
     },
   ],
+  capabilities: [
+    { kind: "daily_sales", label: "일별 매출", available: true, missingReason: null },
+    {
+      kind: "weekday_pattern",
+      label: "요일별 패턴",
+      available: true,
+      missingReason: null,
+    },
+    { kind: "menu_analysis", label: "메뉴별 분석", available: true, missingReason: null },
+    { kind: "hourly_pattern", label: "시간대별 매출", available: true, missingReason: null },
+    {
+      kind: "academic_event",
+      label: "학사일정 비교",
+      available: false,
+      missingReason: "학사일정과 비교하려면 8주 이상이 필요합니다. 지금은 3주입니다.",
+    },
+    { kind: "early_sales_end", label: "판매 조기 종료 탐지", available: true, missingReason: null },
+  ],
+  weeksCovered: 3,
   isMockData: true,
 };

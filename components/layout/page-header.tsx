@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import type { DataOrigin } from "@/types";
 
-import { DataOriginBadge } from "@/components/common/mock-data-badge";
+import { DataOriginBadge } from "@/components/common/data-origin-badge";
 
 /** 각 화면 상단의 제목 영역. 화면마다 같은 위치·같은 크기로 유지한다 */
 export function PageHeader({

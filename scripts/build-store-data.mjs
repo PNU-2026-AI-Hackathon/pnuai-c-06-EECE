@@ -270,6 +270,25 @@ function buildUploadResult(rows, prices, maxRelError) {
         affectedRows: 0,
       },
     ],
+    capabilities: [
+      { kind: "daily_sales", label: "일별 매출", available: true, missingReason: null },
+      { kind: "weekday_pattern", label: "요일별 패턴", available: true, missingReason: null },
+      { kind: "menu_analysis", label: "메뉴별 분석", available: true, missingReason: null },
+      {
+        kind: "hourly_pattern",
+        label: "시간대별 매출",
+        available: false,
+        missingReason: "결제 시각이 없어 시간대별 매출은 만들 수 없습니다.",
+      },
+      { kind: "academic_event", label: "학사일정 비교", available: true, missingReason: null },
+      {
+        kind: "early_sales_end",
+        label: "판매 조기 종료 탐지",
+        available: false,
+        missingReason: "결제 시각과 메뉴가 함께 있어야 판매가 일찍 끝났는지 알 수 있습니다.",
+      },
+    ],
+    weeksCovered: 52,
     origin: "computed",
   };
 }

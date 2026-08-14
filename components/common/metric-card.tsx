@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import type { DataOrigin } from "@/types";
 
 import { ChangeIndicator } from "@/components/common/change-indicator";
-import { DataOriginBadge } from "@/components/common/mock-data-badge";
+import { DataOriginBadge } from "@/components/common/data-origin-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 

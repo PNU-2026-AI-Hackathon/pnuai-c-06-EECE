@@ -13,7 +13,10 @@ import type {
   WeeklyAnalysis,
 } from "@/types";
 
+import type { AcademicEvent } from "@/types";
+
 import {
+  mockAcademicCalendar2026Fall,
   mockAgentAction,
   mockAgentHealth,
   mockAgentRun,
@@ -25,6 +28,7 @@ import {
   mockDataFreshness,
   mockDataFreshnessStale,
   mockEarlySalesEnds,
+  mockPnuFall2025,
   mockRecommendations,
   mockStore,
   mockStoreNew,
@@ -175,4 +179,33 @@ export async function getAgentHealth(): Promise<AgentHealth> {
 /** 데이터 신선도 — ?scenario=stale 로 예측 중단 화면을 확인할 수 있다 */
 export async function getDataFreshness(scenario: Scenario = "default"): Promise<DataFreshness> {
   return scenario === "stale" ? mockDataFreshnessStale : mockDataFreshness;
+}
+
+/* ------------------------------------------------------------------ */
+/* 학기                                                                */
+/* ------------------------------------------------------------------ */
+
+/** 학기 띠를 그리는 데 필요한 것 — 일정, 기준일, 학기 이름 */
+export interface SemesterContext {
+  /** 학기 전체 일정 */
+  events: AcademicEvent[];
+  /** 기준일 (시연에서는 고정) */
+  today: string;
+  /** 학기 이름 */
+  label: string;
+}
+
+/**
+ * 학기 일정.
+ * 시연 기준일은 데이터의 마지막 날에 맞춘다 — 실서비스에서는 오늘 날짜를 쓴다.
+ */
+export async function getSemesterContext(scenario: Scenario = "default"): Promise<SemesterContext> {
+  if (scenario === "cafe") {
+    return {
+      events: mockAcademicCalendar2026Fall,
+      today: "2026-10-18",
+      label: "2026학년도 2학기",
+    };
+  }
+  return { events: mockPnuFall2025, today: "2025-10-19", label: "2025학년도 2학기" };
 }

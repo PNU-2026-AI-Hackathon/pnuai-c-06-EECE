@@ -3,7 +3,7 @@ import { CheckCircle2, RefreshCcw } from "lucide-react";
 import type { DataOrigin, ForecastVerification } from "@/types";
 
 import { ChangeIndicator } from "@/components/common/change-indicator";
-import { DataOriginBadge } from "@/components/common/mock-data-badge";
+import { DataOriginBadge } from "@/components/common/data-origin-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatChangeRate, formatPeriod } from "@/lib/format";
 

@@ -1,6 +1,6 @@
 import type { DataOrigin, MenuSales } from "@/types";
 
-import { DataOriginBadge } from "@/components/common/mock-data-badge";
+import { DataOriginBadge } from "@/components/common/data-origin-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatWon } from "@/lib/format";

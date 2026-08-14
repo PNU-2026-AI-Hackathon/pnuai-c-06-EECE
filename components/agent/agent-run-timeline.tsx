@@ -2,7 +2,7 @@ import { AlertCircle, Check, Clock, MinusCircle } from "lucide-react";
 
 import type { AgentRun, AgentStep } from "@/types";
 
-import { DataOriginBadge } from "@/components/common/mock-data-badge";
+import { DataOriginBadge } from "@/components/common/data-origin-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 

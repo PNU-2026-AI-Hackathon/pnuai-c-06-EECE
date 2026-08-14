@@ -27,14 +27,18 @@ const config = {
         "brand-soft": "hsl(var(--brand-soft))",
       },
       fontSize: {
+        /** 결론을 말하는 문장형 헤드라인 */
+        headline: ["1.75rem", { lineHeight: "1.4", fontWeight: "600", letterSpacing: "-0.02em" }],
         /** 핵심 지표용 — 32px 이상 */
-        metric: ["2.25rem", { lineHeight: "1.15", fontWeight: "700", letterSpacing: "-0.02em" }],
-        "metric-lg": ["3rem", { lineHeight: "1.1", fontWeight: "700", letterSpacing: "-0.02em" }],
+        metric: ["2.25rem", { lineHeight: "1.15", fontWeight: "700", letterSpacing: "-0.03em" }],
+        "metric-lg": ["3rem", { lineHeight: "1.1", fontWeight: "700", letterSpacing: "-0.03em" }],
       },
+      height: { 13: "3.25rem" },
       borderRadius: {
+        /* 카드 16px · 버튼 14px · 작은 요소 10px */
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        sm: "calc(var(--radius) - 6px)",
       },
       keyframes: {
         "accordion-down": { from: { height: "0" }, to: { height: "var(--radix-accordion-content-height)" } },

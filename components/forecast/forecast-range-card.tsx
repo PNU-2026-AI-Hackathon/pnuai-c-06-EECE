@@ -2,7 +2,7 @@ import { Info } from "lucide-react";
 
 import type { Forecast } from "@/types";
 
-import { DataOriginBadge } from "@/components/common/mock-data-badge";
+import { DataOriginBadge } from "@/components/common/data-origin-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { confidenceLabel, formatChangeRate, formatWonShort } from "@/lib/format";

@@ -108,6 +108,30 @@ export interface MenuNormalization {
   occurrences: number;
 }
 
+/** 올린 파일로 할 수 있는 분석 종류 */
+export type AnalysisCapabilityKind =
+  | "daily_sales"
+  | "weekday_pattern"
+  | "hourly_pattern"
+  | "menu_analysis"
+  | "academic_event"
+  | "early_sales_end";
+
+/**
+ * 이 파일로 무엇을 할 수 있고 무엇을 할 수 없는지.
+ * 업로드 직후 이것부터 보여줘야 "왜 이 화면은 비어 있나"를 나중에 설명하지 않아도 된다.
+ */
+export interface AnalysisCapability {
+  /** 분석 종류 */
+  kind: AnalysisCapabilityKind;
+  /** 사장님이 읽을 이름 (예: "시간대별 매출") */
+  label: string;
+  /** 지금 가능한지 */
+  available: boolean;
+  /** 불가능하면 무엇이 없어서인지 (가능하면 null) */
+  missingReason: string | null;
+}
+
 /** CSV 업로드 1회에 대한 처리 결과 요약 */
 export interface UploadResult {
   /** 업로드 고유 식별자 */
@@ -130,6 +154,10 @@ export interface UploadResult {
   menuNormalizations: MenuNormalization[];
   /** 결측·이상치 등 경고 목록 (없으면 빈 배열) */
   warnings: UploadWarning[];
+  /** 이 파일로 가능한 분석과 불가능한 분석 */
+  capabilities: AnalysisCapability[];
+  /** 데이터가 커버하는 완전한 주 수 */
+  weeksCovered: number;
 }
 
 /* ------------------------------------------------------------------ */

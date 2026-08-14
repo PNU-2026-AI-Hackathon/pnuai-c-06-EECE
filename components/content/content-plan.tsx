@@ -2,7 +2,7 @@ import { Clock, Hash, Clapperboard, Lightbulb } from "lucide-react";
 
 import type { ContentGeneration } from "@/types";
 
-import { DataOriginBadge } from "@/components/common/mock-data-badge";
+import { DataOriginBadge } from "@/components/common/data-origin-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateTimeShort } from "@/lib/format";
