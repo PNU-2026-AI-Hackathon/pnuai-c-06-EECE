@@ -1,6 +1,6 @@
 import type { AgentHealth, DataFreshness } from "@/types";
 
-import { MockDataBadge } from "@/components/common/mock-data-badge";
+import { DataOriginBadge } from "@/components/common/mock-data-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +29,7 @@ export function AgentHealthCard({
       <CardHeader className="pb-2">
         <div className="flex flex-wrap items-center gap-2">
           <CardTitle className="text-xl">STAFFI 성적표</CardTitle>
-          {health.origin === "sample" && <MockDataBadge />}
+          <DataOriginBadge origin={health.origin} />
         </div>
         <p className="text-base text-muted-foreground">
           {health.since.replaceAll("-", ".")}부터 {health.runCount}번 일했습니다

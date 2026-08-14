@@ -5,7 +5,7 @@ import { AlertTriangle, Check, ChevronDown, X } from "lucide-react";
 
 import type { AgentAction, Recommendation, RecommendationPriority } from "@/types";
 
-import { MockDataBadge } from "@/components/common/mock-data-badge";
+import { DataOriginBadge } from "@/components/common/mock-data-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,6 +49,8 @@ export function RecommendationCard({
   const [showEvidence, setShowEvidence] = useState(defaultOpen);
   const [showReasons, setShowReasons] = useState(false);
   const [declineReason, setDeclineReason] = useState<string | null>(null);
+  // 승인은 실행과 별개다 — 승인 없이 실행하지 않는다는 규칙을 화면에서도 지킨다
+  const [approved, setApproved] = useState(action?.status === "approved" || action?.status === "executed");
   const priority = PRIORITY[r.priority];
 
   return (
@@ -65,7 +67,7 @@ export function RecommendationCard({
           <span className="text-base text-muted-foreground">
             {formatDateShort(r.actionWindow.start)}까지
           </span>
-          {r.origin === "sample" && <MockDataBadge />}
+          <DataOriginBadge origin={r.origin} />
         </div>
 
         <div className="space-y-2">
@@ -142,7 +144,15 @@ export function RecommendationCard({
             <p className="text-base font-semibold">
               {status === "accepted" ? "하기로 하셨습니다" : `안 하기로 하셨습니다${declineReason ? ` — ${declineReason}` : ""}`}
             </p>
-            <Button size="lg" variant="ghost" onClick={() => setStatus("proposed")}>
+            <Button
+              size="lg"
+              variant="ghost"
+              onClick={() => {
+                setStatus("proposed");
+                setApproved(false);
+                setDeclineReason(null);
+              }}
+            >
               되돌리기
             </Button>
           </div>
@@ -157,12 +167,39 @@ export function RecommendationCard({
                 {action.preview}
               </p>
             )}
-            <p className="mt-3 text-sm text-muted-foreground">
-              사장님이 확인하고 승인하기 전에는 게시하지 않습니다.
-            </p>
-            <Button size="lg" className="mt-3">
-              확인하고 승인하기
-            </Button>
+
+            {approved ? (
+              <div className="mt-3 space-y-1">
+                <p className="flex items-center gap-1.5 text-base font-semibold text-up">
+                  <Check aria-hidden className="size-5" />
+                  승인하셨습니다
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {action.executeBy
+                    ? `${formatDateShort(action.executeBy)}에 실행할 일로 적어 두었습니다.`
+                    : "실행할 일로 적어 두었습니다."}{" "}
+                  실제 게시·발주 연동은 아직 준비 중이라, 지금은 승인 기록만 남습니다.
+                </p>
+                <Button
+                  size="lg"
+                  variant="ghost"
+                  className="mt-1"
+                  onClick={() => setApproved(false)}
+                >
+                  승인 취소
+                </Button>
+              </div>
+            ) : (
+              <>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  사장님이 확인하고 승인하기 전에는 게시하지 않습니다.
+                </p>
+                <Button size="lg" className="mt-3" onClick={() => setApproved(true)}>
+                  <Check aria-hidden className="mr-2 size-5" />
+                  확인하고 승인하기
+                </Button>
+              </>
+            )}
           </div>
         )}
       </CardContent>

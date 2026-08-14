@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 
+import type { DataOrigin } from "@/types";
+
 import { ChangeIndicator } from "@/components/common/change-indicator";
-import { MockDataBadge } from "@/components/common/mock-data-badge";
+import { DataOriginBadge } from "@/components/common/mock-data-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +17,7 @@ export function MetricCard({
   changeUnit = "%",
   note,
   evidence,
-  isMockData = false,
+  origin = "real",
   emphasis = "default",
   className,
 }: {
@@ -36,7 +38,8 @@ export function MetricCard({
   /** 이 숫자의 근거. 설계 원칙상 예측 수치에는 반드시 함께 표시한다 */
   evidence?: ReactNode;
   /** 예시 데이터 여부 */
-  isMockData?: boolean;
+  /** 이 숫자의 출처 — real이면 배지 없음 */
+  origin?: DataOrigin;
   /** 화면에서 가장 중요한 지표 하나만 lg로 */
   emphasis?: "default" | "lg";
   className?: string;
@@ -46,7 +49,7 @@ export function MetricCard({
       <CardContent className="space-y-3 p-6">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-base font-semibold text-muted-foreground">{label}</p>
-          {isMockData && <MockDataBadge />}
+          <DataOriginBadge origin={origin} />
         </div>
 
         <p className={cn("tnum text-foreground", emphasis === "lg" ? "text-metric-lg" : "text-metric")}>

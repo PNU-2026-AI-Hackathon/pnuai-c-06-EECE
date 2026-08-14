@@ -1,6 +1,6 @@
-import type { MenuSales } from "@/types";
+import type { DataOrigin, MenuSales } from "@/types";
 
-import { MockDataBadge } from "@/components/common/mock-data-badge";
+import { DataOriginBadge } from "@/components/common/mock-data-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatWon } from "@/lib/format";
@@ -8,10 +8,11 @@ import { formatWon } from "@/lib/format";
 /** 메뉴별 판매 표. 비중은 숫자와 막대를 함께 보여준다 */
 export function MenuSalesTable({
   menus,
-  isMockData = false,
+  origin = "real",
 }: {
   menus: MenuSales[];
-  isMockData?: boolean;
+  /** 이 숫자의 출처 — real이면 배지 없음 */
+  origin?: DataOrigin;
 }) {
   const max = Math.max(...menus.map((m) => m.share), 1);
 
@@ -20,7 +21,7 @@ export function MenuSalesTable({
       <CardHeader className="pb-2">
         <div className="flex flex-wrap items-center gap-2">
           <CardTitle className="text-xl">많이 팔린 메뉴</CardTitle>
-          {isMockData && <MockDataBadge />}
+          <DataOriginBadge origin={origin} />
         </div>
         <p className="text-base text-muted-foreground">수량 기준 상위 {menus.length}개</p>
       </CardHeader>

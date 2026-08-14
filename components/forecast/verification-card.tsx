@@ -1,9 +1,9 @@
 import { CheckCircle2, RefreshCcw } from "lucide-react";
 
-import type { ForecastVerification } from "@/types";
+import type { DataOrigin, ForecastVerification } from "@/types";
 
 import { ChangeIndicator } from "@/components/common/change-indicator";
-import { MockDataBadge } from "@/components/common/mock-data-badge";
+import { DataOriginBadge } from "@/components/common/mock-data-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatChangeRate, formatPeriod } from "@/lib/format";
 
@@ -13,11 +13,12 @@ import { formatChangeRate, formatPeriod } from "@/lib/format";
  */
 export function VerificationCard({
   verification,
-  isMockData = false,
+  origin = "real",
   compact = false,
 }: {
   verification: ForecastVerification;
-  isMockData?: boolean;
+  /** 이 숫자의 출처 — real이면 배지 없음 */
+  origin?: DataOrigin;
   /** 홈 화면처럼 좁은 자리에서는 오차 원인만 짧게 */
   compact?: boolean;
 }) {
@@ -29,7 +30,7 @@ export function VerificationCard({
       <CardHeader className="pb-2">
         <div className="flex flex-wrap items-center gap-2">
           <CardTitle className="text-xl">지난주 예측은 맞았을까요?</CardTitle>
-          {isMockData && <MockDataBadge />}
+          <DataOriginBadge origin={origin} />
         </div>
         <p className="text-base text-muted-foreground">{formatPeriod(v.period.start, v.period.end)}</p>
       </CardHeader>

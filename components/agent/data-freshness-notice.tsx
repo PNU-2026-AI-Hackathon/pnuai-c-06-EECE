@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CalendarClock } from "lucide-react";
 
 import type { DataFreshness } from "@/types";
@@ -40,8 +41,8 @@ export function DataFreshnessNotice({
             경과
           </p>
           {blocking && (
-            <Button size="lg" className="mt-1">
-              새 매출 파일 올리기
+            <Button asChild size="lg" className="mt-1">
+              <Link href="/settings">새 매출 파일 올리기</Link>
             </Button>
           )}
         </div>

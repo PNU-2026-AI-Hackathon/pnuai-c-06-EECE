@@ -22,7 +22,7 @@ import {
   getWeeklyAnalysis,
   parseScenario,
 } from "@/lib/data";
-import { formatPeriod, formatWon, formatWonShort } from "@/lib/format";
+import { formatPeriod, formatWon, formatWonShort, weekdayLabel } from "@/lib/format";
 
 /** 홈 — 사장님이 오늘 봐야 할 것만 위에서부터 순서대로 */
 export default async function HomePage({
@@ -42,8 +42,13 @@ export default async function HomePage({
       getDataFreshness(scenario),
     ]);
 
-  const isMock = analysis.origin === "sample";
   const topEarlyEnd = earlyEnds.find((e) => e.ownerConfirmation === "unconfirmed");
+  // 휴무 안내는 매출이 0인 요일이 실제로 있을 때만 붙인다 — 없는 사실을 적지 않는다
+  const closedDays = analysis.weekdaySales.filter((d) => d.revenue === 0);
+  const closedNote =
+    closedDays.length > 0
+      ? ` · ${closedDays.map((d) => `${weekdayLabel(d.weekday)}요일`).join("·")} 휴무 제외`
+      : "";
   // 데이터가 오래되면 낡은 기준으로 계산한 예측을 보여주지 않는다
   const canForecast = forecast.expectedChangeRate !== null && !freshness.blocksForecast;
   const topRecommendations = recommendations.slice(0, 2);
@@ -53,7 +58,7 @@ export default async function HomePage({
       <PageHeader
         title={`${store.name} 사장님`}
         description={`${formatPeriod(analysis.period.start, analysis.period.end)} 매출을 정리하고, 다음 주를 미리 봤습니다.`}
-        isMockData={isMock}
+        origin={analysis.origin}
       />
 
       <section className="grid gap-5 md:grid-cols-2" aria-label="핵심 지표">
@@ -61,7 +66,7 @@ export default async function HomePage({
           label="지난주 총매출"
           value={formatWonShort(analysis.totalRevenue)}
           change={analysis.changeRateVsPrevWeek}
-          note={`${formatWon(analysis.totalRevenue)} · 일요일 휴무 제외`}
+          note={`${formatWon(analysis.totalRevenue)}${closedNote}`}
           emphasis="lg"
         />
 
@@ -77,7 +82,13 @@ export default async function HomePage({
       {canForecast && (
         <section className="space-y-4" aria-label="예측 근거">
           <div className="rounded-xl border bg-card p-6">
-            <EvidenceList items={forecast.evidence.slice(0, 3)} caption="이렇게 본 이유" />
+            {/* 검증은 근거 전체로 하고, 화면에는 위 3건만 보여준다 */}
+            <EvidenceList
+              items={forecast.evidence}
+              total={forecast.expectedChangeRate ?? undefined}
+              visibleCount={3}
+              caption="이렇게 본 이유"
+            />
             <div className="mt-5">
               <Button asChild variant="outline" size="lg">
                 <Link href="/forecast">
@@ -132,7 +143,7 @@ export default async function HomePage({
       {verification && (
         <section className="space-y-4" aria-label="지난주 예측 검증">
           <h2 className="text-2xl font-bold">틀린 것도 그대로 보여드립니다</h2>
-          <VerificationCard verification={verification} isMockData={verification.origin === "sample"} compact />
+          <VerificationCard verification={verification} origin={verification.origin} compact />
         </section>
       )}
     </>

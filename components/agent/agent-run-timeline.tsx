@@ -2,7 +2,7 @@ import { AlertCircle, Check, Clock, MinusCircle } from "lucide-react";
 
 import type { AgentRun, AgentStep } from "@/types";
 
-import { MockDataBadge } from "@/components/common/mock-data-badge";
+import { DataOriginBadge } from "@/components/common/mock-data-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +28,7 @@ export function AgentRunTimeline({ run }: { run: AgentRun }) {
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-center gap-2">
           <CardTitle className="text-xl">STAFFI가 한 일</CardTitle>
-          {run.origin === "sample" && <MockDataBadge />}
+          <DataOriginBadge origin={run.origin} />
         </div>
         <p className="text-base text-muted-foreground">
           {run.trigger.description} · {run.startedAt.slice(0, 10).replaceAll("-", ".")}{" "}

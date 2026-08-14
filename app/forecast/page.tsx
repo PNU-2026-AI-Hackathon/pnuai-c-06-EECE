@@ -17,7 +17,6 @@ export default async function ForecastPage({ searchParams }: { searchParams: { s
     getLatestVerification(scenario),
   ]);
 
-  const isMock = forecast.origin === "sample";
   const rate = forecast.expectedChangeRate;
   const canForecast = rate !== null;
 
@@ -26,7 +25,7 @@ export default async function ForecastPage({ searchParams }: { searchParams: { s
       <PageHeader
         title="수요 예측"
         description={`${forecast.targetWeekLabel} · ${formatPeriod(forecast.targetWeek.start, forecast.targetWeek.end)}`}
-        isMockData={isMock}
+        origin={forecast.origin}
       />
 
       {canForecast ? (
@@ -53,7 +52,7 @@ export default async function ForecastPage({ searchParams }: { searchParams: { s
       <AcademicEventList events={forecast.academicEvents} />
 
       {verification ? (
-        <VerificationCard verification={verification} isMockData={verification.origin === "sample"} />
+        <VerificationCard verification={verification} origin={verification.origin} />
       ) : (
         <Card className="shadow-none">
           <CardHeader className="pb-2">

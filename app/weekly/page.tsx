@@ -24,19 +24,24 @@ export default async function WeeklyPage({ searchParams }: { searchParams: { sce
     getEarlySalesEndLimitation(scenario),
   ]);
 
-  const isMock = analysis.origin === "sample";
   const openDays = analysis.weekdaySales.filter((d) => d.revenue > 0);
   const dailyAverage = Math.round(analysis.totalRevenue / Math.max(openDays.length, 1));
   const busiest = [...analysis.weekdaySales].sort((a, b) => b.revenue - a.revenue)[0];
   const peakHour = [...analysis.hourlySales].sort((a, b) => b.revenue - a.revenue)[0];
   const totalItems = analysis.weekdaySales.reduce((s, d) => s + d.orderCount, 0);
 
+  // 휴무 문구는 매출 0인 요일이 실제로 있을 때만 만든다 — 데이터에 없는 사실을 적지 않는다
+  const closedDays = analysis.weekdaySales.filter((d) => d.revenue === 0);
+  const closedLabel = closedDays.map((d) => `${weekdayLabel(d.weekday)}요일`).join("·");
+  const closedDescription = closedDays.length > 0 ? `${closedLabel}은 매출이 없는 날입니다` : undefined;
+  const closedSummary = closedDays.length > 0 ? ` ${closedLabel}은 매출이 없습니다.` : "";
+
   return (
     <>
       <PageHeader
         title="주간 리포트"
         description={`${formatPeriod(analysis.period.start, analysis.period.end)} · 영업 ${openDays.length}일`}
-        isMockData={isMock}
+        origin={analysis.origin}
       />
 
       <section className="grid gap-5 md:grid-cols-3" aria-label="주간 요약">
@@ -60,16 +65,16 @@ export default async function WeeklyPage({ searchParams }: { searchParams: { sce
 
       <ChartFrame
         title="요일별 매출"
-        description="일요일은 정기 휴무입니다"
-        isMockData={isMock}
+        description={closedDescription}
+        origin={analysis.origin}
         summary={`요일별 매출입니다. ${weekdayLabel(busiest.weekday)}요일이 ${formatWonShort(
           busiest.revenue
-        )}으로 가장 높고, 일요일은 휴무로 매출이 없습니다.`}
+        )}으로 가장 높습니다.${closedSummary}`}
         table={{
           headers: ["요일", "매출", "판매 수량"],
           rows: analysis.weekdaySales.map((d) => [
             `${weekdayLabel(d.weekday)}요일`,
-            d.revenue === 0 ? "휴무" : formatWon(d.revenue),
+            d.revenue === 0 ? "매출 없음" : formatWon(d.revenue),
             d.revenue === 0 ? "—" : `${d.orderCount}개`,
           ]),
         }}
@@ -81,7 +86,7 @@ export default async function WeeklyPage({ searchParams }: { searchParams: { sce
         <ChartFrame
           title="시간대별 매출"
           description={`가장 붐비는 시간은 ${peakHour.hour}시입니다`}
-          isMockData={isMock}
+          origin={analysis.origin}
           summary={`시간대별 매출입니다. ${peakHour.hour}시가 ${formatWonShort(
             peakHour.revenue
           )}으로 가장 높습니다.`}
@@ -106,7 +111,7 @@ export default async function WeeklyPage({ searchParams }: { searchParams: { sce
         </Card>
       )}
 
-      <MenuSalesTable menus={analysis.topMenus} isMockData={isMock} />
+      <MenuSalesTable menus={analysis.topMenus} origin={analysis.origin} />
 
       <section className="space-y-4" aria-label="판매 조기 종료">
         <div className="space-y-1">

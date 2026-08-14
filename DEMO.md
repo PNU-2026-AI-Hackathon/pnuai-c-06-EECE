@@ -50,7 +50,7 @@ npm run dev        # http://localhost:3000
 
 | URL | 상태 |
 |---|---|
-| `/` | 술집 실데이터 (33주 학습) |
+| `/` | 술집 예시 CSV를 실제 파이프라인이 계산 (33주 학습) |
 | `/?scenario=cafe` | 카페 예시 데이터 (시간대별 차트·놓친 기회 포함) |
 | `/?scenario=insufficient` | 데이터 3주치 → 예측 불가 안내 |
 

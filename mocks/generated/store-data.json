@@ -1,7 +1,7 @@
 {
   "meta": {
     "generatedFrom": "data/pub-sales-pnu-2025.csv",
-    "generatedAt": "2026-08-13T10:49:40.334Z",
+    "generatedAt": "2026-08-14T06:30:05.662Z",
     "demoToday": "2025-10-19",
     "estimatedPrices": {
       "소주": 5000,
@@ -21,7 +21,7 @@
     "name": "장전동 포차",
     "category": "pub",
     "openedAt": "2025-03-01",
-    "origin": "real"
+    "origin": "computed"
   },
   "weeklyAnalysis": {
     "storeId": "store_pnu_pub_001",
@@ -114,7 +114,7 @@
       }
     ],
     "hourlySales": [],
-    "origin": "sample"
+    "origin": "computed"
   },
   "forecast": {
     "storeId": "store_pnu_pub_001",
@@ -175,7 +175,7 @@
       "weeksAvailable": 33,
       "weeksRequired": 8
     },
-    "origin": "sample"
+    "origin": "computed"
   },
   "verification": {
     "storeId": "store_pnu_pub_001",
@@ -190,12 +190,12 @@
     "errorAnalysis": "10월 07일(화)이 예측보다 19만원 높아 오차의 대부분을 만들었습니다. 가능한 원인으로 날씨, 주변 행사, 영업시간 변경, 품절 등이 있지만 무엇이었는지는 확인이 필요합니다. 지금은 학사일정과 요일 패턴만 보고 있습니다.",
     "reflectedInModel": false,
     "reflectionNote": null,
-    "origin": "sample"
+    "origin": "computed"
   },
   "upload": {
     "id": "upload_pub_2025",
     "storeId": "store_pnu_pub_001",
-    "fileName": "캠퍼스알바_가상매출데이터_부산대_술집.csv",
+    "fileName": "pub-sales-pnu-2025.csv",
     "uploadedAt": "2025-10-19T21:40:00",
     "processedRows": 365,
     "skippedRows": 0,
@@ -262,7 +262,7 @@
         "affectedRows": 0
       }
     ],
-    "origin": "sample"
+    "origin": "computed"
   },
   "missedOpportunities": [],
   "dataLimitations": [
