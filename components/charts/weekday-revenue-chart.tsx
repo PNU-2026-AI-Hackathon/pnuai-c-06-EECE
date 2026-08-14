@@ -45,7 +45,7 @@ export function WeekdayRevenueChart({ data }: { data: WeekdaySales[] }) {
             <LabelList
               dataKey="revenue"
               position="top"
-              formatter={(v: number) => (v === 0 ? "휴무" : formatWonShort(v))}
+              formatter={(v: number) => (v === 0 ? "매출 없음" : formatWonShort(v))}
               style={{ fontSize: 14, fontWeight: 600, fill: "hsl(var(--foreground))" }}
             />
           </Bar>

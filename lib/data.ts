@@ -13,17 +13,22 @@ import type {
   WeeklyAnalysis,
 } from "@/types";
 
+import type { AcademicEvent } from "@/types";
+
 import {
+  mockAcademicCalendar2026Fall,
   mockAgentAction,
   mockAgentHealth,
   mockAgentRun,
   mockAnalysisNormal,
   mockContentGeneration,
+  mockContentGenerationBasic,
   mockForecastConfident,
   mockForecastInsufficient,
   mockDataFreshness,
   mockDataFreshnessStale,
   mockEarlySalesEnds,
+  mockPnuFall2025,
   mockRecommendations,
   mockStore,
   mockStoreNew,
@@ -42,19 +47,23 @@ import {
 
 /**
  * 데이터 접근 계층.
- * 기본값은 부산대 앞 술집 1년치 실제 CSV에서 생성한 데이터이고,
+ * 기본값은 부산대 앞 술집 1년치 예시 CSV를 실제 계산 파이프라인에 넣어 생성한 데이터이고,
  * 카페 예시와 데이터 부족 상황은 시나리오로 전환한다.
  * 백엔드(FastAPI)가 생기면 이 파일의 구현만 fetch로 바꾼다.
  */
 
-/** 화면 전환용 시나리오 — ?scenario=cafe 처럼 쿼리스트링으로 지정한다 */
-export type Scenario = "default" | "cafe" | "insufficient" | "stale";
+/**
+ * 화면 전환용 시나리오 — ?scenario=cafe 처럼 쿼리스트링으로 지정한다.
+ * `mismatch`는 백엔드가 앞뒤가 안 맞는 예측을 보냈을 때 화면이 이를 잡아내는지 확인하는 용도다.
+ */
+export type Scenario = "default" | "cafe" | "insufficient" | "stale" | "mismatch";
 
 /** 쿼리스트링 값을 시나리오로 변환 */
 export function parseScenario(value?: string | string[]): Scenario {
   if (value === "cafe") return "cafe";
   if (value === "insufficient") return "insufficient";
   if (value === "stale") return "stale";
+  if (value === "mismatch") return "mismatch";
   return "default";
 }
 
@@ -85,6 +94,10 @@ export async function getWeeklyAnalysis(scenario: Scenario = "default"): Promise
 export async function getForecast(scenario: Scenario = "default"): Promise<Forecast> {
   if (scenario === "insufficient") return mockForecastInsufficient;
   if (scenario === "cafe") return mockForecastConfident;
+  // 근거를 하나 빼서 합계를 일부러 어긋나게 만든다 — 화면이 이를 잡아내는지 확인하는 시나리오
+  if (scenario === "mismatch") {
+    return { ...generatedForecast, evidence: generatedForecast.evidence.slice(0, 1) };
+  }
   return generatedForecast;
 }
 
@@ -127,8 +140,13 @@ export async function getDataLimitations(scenario: Scenario = "default"): Promis
   return scenario === "default" ? dataLimitations : [];
 }
 
-/** 홍보 콘텐츠 생성 결과 */
-export async function getContent(): Promise<ContentGeneration> {
+/**
+ * 홍보 콘텐츠 생성 결과.
+ * 아직 생성 엔진이 없어 사람이 만든 예시를 돌려준다 (origin: "sample").
+ */
+export async function getContent(scenario: Scenario = "default"): Promise<ContentGeneration> {
+  // 예측을 못 하는 매장에는 예측을 인용하지 않는, 학사일정만 근거로 삼은 콘텐츠를 준다
+  if (scenario === "insufficient") return mockContentGenerationBasic;
   return mockContentGeneration;
 }
 
@@ -161,4 +179,33 @@ export async function getAgentHealth(): Promise<AgentHealth> {
 /** 데이터 신선도 — ?scenario=stale 로 예측 중단 화면을 확인할 수 있다 */
 export async function getDataFreshness(scenario: Scenario = "default"): Promise<DataFreshness> {
   return scenario === "stale" ? mockDataFreshnessStale : mockDataFreshness;
+}
+
+/* ------------------------------------------------------------------ */
+/* 학기                                                                */
+/* ------------------------------------------------------------------ */
+
+/** 학기 띠를 그리는 데 필요한 것 — 일정, 기준일, 학기 이름 */
+export interface SemesterContext {
+  /** 학기 전체 일정 */
+  events: AcademicEvent[];
+  /** 기준일 (시연에서는 고정) */
+  today: string;
+  /** 학기 이름 */
+  label: string;
+}
+
+/**
+ * 학기 일정.
+ * 시연 기준일은 데이터의 마지막 날에 맞춘다 — 실서비스에서는 오늘 날짜를 쓴다.
+ */
+export async function getSemesterContext(scenario: Scenario = "default"): Promise<SemesterContext> {
+  if (scenario === "cafe") {
+    return {
+      events: mockAcademicCalendar2026Fall,
+      today: "2026-10-18",
+      label: "2026학년도 2학기",
+    };
+  }
+  return { events: mockPnuFall2025, today: "2025-10-19", label: "2025학년도 2학기" };
 }

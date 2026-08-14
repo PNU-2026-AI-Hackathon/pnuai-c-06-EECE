@@ -2,7 +2,7 @@ import { Info } from "lucide-react";
 
 import type { Forecast } from "@/types";
 
-import { MockDataBadge } from "@/components/common/mock-data-badge";
+import { DataOriginBadge } from "@/components/common/data-origin-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { confidenceLabel, formatChangeRate, formatWonShort } from "@/lib/format";
@@ -47,7 +47,7 @@ export function ForecastRangeCard({
               {confidenceLabel(forecast.confidence)}
             </Badge>
           )}
-          {forecast.origin === "sample" && <MockDataBadge />}
+          <DataOriginBadge origin={forecast.origin} />
         </div>
 
         <div className="space-y-2">

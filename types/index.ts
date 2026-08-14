@@ -34,8 +34,18 @@ export type Won = number;
 /** 요일 (0=일요일 … 6=토요일) */
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
-/** 데이터가 실측인지 예시인지 구분하는 표식 — "예시 데이터" 배지 노출에 사용 */
-export type DataOrigin = "real" | "sample";
+/**
+ * 이 숫자가 어디서 왔는지 구분하는 표식 — 화면 배지 노출에 사용한다.
+ *
+ * - `real`     실제 매장 POS 데이터를 파이프라인이 계산한 값 → 배지 없음
+ * - `computed` 예시 CSV를 **실제 파이프라인이 그대로 계산**한 값 → "예시 데이터로 계산" 배지
+ * - `sample`   사람이 손으로 적어 넣은 예시 값 → "예시 데이터" 배지
+ *
+ * `computed`와 `sample`을 굳이 나누는 이유 — 둘 다 실측이 아니지만,
+ * 앞은 계산 엔진이 실제로 돈 결과이고 뒤는 화면 확인용으로 지어낸 값이다.
+ * 이 차이를 화면에서 흐리면 전부 목업으로 보인다.
+ */
+export type DataOrigin = "real" | "computed" | "sample";
 
 /* ------------------------------------------------------------------ */
 /* 매장                                                                */
@@ -98,6 +108,30 @@ export interface MenuNormalization {
   occurrences: number;
 }
 
+/** 올린 파일로 할 수 있는 분석 종류 */
+export type AnalysisCapabilityKind =
+  | "daily_sales"
+  | "weekday_pattern"
+  | "hourly_pattern"
+  | "menu_analysis"
+  | "academic_event"
+  | "early_sales_end";
+
+/**
+ * 이 파일로 무엇을 할 수 있고 무엇을 할 수 없는지.
+ * 업로드 직후 이것부터 보여줘야 "왜 이 화면은 비어 있나"를 나중에 설명하지 않아도 된다.
+ */
+export interface AnalysisCapability {
+  /** 분석 종류 */
+  kind: AnalysisCapabilityKind;
+  /** 사장님이 읽을 이름 (예: "시간대별 매출") */
+  label: string;
+  /** 지금 가능한지 */
+  available: boolean;
+  /** 불가능하면 무엇이 없어서인지 (가능하면 null) */
+  missingReason: string | null;
+}
+
 /** CSV 업로드 1회에 대한 처리 결과 요약 */
 export interface UploadResult {
   /** 업로드 고유 식별자 */
@@ -120,6 +154,10 @@ export interface UploadResult {
   menuNormalizations: MenuNormalization[];
   /** 결측·이상치 등 경고 목록 (없으면 빈 배열) */
   warnings: UploadWarning[];
+  /** 이 파일로 가능한 분석과 불가능한 분석 */
+  capabilities: AnalysisCapability[];
+  /** 데이터가 커버하는 완전한 주 수 */
+  weeksCovered: number;
 }
 
 /* ------------------------------------------------------------------ */

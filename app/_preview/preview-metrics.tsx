@@ -2,7 +2,7 @@ import { ChangeIndicator } from "@/components/common/change-indicator";
 import { ChartFrame } from "@/components/common/chart-frame";
 import { EvidenceList } from "@/components/common/evidence-list";
 import { MetricCard } from "@/components/common/metric-card";
-import { MockDataBadge } from "@/components/common/mock-data-badge";
+import { MockDataBadge } from "@/components/common/data-origin-badge";
 
 /** 프리뷰용 고정 값 — 목 데이터 파일과 연결하지 않고 이 자리에서만 쓴다 */
 const SAMPLE_EVIDENCE = [
@@ -69,7 +69,7 @@ export function PreviewMetrics() {
             value="368만원"
             change={13}
             comparedTo="이번 주"
-            isMockData
+            origin="sample"
             note="중간고사 주 (10월 19일 ~ 25일)"
           />
           <MetricCard label="가장 많이 팔린 메뉴" value="아이스 아메리카노" note="318잔 · 전체의 39%" />
@@ -91,7 +91,7 @@ export function PreviewMetrics() {
         <MetricCard
           label="다음 주 예상 증감률"
           value="+13%"
-          isMockData
+          origin="sample"
           emphasis="lg"
           note="2026년 10월 4주차 (중간고사)"
           evidence={<EvidenceList items={SAMPLE_EVIDENCE} total={13} />}
@@ -106,7 +106,7 @@ export function PreviewMetrics() {
         <ChartFrame
           title="요일별 매출"
           description="10월 12일 ~ 18일"
-          isMockData
+          origin="sample"
           summary="요일별 매출입니다. 목요일이 64만 2천원으로 가장 높고, 토요일이 40만 4천원으로 가장 낮으며, 일요일은 휴무로 매출이 없습니다."
           table={{
             headers: ["요일", "매출"],

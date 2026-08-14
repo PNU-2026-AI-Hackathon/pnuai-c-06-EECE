@@ -134,11 +134,30 @@ APScheduler 또는 Celery beat. 매장별 `AgentPolicy.schedule`(cron)을 읽어
 1. **예측에는 근거가 붙는다** — `Forecast.evidence[].contribution`의 합이 `expectedChangeRate`와 정확히 일치해야 합니다. 프론트가 합계를 검증해서 불일치하면 빨간 경고를 띄웁니다. 곱셈 모형이면 로그 분해를 쓰세요 (`decomposeContributions` 참고).
 2. **추측하지 않는다** — 데이터가 부족하면 `expectedChangeRate: null` + `dataSufficiency.level: "insufficient"` + 사장님이 읽을 `message`. 현재 기준: 8주 미만이면 예측 금지.
 3. **만들 수 없는 값은 비운다** — 결제 시각 없는 CSV면 `hourlySales: []`, 조기 종료 후보는 빈 배열. 임의로 채우지 마세요.
-4. **`origin` 필드** — 실데이터면 `"real"`, 예시면 `"sample"`. 프론트가 이 값으로 "예시 데이터" 배지를 자동 표시합니다.
+4. **`origin` 필드는 3단계입니다** — 프론트가 이 값으로 배지를 자동 표시합니다. 셋을 섞으면 화면이 전부 목업으로 보입니다.
+
+   | 값 | 언제 | 화면 |
+   |---|---|---|
+   | `real` | 실제 매장 POS 파일을 파이프라인이 계산한 값 | 배지 없음 |
+   | `computed` | **예시 CSV**를 실제 파이프라인이 그대로 계산한 값 | "예시 데이터로 계산" |
+   | `sample` | 사람이 손으로 적어 넣은 값 (아직 엔진이 없는 기능) | "예시 데이터" |
+
+   판정 기준은 **입력 데이터의 출처**입니다. 계산 경로가 같아도 입력이 예시 파일이면 `computed`이고,
+   계산을 아예 안 하고 문구를 지어냈으면 `sample`입니다. 예: 홍보 콘텐츠는 생성 엔진이 붙기 전까지 `sample`.
 5. 사장님에게 보이는 `message`·`errorAnalysis`·`reasoning` 문장은 **존댓말 한국어**로, 전문용어 없이.
 6. **품절을 확정하지 않는다** — 판매가 일찍 끝난 것은 `EarlySalesEnd` 후보로만 내리고, `possibleCauses`에 원인 후보를 담습니다. `ownerConfirmation`은 사장님이 6b로 확정하기 전까지 `"unconfirmed"`입니다. 금액도 단일 값이 아니라 `opportunityRange`로 내려주세요.
 7. **오차 원인을 확정하지 않는다** — `errorAnalysis`는 "비 때문입니다"가 아니라 "가능한 원인으로 …가 있지만 확인이 필요합니다" 형태로 씁니다.
 8. **예측은 범위로** — `expectedRange`(하한·상한·coverage)와 `comparableCases`(같은 이벤트 사례 수)를 반드시 채웁니다. 신뢰 수준은 데이터 기간이 아니라 **사례 수**로 정합니다 (3회↑ high / 2회 medium / 1회 low).
+
+### 프론트가 검증하는 것 (백엔드를 믿지 않습니다)
+
+화면이 응답을 그대로 믿지 않고 다음을 확인합니다. 어긋나면 숫자 대신 경고를 띄웁니다.
+
+- `Forecast.evidence[].contribution`의 합 == `expectedChangeRate` (허용 오차 0.05%p)
+- `DataFreshness.blocksForecast`가 true면 예측을 아예 렌더링하지 않음
+- `hourlySales`가 빈 배열이면 차트 자리에 "만들 수 없는 이유"를 표시
+
+`?scenario=mismatch` 로 합계 불일치 화면을 직접 확인할 수 있습니다.
 
 ## CSV 입력 스펙 (두 가지 형태 모두 처리)
 

@@ -5,7 +5,7 @@ import { AlertTriangle, Check, Clock } from "lucide-react";
 
 import type { EarlySalesEnd, OwnerConfirmation, SalesEndCause } from "@/types";
 
-import { MockDataBadge } from "@/components/common/mock-data-badge";
+import { DataOriginBadge } from "@/components/common/data-origin-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -55,7 +55,7 @@ export function EarlySalesEndCard({ item }: { item: EarlySalesEnd }) {
               {item.repeatedWeeks}주 연속
             </Badge>
           )}
-          {item.origin === "sample" && <MockDataBadge />}
+          <DataOriginBadge origin={item.origin} />
         </div>
 
         <div className="flex flex-wrap gap-x-10 gap-y-4">

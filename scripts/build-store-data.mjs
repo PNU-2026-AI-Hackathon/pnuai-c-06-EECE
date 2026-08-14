@@ -99,7 +99,7 @@ function buildWeeklyAnalysis(week, prevWeek, prices) {
     })),
     // 이 CSV에는 결제 시각이 없어 시간대별 매출을 만들 수 없다 (추측하지 않는다)
     hourlySales: [],
-    origin: "sample",
+    origin: "computed",
   };
 }
 
@@ -192,7 +192,7 @@ function buildForecast(model, analysisWeek, targetDays, momentum, weeks, history
       weeksAvailable,
       weeksRequired: 8,
     },
-    origin: "sample",
+    origin: "computed",
   };
 }
 
@@ -230,7 +230,7 @@ function buildVerification(rows, weeks, targetWeek, priorWeek) {
     reflectionNote: missedBig
       ? "최근 3주 추세를 예측 조건에 더 크게 반영합니다. 다음 예측부터 적용됩니다."
       : null,
-    origin: "sample",
+    origin: "computed",
   };
 }
 
@@ -246,7 +246,7 @@ function buildUploadResult(rows, prices, maxRelError) {
   return {
     id: "upload_pub_2025",
     storeId: STORE.id,
-    fileName: "캠퍼스알바_가상매출데이터_부산대_술집.csv",
+    fileName: "pub-sales-pnu-2025.csv",
     uploadedAt: `${DEMO_TODAY}T21:40:00`,
     processedRows: rows.length,
     skippedRows: 0,
@@ -270,7 +270,26 @@ function buildUploadResult(rows, prices, maxRelError) {
         affectedRows: 0,
       },
     ],
-    origin: "sample",
+    capabilities: [
+      { kind: "daily_sales", label: "일별 매출", available: true, missingReason: null },
+      { kind: "weekday_pattern", label: "요일별 패턴", available: true, missingReason: null },
+      { kind: "menu_analysis", label: "메뉴별 분석", available: true, missingReason: null },
+      {
+        kind: "hourly_pattern",
+        label: "시간대별 매출",
+        available: false,
+        missingReason: "결제 시각이 없어 시간대별 매출은 만들 수 없습니다.",
+      },
+      { kind: "academic_event", label: "학사일정 비교", available: true, missingReason: null },
+      {
+        kind: "early_sales_end",
+        label: "판매 조기 종료 탐지",
+        available: false,
+        missingReason: "결제 시각과 메뉴가 함께 있어야 판매가 일찍 끝났는지 알 수 있습니다.",
+      },
+    ],
+    weeksCovered: 52,
+    origin: "computed",
   };
 }
 
@@ -300,7 +319,7 @@ function main() {
       weeksAvailable: weeks.length,
       note: "이 파일은 scripts/build-store-data.mjs 가 CSV에서 생성합니다. 직접 수정하지 마세요.",
     },
-    store: { ...STORE, openedAt: rows[0].date, origin: "real" },
+    store: { ...STORE, openedAt: rows[0].date, origin: "computed" },
     weeklyAnalysis: buildWeeklyAnalysis(analysisWeek, prevWeek, prices),
     forecast: buildForecast(model, analysisWeek, targetDays, momentum, weeks, history),
     verification: buildVerification(history, weeks, prevWeek, priorWeek),

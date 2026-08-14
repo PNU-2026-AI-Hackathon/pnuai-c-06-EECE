@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 
-import { MockDataBadge } from "@/components/common/mock-data-badge";
+import type { DataOrigin } from "@/types";
+
+import { DataOriginBadge } from "@/components/common/data-origin-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
@@ -24,7 +26,7 @@ export function ChartFrame({
   summary,
   table,
   tableMode = "screen-reader",
-  isMockData = false,
+  origin = "real",
   action,
   children,
   className,
@@ -39,7 +41,8 @@ export function ChartFrame({
   table: ChartTableData;
   /** 표를 화면에도 보일지 여부 */
   tableMode?: "visible" | "screen-reader";
-  isMockData?: boolean;
+  /** 이 숫자의 출처 — real이면 배지 없음 */
+  origin?: DataOrigin;
   /** 우측 상단 조작 영역 */
   action?: ReactNode;
   /** 차트 본체 */
@@ -52,7 +55,7 @@ export function ChartFrame({
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <CardTitle className="text-xl">{title}</CardTitle>
-            {isMockData && <MockDataBadge />}
+            <DataOriginBadge origin={origin} />
           </div>
           {description && <p className="text-base text-muted-foreground">{description}</p>}
         </div>

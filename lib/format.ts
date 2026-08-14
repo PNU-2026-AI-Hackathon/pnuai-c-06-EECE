@@ -22,10 +22,20 @@ export function weekdayLabel(weekday: number): string {
   return ["일", "월", "화", "수", "목", "금", "토"][weekday] ?? "?";
 }
 
-/** "2026-10-12" → "10/12(월)" */
+/** "2026-10-12" → "10/12(월)". 시각이 붙은 값("...T18:00:00")도 그대로 받는다 */
 export function formatDateShort(date: string): string {
-  const d = new Date(`${date}T00:00:00`);
+  const d = new Date(`${date.slice(0, 10)}T00:00:00`);
   return `${d.getMonth() + 1}/${d.getDate()}(${weekdayLabel(d.getDay())})`;
+}
+
+/** "2026-10-18T20:00:00" → "10/18(일) 저녁 8시" */
+export function formatDateTimeShort(dateTime: string): string {
+  const hour = Number(dateTime.slice(11, 13));
+  const minute = Number(dateTime.slice(14, 16));
+  const period = hour < 12 ? "오전" : hour < 18 ? "오후" : "저녁";
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  const time = minute === 0 ? `${hour12}시` : `${hour12}시 ${minute}분`;
+  return `${formatDateShort(dateTime)} ${period} ${time}`;
 }
 
 /** 기간을 "2026.10.12 ~ 10.18"로 */
