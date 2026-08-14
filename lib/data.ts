@@ -38,6 +38,7 @@ import {
 } from "@/mocks";
 import {
   dataLimitations,
+  generatedEarlySalesEnds,
   generatedForecast,
   generatedStore,
   generatedUpload,
@@ -108,15 +109,19 @@ export async function getEarlySalesEnds(scenario: Scenario = "default"): Promise
       a.ownerConfirmation === b.ownerConfirmation ? 0 : a.ownerConfirmation === "unconfirmed" ? -1 : 1
     );
   }
-  // 술집 CSV는 일별 집계라 판매 시각을 알 수 없다 → 추측하지 않고 비워 둔다
-  return [];
+  // 결제 시각이 있는 파일이면 파이프라인이 채워 준다. 일별 집계면 빈 배열이고, 그때는 이유를 대신 보여준다.
+  return [...generatedEarlySalesEnds].sort((a, b) =>
+    a.ownerConfirmation === b.ownerConfirmation ? 0 : a.ownerConfirmation === "unconfirmed" ? -1 : 1
+  );
 }
 
 /** 조기 종료를 탐지할 수 없는 이유 — 빈 목록 자리에 그대로 보여준다 */
 export async function getEarlySalesEndLimitation(scenario: Scenario = "default"): Promise<string | null> {
   if (scenario === "cafe") return null;
   if (scenario === "insufficient") return "매출 데이터가 3주치뿐이라 반복되는 패턴을 판단할 수 없습니다.";
-  return dataLimitations[1] ?? null;
+  if (generatedEarlySalesEnds.length > 0) return null;
+  // 한계 문구는 파일 내용에 따라 달라지므로 순서가 아니라 내용으로 찾는다
+  return dataLimitations.find((l) => l.includes("일찍 끝났는지")) ?? null;
 }
 
 /** 지난주 예측이 얼마나 맞았는지 — 첫 주에는 null */

@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "build:data": "node scripts/build-store-data.mjs"
+    "build:data": "node scripts/build-store-data.mjs",
+    "make:sample": "node scripts/make-transaction-sample.mjs"
   },
   "dependencies": {
     "next": "14.2.35",

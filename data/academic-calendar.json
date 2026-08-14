@@ -1,0 +1,58 @@
+{
+  "school": "부산대학교",
+  "note": "매출 CSV에 학사일정 컬럼이 없어도 날짜만으로 학사일정을 붙이기 위한 기준 데이터. 실제 POS 파일에는 이 정보가 없으므로 우리가 갖고 있어야 한다.",
+  "derived": {
+    "postExamWeek": "중간고사·기말고사가 끝난 다음 주 월~금은 '시험 종료 직후'로 본다. 명시된 일정(방학 등)이 겹치면 그 일정이 우선한다."
+  },
+  "semesters": [
+    {
+      "id": "2025-1",
+      "label": "2025학년도 1학기",
+      "start": "2025-03-01",
+      "end": "2025-08-31",
+      "confirmed": true,
+      "source": "data/pub-sales-pnu-2025.csv 의 학사이벤트 라벨 구간에서 역산",
+      "events": [
+        { "name": "개강 초기", "type": "semester_start", "start": "2025-03-04", "end": "2025-03-21" },
+        { "name": "중간고사", "type": "midterm", "start": "2025-04-21", "end": "2025-04-25" },
+        { "name": "대학축제", "type": "festival", "start": "2025-05-12", "end": "2025-05-16" },
+        { "name": "기말고사", "type": "final", "start": "2025-06-16", "end": "2025-06-20" },
+        { "name": "여름방학", "type": "vacation", "start": "2025-06-28", "end": "2025-08-31" }
+      ]
+    },
+    {
+      "id": "2025-2",
+      "label": "2025학년도 2학기",
+      "start": "2025-09-01",
+      "end": "2026-02-28",
+      "confirmed": true,
+      "source": "data/pub-sales-pnu-2025.csv 의 학사이벤트 라벨 구간에서 역산",
+      "events": [
+        { "name": "개강 초기", "type": "semester_start", "start": "2025-09-01", "end": "2025-09-19" },
+        { "name": "중간고사", "type": "midterm", "start": "2025-10-20", "end": "2025-10-24" },
+        { "name": "대학축제·행사", "type": "festival", "start": "2025-11-10", "end": "2025-11-14" },
+        { "name": "기말고사", "type": "final", "start": "2025-12-15", "end": "2025-12-19" },
+        { "name": "겨울방학", "type": "vacation", "start": "2025-12-20", "end": "2026-02-28" }
+      ]
+    },
+    {
+      "id": "2026-2",
+      "label": "2026학년도 2학기",
+      "start": "2026-09-01",
+      "end": "2027-02-28",
+      "confirmed": false,
+      "source": "미확정 — 부산대 공식 학사일정으로 교체 필요",
+      "events": [
+        { "name": "개강 초기", "type": "semester_start", "start": "2026-09-01", "end": "2026-09-18" },
+        { "name": "추석 연휴", "type": "holiday", "start": "2026-09-24", "end": "2026-09-26" },
+        { "name": "개천절", "type": "holiday", "start": "2026-10-03", "end": "2026-10-03" },
+        { "name": "한글날", "type": "holiday", "start": "2026-10-09", "end": "2026-10-09" },
+        { "name": "중간고사", "type": "midterm", "start": "2026-10-19", "end": "2026-10-24" },
+        { "name": "대학축제·행사", "type": "festival", "start": "2026-11-04", "end": "2026-11-06" },
+        { "name": "수능 (학사 휴업)", "type": "entrance_exam", "start": "2026-11-19", "end": "2026-11-19" },
+        { "name": "기말고사", "type": "final", "start": "2026-12-15", "end": "2026-12-21" },
+        { "name": "겨울방학", "type": "vacation", "start": "2026-12-22", "end": "2027-02-28" }
+      ]
+    }
+  ]
+}

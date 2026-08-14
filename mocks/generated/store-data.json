@@ -1,7 +1,8 @@
 {
   "meta": {
     "generatedFrom": "data/pub-sales-pnu-2025.csv",
-    "generatedAt": "2026-08-14T13:50:08.639Z",
+    "academicCalendar": "data/academic-calendar.json",
+    "generatedAt": "2026-08-14T14:52:22.906Z",
     "demoToday": "2025-10-19",
     "estimatedPrices": {
       "소주": 5000,
@@ -193,7 +194,7 @@
     "origin": "computed"
   },
   "upload": {
-    "id": "upload_pub_2025",
+    "id": "upload_store_pnu_pub_001",
     "storeId": "store_pnu_pub_001",
     "fileName": "pub-sales-pnu-2025.csv",
     "uploadedAt": "2025-10-19T21:40:00",
@@ -252,13 +253,19 @@
       {
         "code": "MISSING_VALUE",
         "level": "warning",
-        "message": "결제 시각이 없는 일별 집계 파일입니다. 시간대별 매출과 품절 시각은 계산할 수 없어 화면에서 제외했습니다.",
-        "affectedRows": 365
+        "message": "결제 시각이 없어 시간대별 매출을 만들 수 없습니다.",
+        "affectedRows": 0
+      },
+      {
+        "code": "MISSING_VALUE",
+        "level": "warning",
+        "message": "개별 결제 내역이 아닌 일별 집계라 판매가 일찍 끝났는지 판단할 수 없습니다.",
+        "affectedRows": 0
       },
       {
         "code": "UNKNOWN_MENU",
         "level": "warning",
-        "message": "메뉴 단가가 파일에 없어 1년치 매출과 판매 수량으로 역산했습니다. 역산 오차는 0.00%입니다.",
+        "message": "메뉴 단가는 매출과 판매 수량으로 역산한 값입니다. 역산 오차는 0.00%입니다.",
         "affectedRows": 0
       }
     ],
@@ -300,14 +307,14 @@
         "missingReason": "결제 시각과 메뉴가 함께 있어야 판매가 일찍 끝났는지 알 수 있습니다."
       }
     ],
-    "weeksCovered": 52,
+    "weeksCovered": 51,
     "origin": "computed"
   },
-  "missedOpportunities": [],
+  "earlySalesEnds": [],
   "dataLimitations": [
     "결제 시각이 없어 시간대별 매출을 만들 수 없습니다.",
-    "개별 결제 내역이 아닌 일별 집계라 품절 시각과 놓친 기회를 판단할 수 없습니다.",
-    "메뉴 단가는 1년치 매출과 판매 수량으로 역산한 값입니다."
+    "개별 결제 내역이 아닌 일별 집계라 판매가 일찍 끝났는지 판단할 수 없습니다.",
+    "메뉴 단가는 매출과 판매 수량으로 역산한 값입니다. 역산 오차는 0.00%입니다."
   ],
   "dailySeries": [
     {
