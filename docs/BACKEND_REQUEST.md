@@ -50,11 +50,73 @@ CSV 텍스트 하나를 받아 화면에 필요한 전부를 돌려줍니다. �
 
 보정이 1%p 이상이면 `evidence`에 항목으로 드러냅니다. 조용히 숫자를 만지지 않습니다.
 
+## 업로드 (§1 상세)
+
+`app/api/analyze/route.ts` 가 지금 이 일을 하고 있습니다. **그 파일이 곧 명세입니다.**
+업로드 한 번에 파싱 → 분석 → 저장까지 끝내고, 이후 조회 API들은 저장된 결과를 읽기만 합니다.
+
+### 요청
+
+```
+POST /stores/{storeId}/uploads
+Content-Type: multipart/form-data
+
+file: <CSV 파일>
+```
+
+### 응답 — 세 갈래입니다
+
+**A. 분석까지 성공** `200`
+
+```jsonc
+{ "ok": true, "upload": UploadResult, "meta": AnalysisMeta }
+```
+
+**B. 파일은 읽었지만 분석 불가** `200`
+
+완전한 주(월~일 7일)가 **3주 미만**이면 예측·검증을 만들 수 없습니다.
+이때 없는 숫자를 지어내지 말고, 읽은 결과와 이유만 돌려주세요. 기존 분석 결과는 갈아치우지 않습니다.
+
+```jsonc
+{
+  "ok": false,
+  "reason": "완전한 주가 2주뿐입니다. 주간 분석과 예측에는 3주 이상이 필요합니다.",
+  "upload": UploadResult
+}
+```
+
+**C. 파일을 못 읽음** `422` (형식 오류) / `400` (파일 없음·빈 파일) / `413` (20MB 초과)
+
+```jsonc
+{ "detail": "날짜 컬럼을 찾지 못했습니다. 확인한 후보: date, 날짜, 영업일, ..." }
+```
+
+`detail`은 **사장님이 그대로 읽는 문장**입니다. 스택 트레이스나 영문 예외 메시지를 넣지 마세요.
+컬럼을 못 찾았으면 무엇을 찾아봤는지 나열해 주세요 — 사장님이 파일을 고칠 수 있습니다.
+
+### `UploadResult.processedRows` 는 "파일에 적힌 줄 수"입니다 ⚠
+
+결제 내역형 파일을 일별로 접은 뒤 날짜 수를 세면 안 됩니다.
+28,061건짜리 파일을 올렸는데 화면에 "읽은 기록 365건"이라고 뜨면 사장님은 데이터가 날아갔다고 생각합니다.
+(프론트에서 실제로 났던 버그입니다.)
+
+- `processedRows` — 정상적으로 읽어들인 **기록 수** (헤더 제외, 제외된 행 뺀 값)
+- `skippedRows` — 날짜를 못 읽었거나 금액이 빈 행의 수
+- `weeksCovered` — 완전한 주의 수. 하드코딩 금지, 반드시 세어서 넣으세요
+
+### 저장
+
+`AnalysisMeta.asOf`(기준 시점)까지의 데이터만 학습·예측에 씁니다.
+업로드에 기준 시점이 없으면 **파일의 마지막 날짜**를 기준 시점으로 삼습니다.
+
+프론트는 지금 서버 메모리에 결과 하나만 들고 있습니다(재시작하면 사라짐).
+백엔드는 매장별로 DB에 저장하고, 같은 매장에 새 파일이 오면 기간이 겹치는 부분을 덮어써 주세요.
+
 ## 필요한 엔드포인트 (우선순위 순)
 
 | # | 메서드/경로 | 응답 타입 (types/index.ts) | 비고 |
 |---|---|---|---|
-| 1 | `POST /stores/{storeId}/uploads` (multipart CSV) | `UploadResult` | 파싱·정규화·경고. 동기 처리로 시작해도 됨 |
+| 1 | `POST /stores/{storeId}/uploads` (multipart CSV) | 아래 §업로드 참조 | 파싱·분석·저장. 동기 처리로 시작해도 됨 |
 | 2 | `GET /stores/{storeId}/analysis/weekly` | `WeeklyAnalysis` | 최근 완료된 주. `?week=YYYY-MM-DD` 옵션 |
 | 3 | `GET /stores/{storeId}/forecast` | `Forecast` | 다음 주. **evidence contribution 합 == expectedChangeRate 필수** |
 | 4 | `GET /stores/{storeId}/verification` | `ForecastVerification \| null` | 백테스트. 첫 주면 null |
@@ -200,7 +262,7 @@ APScheduler 또는 Celery beat. 매장별 `AgentPolicy.schedule`(cron)을 읽어
 
 POS마다 이름이 달라 **후보 목록으로 찾습니다.** 정확한 이름을 요구하지 마세요.
 날짜는 `2025-10-19` `2025.10.19` `2025/10/19`, 금액은 `1,320,000` `1320000원` 모두 읽습니다.
-BOM·따옴표 처리 필요. 참고 구현 `scripts/lib/csv-read.mjs`.
+BOM·따옴표 처리 필요. 참고 구현 `lib/analysis/csv-read.mjs`.
 
 **요일·주 시작일·총수량은 CSV에서 읽지 마세요.** 날짜와 수량에서 계산합니다.
 그 컬럼들이 파일에 있어도 무시합니다 — POS가 주는 값이 아니라 우리가 만들 값입니다.
@@ -230,7 +292,7 @@ date,{메뉴}_판매수량...,총매출
 메뉴명 오염("아아", "ICE아메리카노") 정규화 → `MenuNormalization[]`,
 confidence < 0.8이면 프론트가 확인 UI를 띄웁니다.
 
-참고 구현 `scripts/lib/transaction-csv.mjs`.
+참고 구현 `lib/analysis/transaction-csv.mjs`.
 시험용 B형 파일은 `npm run make:sample`로 만들 수 있습니다(결제 시각은 지어낸 값).
 
 ### 파일 내용에 따라 기능을 켜고 끕니다
@@ -247,7 +309,7 @@ confidence < 0.8이면 프론트가 확인 UI를 띄웁니다.
 | 판매 조기 종료 탐지 | 결제 시각 **그리고** 메뉴 |
 
 안 되는 기능은 `missingReason`에 사장님이 읽을 한국어 이유를 넣습니다.
-참고 구현 `scripts/lib/upload-report.mjs`.
+참고 구현 `lib/analysis/upload-report.mjs`.
 
 ## 학사일정은 CSV에서 읽지 마세요 ⚠
 
@@ -255,7 +317,7 @@ confidence < 0.8이면 프론트가 확인 UI를 띄웁니다.
 날짜만 보고 서버가 보유한 캘린더에서 붙이세요.
 
 - 기준 데이터: `data/academic-calendar.json` (학기별 이벤트 + `confirmed` 플래그)
-- 참고 구현: `scripts/lib/academic-calendar.mjs`
+- 참고 구현: `lib/analysis/academic-calendar.mjs`
 - **파생 규칙**: 중간·기말고사가 끝난 **다음 주 월~금**은 "시험 종료 직후"로 자동 분류합니다.
   캘린더에 적지 않습니다. 명시된 일정(방학 등)이 겹치면 그쪽이 우선합니다.
 - 검증: 이 규칙으로 술집 CSV의 학사이벤트 라벨 **365일 / 365일 재현**을 확인했습니다.
@@ -278,7 +340,7 @@ confidence < 0.8이면 프론트가 확인 UI를 띄웁니다.
 ## 판매 조기 종료 탐지 (B형 파일에서만)
 
 메뉴별로 "그날 마지막으로 팔린 시각"을 뽑아 평소보다 이른 날을 찾습니다.
-참고 구현 `scripts/lib/early-sales-end.mjs`. **함정 세 개를 반드시 피해주세요.**
+참고 구현 `lib/analysis/early-sales-end.mjs`. **함정 세 개를 반드시 피해주세요.**
 
 1. **판매량 통제** — 적게 팔린 날은 마지막 판매가 이른 게 당연합니다. 사건이 아니라 산수입니다.
    판매량이 **±30% 안에 드는 날끼리만** 비교하고, 비교 대상이 8일 미만이면 판단하지 않습니다.
@@ -301,11 +363,24 @@ confidence < 0.8이면 프론트가 확인 UI를 띄웁니다.
 - 날짜는 전부 `YYYY-MM-DD` 문자열 (타임존 계산 금지, `types/index.ts`의 ISODate 참고)
 - OpenAPI 스키마가 나오면 프론트에서 타입 대조하겠습니다
 
+## 프론트가 임시로 하고 있는 일 (그대로 가져가시면 됩니다)
+
+백엔드가 없어서 프론트가 대신 하고 있는 것들입니다. **넘겨받으실 때 이 세 개를 지우면 됩니다.**
+
+| 파일 | 지금 하는 일 | 백엔드가 생기면 |
+|---|---|---|
+| `app/api/analyze/route.ts` | 업로드 받아 분석 | `POST /stores/{id}/uploads` 로 대체 → **삭제** |
+| `lib/analysis/session-store.ts` | 분석 결과를 서버 메모리에 보관 | DB로 대체 → **삭제** |
+| `lib/analysis/*.mjs` | 계산 로직 | Python 포팅 후 → **삭제** |
+| `lib/data.ts` | 위에서 읽어 화면에 전달 | **fetch로 교체** (이 파일만 남습니다) |
+
+메모리 저장은 재시작하면 사라지고 여러 명이 동시에 못 씁니다. 시연을 굴리기 위한 임시 방편입니다.
+
 ## 프론트 연동 지점 (참고)
 
 ```ts
 // lib/data.ts — 현재
-export async function getForecast(): Promise<Forecast> { return generatedForecast; }
+export async function getForecast(): Promise<Forecast> { return current().forecast; }
 // 연동 후
 export async function getForecast(storeId: string): Promise<Forecast> {
   const res = await fetch(`${API_BASE}/stores/${storeId}/forecast`, { next: { revalidate: 3600 } });
@@ -313,4 +388,14 @@ export async function getForecast(storeId: string): Promise<Forecast> {
 }
 ```
 
-질문은 프론트 담당(강현)에게. `mocks/generated/store-data.json`을 응답 골든 샘플로 쓰면 됩니다.
+## 먼저 해주시면 좋은 순서
+
+1. **업로드(§1)** — 이거 하나면 나머지 조회는 저장된 걸 읽기만 하면 됩니다
+2. **주간분석·예측·검증(§2~4)** — 화면 세 개가 바로 살아납니다
+3. 나머지
+
+각 단계마다 `mocks/generated/store-data.json` 과 응답을 대조해 주세요. **골든 샘플입니다** —
+술집 CSV 1년치를 실제 파이프라인에 넣어 만든 값이고, 손으로 적은 숫자가 하나도 없습니다.
+`node scripts/build-store-data.mjs` 로 언제든 다시 만들 수 있습니다.
+
+질문은 프론트 담당(강현)에게.
