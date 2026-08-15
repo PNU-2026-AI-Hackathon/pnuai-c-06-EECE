@@ -45,13 +45,41 @@ import {
   generatedVerification,
   generatedWeeklyAnalysis,
 } from "@/mocks/generated";
+import academicCalendar from "@/data/academic-calendar.json";
+import { semesterContextFor, type AcademicCalendar } from "@/lib/analysis";
+import { getUploadedAnalysis } from "@/lib/analysis/session-store";
 
 /**
  * 데이터 접근 계층.
- * 기본값은 부산대 앞 술집 1년치 예시 CSV를 실제 계산 파이프라인에 넣어 생성한 데이터이고,
- * 카페 예시와 데이터 부족 상황은 시나리오로 전환한다.
+ *
+ * 우선순위는 셋이다.
+ *  1. 사장님이 방금 올린 파일의 분석 결과 (있으면 무조건 이것)
+ *  2. 부산대 앞 술집 1년치 예시 CSV를 실제 파이프라인에 넣어 만든 기본 시연 데이터
+ *  3. 시나리오(카페·데이터 부족 등)로 전환한 목 데이터
+ *
  * 백엔드(FastAPI)가 생기면 이 파일의 구현만 fetch로 바꾼다.
  */
+
+/** 지금 화면이 보여줄 데이터 — 업로드한 게 있으면 그 매장, 없으면 기본 시연 데이터 */
+function current() {
+  const uploaded = getUploadedAnalysis();
+  if (uploaded) return { ...uploaded, fromUpload: true };
+  return {
+    store: generatedStore,
+    weeklyAnalysis: generatedWeeklyAnalysis,
+    forecast: generatedForecast,
+    verification: generatedVerification,
+    upload: generatedUpload,
+    earlySalesEnds: generatedEarlySalesEnds,
+    dataLimitations,
+    fromUpload: false,
+  };
+}
+
+/** 사장님이 올린 파일을 보고 있는지 — 화면에서 "예시 데이터" 안내를 감추는 데 쓴다 */
+export async function isViewingUpload(): Promise<boolean> {
+  return current().fromUpload;
+}
 
 /**
  * 화면 전환용 시나리오 — ?scenario=cafe 처럼 쿼리스트링으로 지정한다.
@@ -72,7 +100,7 @@ export function parseScenario(value?: string | string[]): Scenario {
 export async function getStore(scenario: Scenario = "default"): Promise<Store> {
   if (scenario === "insufficient") return mockStoreNew;
   if (scenario === "cafe") return mockStore;
-  return generatedStore;
+  return current().store;
 }
 
 /** 최근 완료된 주의 매출 분석 */
@@ -88,7 +116,7 @@ export async function getWeeklyAnalysis(scenario: Scenario = "default"): Promise
       topMenus: mockAnalysisNormal.topMenus.slice(0, 5),
     };
   }
-  return generatedWeeklyAnalysis;
+  return current().weeklyAnalysis;
 }
 
 /** 다음 주 수요 예측 */
@@ -97,9 +125,10 @@ export async function getForecast(scenario: Scenario = "default"): Promise<Forec
   if (scenario === "cafe") return mockForecastConfident;
   // 근거를 하나 빼서 합계를 일부러 어긋나게 만든다 — 화면이 이를 잡아내는지 확인하는 시나리오
   if (scenario === "mismatch") {
-    return { ...generatedForecast, evidence: generatedForecast.evidence.slice(0, 1) };
+    const f = current().forecast;
+    return { ...f, evidence: f.evidence.slice(0, 1) };
   }
-  return generatedForecast;
+  return current().forecast;
 }
 
 /** 판매 조기 종료 후보 (확인 안 된 것부터) */
@@ -110,7 +139,7 @@ export async function getEarlySalesEnds(scenario: Scenario = "default"): Promise
     );
   }
   // 결제 시각이 있는 파일이면 파이프라인이 채워 준다. 일별 집계면 빈 배열이고, 그때는 이유를 대신 보여준다.
-  return [...generatedEarlySalesEnds].sort((a, b) =>
+  return [...current().earlySalesEnds].sort((a, b) =>
     a.ownerConfirmation === b.ownerConfirmation ? 0 : a.ownerConfirmation === "unconfirmed" ? -1 : 1
   );
 }
@@ -119,9 +148,9 @@ export async function getEarlySalesEnds(scenario: Scenario = "default"): Promise
 export async function getEarlySalesEndLimitation(scenario: Scenario = "default"): Promise<string | null> {
   if (scenario === "cafe") return null;
   if (scenario === "insufficient") return "매출 데이터가 3주치뿐이라 반복되는 패턴을 판단할 수 없습니다.";
-  if (generatedEarlySalesEnds.length > 0) return null;
+  if (current().earlySalesEnds.length > 0) return null;
   // 한계 문구는 파일 내용에 따라 달라지므로 순서가 아니라 내용으로 찾는다
-  return dataLimitations.find((l) => l.includes("일찍 끝났는지")) ?? null;
+  return current().dataLimitations.find((l) => l.includes("일찍 끝났는지")) ?? null;
 }
 
 /** 지난주 예측이 얼마나 맞았는지 — 첫 주에는 null */
@@ -130,19 +159,19 @@ export async function getLatestVerification(
 ): Promise<ForecastVerification | null> {
   if (scenario === "insufficient") return null;
   if (scenario === "cafe") return mockValidationMissed;
-  return generatedVerification;
+  return current().verification;
 }
 
 /** 가장 최근 CSV 업로드 결과 — 아직 올린 적 없으면 null */
 export async function getLatestUpload(scenario: Scenario = "default"): Promise<UploadResult | null> {
   if (scenario === "insufficient") return mockUploadResultShort;
   if (scenario === "cafe") return mockUploadResult;
-  return generatedUpload;
+  return current().upload;
 }
 
 /** 이 데이터로 만들 수 없는 것들 */
 export async function getDataLimitations(scenario: Scenario = "default"): Promise<string[]> {
-  return scenario === "default" ? dataLimitations : [];
+  return scenario === "default" ? current().dataLimitations : [];
 }
 
 /**
@@ -202,7 +231,8 @@ export interface SemesterContext {
 
 /**
  * 학기 일정.
- * 시연 기준일은 데이터의 마지막 날에 맞춘다 — 실서비스에서는 오늘 날짜를 쓴다.
+ * 업로드한 파일이 있으면 그 파일의 기준 시점이 속한 학기를 찾아 그린다.
+ * 기준일은 데이터의 마지막 날이다 — 실서비스에서는 오늘 날짜를 쓴다.
  */
 export async function getSemesterContext(scenario: Scenario = "default"): Promise<SemesterContext> {
   if (scenario === "cafe") {
@@ -212,5 +242,13 @@ export async function getSemesterContext(scenario: Scenario = "default"): Promis
       label: "2026학년도 2학기",
     };
   }
+
+  const uploaded = getUploadedAnalysis();
+  if (uploaded) {
+    const context = semesterContextFor(academicCalendar as AcademicCalendar, uploaded.meta.asOf);
+    // 캘린더가 못 덮는 기간이면 학기 띠를 그릴 근거가 없다 — 기본 학기로 돌아간다
+    if (context) return context;
+  }
+
   return { events: mockPnuFall2025, today: "2025-10-19", label: "2025학년도 2학기" };
 }

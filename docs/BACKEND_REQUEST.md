@@ -18,18 +18,37 @@ Pydantic 모델을 새로 설계하지 말고 이 타입을 옮겨 적는 방식
 
 **참고 구현이 JS로 이미 작동합니다.** 이걸 Python으로 포팅하면 됩니다.
 
+진입점은 하나입니다 — `analyzeSales({ csvText, fileName, calendar, store, today })`.
+CSV 텍스트 하나를 받아 화면에 필요한 전부를 돌려줍니다. 파일을 읽지 않으므로 그대로 옮기기 쉽습니다.
+
 | 파일 | 하는 일 |
 |---|---|
-| `scripts/lib/csv-read.mjs` | 컬럼 이름 탐색, 날짜·금액·시각 파싱, 파일 형태 판별, 조사 처리 |
-| `scripts/lib/csv-model.mjs` | 일별 파싱, 단가 역산, 모델 학습·예측, 예측 범위 |
-| `scripts/lib/transaction-csv.mjs` | 결제 내역 → 일별 집계 + 시간대별 |
-| `scripts/lib/early-sales-end.mjs` | 판매 조기 종료 탐지 |
-| `scripts/lib/academic-calendar.mjs` | 날짜 → 학사일정 라벨 |
-| `scripts/lib/upload-report.mjs` | 능력·한계 목록 |
-| `scripts/build-store-data.mjs` | 위를 엮어 전체 응답 생성 |
+| `lib/analysis/analyze.mjs` | **진입점.** 주간분석·예측·검증·업로드결과를 엮는다 |
+| `lib/analysis/csv-read.mjs` | 컬럼 이름 탐색, 날짜·금액·시각 파싱, 파일 형태 판별, 조사 처리 |
+| `lib/analysis/csv-model.mjs` | 일별 파싱, 단가 역산, 모델 학습·예측, 예측 범위 |
+| `lib/analysis/transaction-csv.mjs` | 결제 내역 → 일별 집계 + 시간대별 |
+| `lib/analysis/early-sales-end.mjs` | 판매 조기 종료 탐지 |
+| `lib/analysis/academic-calendar.mjs` | 날짜 → 학사일정 라벨 |
+| `lib/analysis/upload-report.mjs` | 능력·한계 목록 |
+
+`app/api/analyze/route.ts` 가 지금 이 함수를 감싸 임시 업로드 API 노릇을 하고 있습니다.
+**이 라우트가 곧 `POST /stores/{id}/uploads` 의 명세입니다.** 주고받는 모양을 그대로 맞춰주세요.
 
 실제 응답 예시는 `mocks/generated/store-data.json` (술집 CSV에서 생성된 진짜 계산 결과)를 보세요.
 `node scripts/build-store-data.mjs --file=아무.csv` 로 임의 파일에 대해 돌려볼 수 있습니다.
+
+### 예측 범위는 예측값을 반드시 품어야 합니다 ⚠
+
+범위를 "과거 예측 오차 비율의 20~80% 분위"로 만들 때 함정이 둘 있습니다.
+
+1. **각 주의 오차는 그 주 시점의 모멘텀으로 재세요.** 오늘의 모멘텀을 과거에 소급 적용하면
+   오차가 아니라 모멘텀 자체를 재게 되고, 뒤이은 보정이 모멘텀을 그대로 되돌려 버립니다.
+   (실제로 근거에 `최근 3주 추세 −13%p`와 `보정 +13%p`가 나란히 찍혔습니다.)
+2. **치우침(중앙값)은 범위가 아니라 예측값에 반영하세요.** 그러지 않으면
+   `예측 19% (범위 25~42%)` 처럼 중앙값이 자기 범위 밖으로 나갑니다.
+   보정한 값을 가운데 두고 `low ≤ median ≤ high` 가 되게 하면 항상 예측값을 품습니다.
+
+보정이 1%p 이상이면 `evidence`에 항목으로 드러냅니다. 조용히 숫자를 만지지 않습니다.
 
 ## 필요한 엔드포인트 (우선순위 순)
 

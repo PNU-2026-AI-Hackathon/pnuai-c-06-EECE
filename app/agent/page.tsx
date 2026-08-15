@@ -12,6 +12,9 @@ import {
   parseScenario,
 } from "@/lib/data";
 
+/** 업로드한 분석 결과가 서버 메모리에 있으므로 매번 새로 그린다 */
+export const dynamic = "force-dynamic";
+
 /** STAFFI 활동 — 에이전트가 언제 무엇을 했고, 무엇을 추천했는지 */
 export default async function AgentPage({ searchParams }: { searchParams: { scenario?: string } }) {
   const scenario = parseScenario(searchParams.scenario);

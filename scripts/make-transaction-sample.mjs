@@ -13,7 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { estimateMenuPrices, parseCsv } from "./lib/csv-model.mjs";
+import { estimateMenuPrices, parseSales } from "../lib/analysis/csv-model.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -43,7 +43,7 @@ function pickMinute(random) {
 }
 
 function main() {
-  const parsed = parseCsv(IN_PATH);
+  const parsed = parseSales(fs.readFileSync(IN_PATH, "utf8"));
   if (parsed.menus.length === 0) throw new Error("메뉴 컬럼이 없는 파일이라 결제 단위로 펼칠 수 없습니다.");
 
   const { prices } = estimateMenuPrices(parsed.rows, parsed.menus);

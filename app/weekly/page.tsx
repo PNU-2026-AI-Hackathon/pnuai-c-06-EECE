@@ -15,6 +15,9 @@ import {
 } from "@/lib/data";
 import { formatPeriod, formatWon, formatWonShort, weekdayLabel } from "@/lib/format";
 
+/** 업로드한 분석 결과가 서버 메모리에 있으므로 매번 새로 그린다 */
+export const dynamic = "force-dynamic";
+
 /** 주간 리포트 — 지난주에 무슨 일이 있었는지 */
 export default async function WeeklyPage({ searchParams }: { searchParams: { scenario?: string } }) {
   const scenario = parseScenario(searchParams.scenario);

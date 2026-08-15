@@ -8,6 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getForecast, getLatestVerification, getWeeklyAnalysis, parseScenario } from "@/lib/data";
 import { formatChangeRate, formatPeriod } from "@/lib/format";
 
+/** 업로드한 분석 결과가 서버 메모리에 있으므로 매번 새로 그린다 */
+export const dynamic = "force-dynamic";
+
 /** 수요 예측 — 다음 주가 어떻게 달라질지, 그리고 왜 그렇게 봤는지 */
 export default async function ForecastPage({ searchParams }: { searchParams: { scenario?: string } }) {
   const scenario = parseScenario(searchParams.scenario);

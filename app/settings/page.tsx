@@ -2,19 +2,29 @@ import { DataFreshnessNotice } from "@/components/agent/data-freshness-notice";
 import { PageHeader } from "@/components/layout/page-header";
 import { CsvUploadZone } from "@/components/upload/csv-upload-zone";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getDataFreshness, getLatestUpload, getStore, parseScenario } from "@/lib/data";
+import {
+  getDataFreshness,
+  getLatestUpload,
+  getStore,
+  isViewingUpload,
+  parseScenario,
+} from "@/lib/data";
 import { formatPeriod } from "@/lib/format";
 
 /** 업종 코드를 한글 라벨로 */
 const CATEGORY_LABEL = { cafe: "카페", restaurant: "식당", pub: "주점" } as const;
 
+/** 업로드한 파일이 서버 메모리에 있으므로 이 화면은 매번 새로 그린다 */
+export const dynamic = "force-dynamic";
+
 /** 설정 — 매장 정보와 매출 파일 관리 */
 export default async function SettingsPage({ searchParams }: { searchParams: { scenario?: string } }) {
   const scenario = parseScenario(searchParams.scenario);
-  const [store, lastUpload, freshness] = await Promise.all([
+  const [store, lastUpload, freshness, viewingUpload] = await Promise.all([
     getStore(scenario),
     getLatestUpload(scenario),
     getDataFreshness(scenario),
+    isViewingUpload(),
   ]);
 
   return (
@@ -28,7 +38,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: { s
 
       <section className="space-y-4" aria-label="매출 파일 올리기">
         <h2 className="text-2xl font-bold">매출 파일 올리기</h2>
-        <CsvUploadZone storeId={store.id} />
+        <CsvUploadZone viewingUpload={viewingUpload} />
       </section>
 
       <div className="grid gap-5 lg:grid-cols-2">
