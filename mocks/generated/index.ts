@@ -5,6 +5,7 @@
  */
 
 import type {
+  EarlySalesEnd,
   Forecast,
   ForecastVerification,
   Store,
@@ -39,6 +40,12 @@ export const generatedWeeklyAnalysis = raw.weeklyAnalysis as WeeklyAnalysis;
 export const generatedForecast = raw.forecast as Forecast;
 export const generatedVerification = raw.verification as ForecastVerification;
 export const generatedUpload = raw.upload as UploadResult;
+
+/**
+ * 평소보다 일찍 끊긴 메뉴.
+ * 결제 시각과 메뉴가 함께 있는 파일에서만 나온다 — 일별 집계 파일이면 빈 배열이다.
+ */
+export const generatedEarlySalesEnds = raw.earlySalesEnds as EarlySalesEnd[];
 
 /** 최근 10주 일별 매출 — 추세 확인용 */
 export const generatedDailySeries = raw.dailySeries as {

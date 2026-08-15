@@ -1,0 +1,9 @@
+{
+  "id": "store_pnu_pub_001",
+  "name": "장전동 포차",
+  "category": "pub",
+  "salesFile": "data/pub-sales-pnu-2025.csv",
+  "academicCalendar": "data/academic-calendar.json",
+  "today": "2025-10-19",
+  "_today": "기준 시점. 이 날짜까지의 데이터만 학습에 쓴다. null이면 파일의 마지막 날짜를 쓴다."
+}

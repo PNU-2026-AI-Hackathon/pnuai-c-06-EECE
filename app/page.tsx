@@ -24,6 +24,9 @@ import {
 } from "@/lib/data";
 import { buildSemesterRibbon } from "@/lib/semester";
 
+/** 업로드한 분석 결과가 서버 메모리에 있으므로 매번 새로 그린다 */
+export const dynamic = "force-dynamic";
+
 /** 홈 — 결론을 먼저 말하고, 근거와 할 일을 아래로 내린다 */
 export default async function HomePage({ searchParams }: { searchParams: { scenario?: string } }) {
   const scenario = parseScenario(searchParams.scenario);

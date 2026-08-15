@@ -11,7 +11,14 @@ import { formatPeriod } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /** 업로드한 파일을 읽은 결과 — 무엇이 되고 무엇이 안 되는지 먼저 알린다 */
-export function UploadSummary({ result }: { result: UploadResult }) {
+export function UploadSummary({
+  result,
+  /** 분석까지 성공했는지 — 실패했으면 "결과 보러 가기"를 띄우지 않는다 */
+  analyzed = true,
+}: {
+  result: UploadResult;
+  analyzed?: boolean;
+}) {
   const usable = result.capabilities.filter((c) => c.available);
   const blocked = result.capabilities.filter((c) => !c.available);
   const lowConfidence = result.menuNormalizations.filter((m) => m.confidence < 0.8);
@@ -90,17 +97,19 @@ export function UploadSummary({ result }: { result: UploadResult }) {
             </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-3 border-t pt-4">
-            <Button asChild size="lg">
-              <Link href="/">
-                분석 결과 보러 가기
-                <ArrowRight aria-hidden className="ml-2 size-4" />
-              </Link>
-            </Button>
-            <p className="text-sm text-muted-foreground">
-              지금은 화면에서 바로 읽은 결과이고, 저장은 백엔드 연결 후에 됩니다.
-            </p>
-          </div>
+          {analyzed && (
+            <div className="flex flex-wrap items-center gap-3 border-t pt-4">
+              <Button asChild size="lg">
+                <Link href="/">
+                  분석 결과 보러 가기
+                  <ArrowRight aria-hidden className="ml-2 size-4" />
+                </Link>
+              </Button>
+              <p className="text-sm text-muted-foreground">
+                홈·주간 리포트·수요 예측이 모두 이 파일로 다시 계산되었습니다.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

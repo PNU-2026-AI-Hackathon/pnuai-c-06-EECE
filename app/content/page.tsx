@@ -3,6 +3,9 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getContent, parseScenario } from "@/lib/data";
 
+/** 업로드한 분석 결과가 서버 메모리에 있으므로 매번 새로 그린다 */
+export const dynamic = "force-dynamic";
+
 /**
  * 홍보 콘텐츠 — 예측을 릴스 대본과 게시글로 옮긴 결과.
  * 생성 엔진(LLM)과 게시 연동이 아직 없어, 사람이 만든 예시 한 벌을 그대로 보여준다.
