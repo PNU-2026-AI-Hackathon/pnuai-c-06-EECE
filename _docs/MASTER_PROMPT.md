@@ -1,6 +1,16 @@
 # 마스터 프롬프트
 
-빈 저장소 → 배포된 서비스까지 한 번에 가는 프롬프트.
+> ⚠️ **이 문서는 이미 실행이 끝난 부트스트랩 프롬프트 아카이브입니다.**
+> 그대로 다시 돌리지 마세요. 초기 구조를 어떻게 만들었는지 남겨둔 기록입니다.
+>
+> - **디자인 규약의 현재 진실**: [`apps/web/CLAUDE.md` 5절](../apps/web/CLAUDE.md)
+>   과 [`apps/web/tailwind.config.js`](../apps/web/tailwind.config.js).
+>   이 문서에 적혀 있던 색·폰트 값은 낡아서 지웠습니다.
+> - **배포는 최우선이 아닙니다.** 아래 배포 관련 서술은 당시 판단이고, 지금은 후순위입니다.
+
+---
+
+빈 저장소에서 초기 구조를 세울 때 쓴 프롬프트.
 `prefab-api`와 `prefab-web` 각각에서 한 번씩 실행한다. **두 사람이 동시에 시작할 수 있다.**
 
 ---
@@ -173,14 +183,14 @@ VITE_API_BASE 가 비어 있으면 목을 쓰도록 한다.
 /  업로드
    - 슬롯 3개: 넷리스트(필수) / BOM(선택) / 펌웨어 zip(선택)
    - 드래그앤드롭 + 파일 선택 버튼 둘 다
-   - 선택 항목이 비면 amber로 무엇을 못 하게 되는지 명시
+   - 선택 항목이 비면 warn 색으로 무엇을 못 하게 되는지 명시
      BOM 없음 → "부품 식별 불가 · 오탐 증가"
      펌웨어 없음 → "코드 대조 규칙 5개 실행 불가"
    - "샘플 보드로 실행" 버튼 (심사 시연용, 필수)
 
 /c/{check_id}  처리 중
    - pipeline 배열을 순서대로 렌더, 1초 폴링
-   - status별: done=verify / partial=amber / skipped=amber + detail 노출 / failed=redpen
+   - status별 색은 CLAUDE.md 5절의 ok / warn / crit 토큰을 쓴다. skipped는 detail 노출
    - skipped 단계를 흐리게 숨기지 말 것. 사유를 그대로 보여준다
 
 /r/{check_id}  리포트  — 구조는 Chrome Lighthouse 리포트를 따른다
@@ -188,35 +198,26 @@ VITE_API_BASE 가 비어 있으면 목을 쓰도록 한다.
    2. 입력 요약: 무엇을 받았고 무엇이 없어서 무엇을 못 했는지
    3. 발견 목록 (severity 순)
       verdict === "PASS" 인 항목은 Lighthouse의 "통과한 감사"처럼 접어서 하단에
-   4. 넷리스트 부록 (mono, 발견에 연루된 네트는 redpen 강조)
+   4. 넷리스트 부록 (mono, 발견에 연루된 네트는 crit 강조)
 
 ### 시그니처 컴포넌트 — 발견 카드
 
 제품의 얼굴이다. 여기에 공을 들일 것.
 
-- 상단 바: severity 배지 · 규칙 ID(mono) · 네트명(mono) · tier 배지
-- claim: 한 문장, 볼드
-- 본문은 좌우 2열, 가운데에 redpen 1.5px 세로선(이음매)
-    좌: kind === "netlist" 근거
-    우: kind === "firmware" 또는 "datasheet" 근거
-    evidence[].highlight 토큰은 redpen 밑줄 + 연한 배경
-    근거가 한쪽뿐이어도 이음매는 유지한다
-- 하단: suggestion. unresolved_reason 있으면 amber 배경, 없으면 verify 배경
-- 모바일에서는 2열이 위아래로 쌓이고 이음매가 가로선이 된다
+> 이 절에 있던 2열 + 세로 이음매 설계는 **폐기됐습니다.**
+> 가로축이 "핀 순서"와 "회로도/코드"라는 두 의미를 동시에 져서 근거가 잘못된 쪽에 놓였습니다.
+> 지금은 **소스마다 한 줄(레인)** 구조입니다.
+> 현재 명세는 [`apps/web/CLAUDE.md` 4절](../apps/web/CLAUDE.md)에 있습니다.
 
 ## 단계 2 — 디자인 시스템
 
-CLAUDE.md 5절 토큰을 tailwind.config 에 등록한다.
+[`apps/web/CLAUDE.md` 5절](../apps/web/CLAUDE.md)의 토큰을 `tailwind.config.js`에 등록한다.
 
---vellum #E6E9E4 / --vellum-2 #F2F4F0 / --ink #171C26 / --graphite #6E7683
---hair #C3C9C1 / --redpen #C0322A / --amber #A9700F / --verify #2C6248
+> 원래 여기에 색·폰트 값이 그대로 적혀 있었습니다. 디자인을 바꾸자 이 사본이 거짓말이 됐고,
+> 같은 값이 5개 문서에 흩어져 있어 전부 어긋났습니다. **그래서 값을 지우고 링크만 남깁니다.**
+> 값은 `tailwind.config.js` 하나에만 존재합니다.
 
-- 폰트: IBM Plex Sans KR(본문) / IBM Plex Sans Condensed(라벨) / IBM Plex Mono(데이터)
 - 넷리스트·핀·코드·규칙 ID는 전부 mono
-- 라벨은 condensed 대문자 letter-spacing .16em
-- border-radius 0
-- 배경 22px 미세 격자 rgba(23,28,38,.035)
-- 헤더는 도면 표제란 형태
 - 애니메이션은 파이프라인 진행 하나만. prefers-reduced-motion 존중
 
 ## 단계 3 — 실제 API 연결
@@ -226,9 +227,10 @@ VITE_API_BASE 가 있으면 실제 API를 호출한다.
 실패 상태(422, 404, 500, 네트워크 오류)를 각각 처리한다.
 에러 문구는 무엇이 잘못됐고 어떻게 고치는지 알려준다. 사과하지 않는다.
 
-## 단계 4 — Vercel 배포
+## 단계 4 — 배포 (후순위)
 
-배포하고 URL을 알려줘. 환경변수 VITE_API_BASE 설정 방법도 함께.
+지금은 배포를 최우선으로 두지 않습니다. `VITE_API_BASE`가 비면 목 데이터로 돌기 때문에
+화면 작업이 배포를 기다리지 않습니다. 붙일 준비만 해두고, 규칙과 화면을 먼저 끝냅니다.
 
 ## 절대 하지 말 것
 

@@ -1,10 +1,19 @@
 # Prefab — 프론트/백 개발 프롬프트
 
+> ⚠️ **이미 실행이 끝난 프롬프트 아카이브입니다.** 그대로 다시 돌리지 마세요.
+>
+> - **디자인 규약의 현재 진실**: [`apps/web/CLAUDE.md`](../apps/web/CLAUDE.md) 4·5절
+>   과 [`apps/web/tailwind.config.js`](../apps/web/tailwind.config.js).
+>   여기 적혀 있던 색·폰트 값과 2열 카드 설계는 낡아서 지웠습니다.
+> - **배포는 최우선이 아닙니다.** 아래 배포 서술은 당시 판단입니다.
+
+---
+
 전제: `BOOTSTRAP.md`의 Phase 0이 끝나 패키지 구조와 R11·R12가 동작하는 상태.
 
 저장소는 두 개로 나눈다.
-- `prefab-api` — FastAPI, Railway/Render 배포
-- `prefab-web` — React, Vercel 배포
+- `prefab-api` — FastAPI
+- `prefab-web` — React
 
 ---
 
@@ -108,19 +117,12 @@ multipart/form-data
 
 ## 디자인 토큰 — 양쪽 공유
 
-```
-vellum      #E6E9E4    제도 용지 (배경)
-vellum-2    #F2F4F0    카드 배경
-ink         #171C26    제도 잉크 (본문)
-graphite    #6E7683    보조 텍스트
-hair        #C3C9C1    헤어라인
-redpen      #C0322A    교정 빨간펜 · CRITICAL · 이음매
-amber       #A9700F    WARNING · skipped
-verify      #2C6248    PASS · cleared
-font-sans   'IBM Plex Sans KR'
-font-cond   'IBM Plex Sans Condensed'   라벨 · 대문자 · letter-spacing
-font-mono   'IBM Plex Mono'             넷리스트 · 코드 · 핀 이름
-```
+값은 [`apps/web/tailwind.config.js`](../apps/web/tailwind.config.js) 하나에만 둡니다.
+요약은 [`apps/web/CLAUDE.md` 5절](../apps/web/CLAUDE.md), 계약 사본은
+[`docs/API_CONTRACT.md`](../docs/API_CONTRACT.md) 마지막 절에 있습니다.
+
+원래 이 자리에 색·폰트 값이 그대로 적혀 있었습니다. 디자인을 바꾸자 사본 5개가 전부
+거짓말이 됐습니다. **문서에 값을 복사하지 않습니다.**
 
 ---
 
@@ -193,7 +195,7 @@ prefab-web을 만들어줘. API_CONTRACT.md의 응답 스펙과 디자인 토큰
 
 - Vite + React + TypeScript, Tailwind
 - 상태관리 라이브러리 없이. fetch + useState 로 충분하다
-- Vercel 배포
+- 배포는 후순위 (VITE_API_BASE 가 비면 목으로 돈다)
 - 인증 없음. 결과는 URL만으로 열린다
 
 ## 화면 3개
@@ -201,14 +203,14 @@ prefab-web을 만들어줘. API_CONTRACT.md의 응답 스펙과 디자인 토큰
 ### / — 업로드
 - 슬롯 3개: 넷리스트(필수) · BOM(선택) · 펌웨어 zip(선택)
 - 드래그앤드롭 + 파일 선택 둘 다
-- 선택 항목이 비면 주황(amber)으로 "무엇을 못 하게 되는지" 명시.
+- 선택 항목이 비면 warn 색으로 "무엇을 못 하게 되는지" 명시.
   BOM 없음 → "부품 식별 불가 · 오탐 증가"
   펌웨어 없음 → "코드 대조 규칙 5개 실행 불가"
 - "샘플 보드로 실행" 버튼: 번들된 예제 넷리스트로 즉시 실행 (심사 시연용, 필수)
 
 ### /c/{check_id} — 처리 중
 - pipeline 배열을 순서대로 렌더
-- status별 표시: done=verify색 / partial=amber / skipped=amber+취소선 아님, 사유를 그대로 노출 / failed=redpen
+- status별 색은 ok / warn / crit 토큰. skipped는 사유를 그대로 노출한다
 - skipped 단계를 흐리게 숨기지 말 것. detail 문구를 그대로 보여준다
 - 1초 폴링, status가 done이면 리포트로 전환
 
@@ -219,30 +221,25 @@ prefab-web을 만들어줘. API_CONTRACT.md의 응답 스펙과 디자인 토큰
 2. 입력 요약: 무엇을 받았고 무엇이 없어서 무엇을 못 했는지
 3. 발견 목록 — severity 순. verdict=PASS(해제됨) 항목은
    Lighthouse의 "통과한 감사"처럼 **접어서 하단에** 둔다
-4. 넷리스트 부록 (monospace, 발견에 연루된 네트는 redpen 강조)
+4. 넷리스트 부록 (mono, 발견에 연루된 네트는 crit 강조)
 
 ## 발견 카드 — 시그니처 컴포넌트
 
 이 컴포넌트가 제품의 얼굴이다. 공들일 것.
 
-- 상단 바: severity 배지 · 규칙 ID(mono) · 네트명(mono) · tier 배지
-- claim: 한 문장, 볼드, 15~16px
-- **본문은 좌우 2열이고 가운데에 redpen 1.5px 세로선(이음매)이 지난다**
-  - 좌: kind=netlist 근거
-  - 우: kind=firmware 또는 datasheet 근거
-  - highlight 배열의 토큰은 redpen 밑줄 + 연한 배경
-  - 근거가 한쪽뿐이면 그 열만 채우고 이음매는 유지한다
-- 하단: suggestion. unresolved_reason 이 있으면 amber 배경, 없으면 verify 배경
-- 모바일에서는 2열이 위아래로 쌓이고 이음매는 가로선이 된다
+> 여기 있던 **좌우 2열 + 세로 이음매** 설계는 폐기됐습니다.
+> 가로축이 "핀 순서"와 "회로도/코드"라는 두 의미를 동시에 져서, 넷리스트에서 아는 사실이
+> 코드 쪽 열에 놓이는 문제가 있었습니다.
+> 지금은 **소스마다 한 줄(레인)** — 회로도 / 코드 / 데이터시트 3줄 구조입니다.
+> 현재 명세: [`apps/web/CLAUDE.md` 4절](../apps/web/CLAUDE.md).
 
 ## 디자인
 
-- 제도 용지 톤. 배경에 22px 미세 격자 (rgba(23,28,38,.035))
-- 라벨은 font-cond 대문자 letter-spacing .16em
-- 넷리스트·핀·코드는 전부 font-mono
-- border-radius 0. 모서리를 둥글리지 않는다
+[`apps/web/CLAUDE.md` 5절](../apps/web/CLAUDE.md)을 따른다. 토스 계열 톤이다.
+(원래 여기 있던 제도 도면 톤 · 격자 배경 · border-radius 0 서술은 폐기됐습니다.)
+
+- 넷리스트·핀·코드는 전부 mono
 - 애니메이션은 파이프라인 진행 하나뿐. prefers-reduced-motion 존중
-- 헤더는 도면 표제란 형태 (좌: 제품명 / 우: 메타 3칸 격자)
 
 ## 절대 하지 말 것
 

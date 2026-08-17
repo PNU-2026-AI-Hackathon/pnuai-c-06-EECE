@@ -205,8 +205,11 @@ font-mono   'JetBrains Mono'    넷리스트 · 코드 · 핀 이름 · 규칙 I
 
 ## CORS
 
-백엔드 첫 커밋에 포함한다. 배포 직전에 발견하면 반나절이 날아간다.
+배포는 후순위지만 **CORS는 지금 넣어둔다.** 나중에 붙일 때 반나절이 날아간다.
 
 ```
-허용 origin: <Vercel 배포 URL>, http://localhost:5173
+허용 origin: http://localhost:5173, <배포 URL — 정해지면 추가>
+허용 method: GET, POST, OPTIONS
 ```
+
+업로드가 `multipart/form-data`라 프리플라이트(OPTIONS)가 먼저 날아간다.
