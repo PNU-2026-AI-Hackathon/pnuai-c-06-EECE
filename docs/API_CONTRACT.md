@@ -31,8 +31,18 @@ GET    /healthz                헬스체크
 
 **응답 `201`**
 ```json
-{ "check_id": "chk_7f3a2b", "status": "running" }
+{ "check_id": "chk_7f3a2b", "status": "done" }
 ```
+
+> ### 검사는 동기로 끝난다 — 지금은 `running` 이 나오지 않는다
+> 규칙 2개가 순수 함수이고 입력이 네트 8 · 부품 10 규모라 검사가 밀리초 안에 끝난다.
+> 그래서 POST 응답이 이미 `"status": "done"` 이다. 큐를 쓰지 않는다.
+>
+> 프론트는 `/c/{id}` 로 보내도 되고(첫 폴링에서 바로 `/r/{id}` 로 넘어간다)
+> 곧장 `/r/{id}` 로 가도 된다. 화면 코드를 고칠 필요는 없다.
+>
+> 펌웨어 정적 분석이 붙어 검사가 5초를 넘기기 시작하면 `BackgroundTasks` 로 바꾸고
+> 그때 `running` + 부분 `pipeline` 을 채운다. **바뀌면 이 절을 먼저 고친다.**
 
 ---
 
@@ -55,7 +65,8 @@ GET    /healthz                헬스체크
     "warning": 1,
     "cleared": 1,
     "rules_run": 2,
-    "rules_skipped": 10,
+    "rules_skipped": 9,
+    "rules_total": 11,
     "parts_identified": 0,
     "parts_total": 10
   },
@@ -83,6 +94,11 @@ GET    /healthz                헬스체크
 
 - `status`: `running` | `done` | `failed`
 - `pipeline[].status`: `done` | `partial` | `skipped` | `failed`
+- `created_at`: **UTC** (`Z` 로 끝난다). 서버는 시간대를 정하지 않는다.
+  한국 시간 표시는 화면이 변환한다.
+- `summary.rules_run + summary.rules_skipped == summary.rules_total` 이 **항상 성립한다.**
+  세 값 모두 규칙 레지스트리에서 계산된다. 문서에 손으로 적은 숫자를 쓰지 않는다.
+  현재 `rules_total` 은 11 이다 (R6 은 폐기).
 
 > ### `skipped`를 숨기지 않는다
 > 무엇을 못 했는지 보이는 것이 이 제품의 신뢰다.
@@ -138,6 +154,9 @@ GET    /healthz                헬스체크
 
 - 값이 없으면 `null`. 빈 문자열이나 `"N/A"`로 채우지 않는다.
 - `highlight`는 프론트에서 강조 표시할 토큰 목록.
+- `evidence` 객체는 `kind` 에 해당하는 키만 담는다. 다른 kind 의 키를 `null` 로 채우지 않는다.
+- `kind: "firmware"` 의 `file` 은 **업로드한 zip 내부의 상대 경로**다.
+  절대 경로나 서버 임시 디렉터리 경로가 섞여 나가지 않는다.
 
 ---
 
@@ -158,6 +177,15 @@ GET    /healthz                헬스체크
 
 **미구현 규칙도 `implemented: false`로 포함한다.** 숨기지 않는다.
 
+`id` 는 **세 자리 고정**이다 (`R01` … `R12`). `R06`(I2C 풀업 누락)은 폐기했고 번호를 재사용하지 않는다.
+`needs` 어휘는 `netlist` | `bom` | `firmware` 세 개뿐이다.
+
+목 모드용 응답 예시는 `apps/web/src/mocks/rules.json` 에 있다. 다음 명령으로 다시 뽑는다.
+
+```bash
+cd apps/api && python -m prefab --rules-json > ../web/src/mocks/rules.json
+```
+
 ---
 
 ## 오류 응답
@@ -170,10 +198,15 @@ GET    /healthz                헬스체크
 |---|---|---|
 | 넷리스트 없음 | `NETLIST_REQUIRED` | 422 |
 | 파싱 실패 | `NETLIST_PARSE_FAILED` | 422 |
-| 파일 크기 초과 | `FILE_TOO_LARGE` | 413 |
+| 파일 크기 초과 (10MB) | `FILE_TOO_LARGE` | 413 |
+| 확장자 불일치 | `UNSUPPORTED_FILE_TYPE` | 415 |
 | check_id 없음 | `CHECK_NOT_FOUND` | 404 |
+| 서버가 처리 못 한 오류 | `INTERNAL_ERROR` | 500 |
 
 메시지는 **무엇이 잘못됐고 어떻게 고치는지** 알려준다. 사과하지 않는다.
+프론트는 `error.message` 를 그대로 노출한다. 서버가 스택트레이스를 message 에 넣지 않는다.
+
+받는 확장자: `netlist` = `.d356` / `.ipc` / `.txt` · `bom` = `.csv` · `firmware` = `.zip`
 
 ---
 
@@ -203,13 +236,47 @@ font-mono   'JetBrains Mono'    넷리스트 · 코드 · 핀 이름 · 규칙 I
 
 `highlight` 토큰은 `crit-weak` 배경 + `crit` 굵은 글자로 강조한다.
 
+## 로컬에서 붙이기
+
+배포는 후순위다. 로컬끼리 붙이는 데는 아무 준비물이 없다 — API 키도 DB 설치도 없다.
+
+```bash
+# 백엔드 (기본 포트 8000)
+cd apps/api && uvicorn web.app:app --reload --port 8000
+
+# 프론트
+cd apps/web && echo "VITE_API_BASE=http://localhost:8000" > .env && pnpm dev
+```
+
+`ALLOWED_ORIGINS` 를 안 넣으면 `localhost:5173` · `127.0.0.1:5173` 이 기본으로 허용된다.
+SQLite 파일(`prefab.db`)은 첫 실행에 자동 생성된다.
+
+붙었는지 확인:
+
+```bash
+cd apps/api && ./scripts/smoke.sh http://localhost:8000
+```
+
+헬스체크 → 규칙 카탈로그 → CORS 프리플라이트 → 실제 보드 업로드 → 골든 3건 일치까지
+순서대로 보고, 하나라도 어긋나면 0이 아닌 코드로 끝난다.
+
 ## CORS
 
-배포는 후순위지만 **CORS는 지금 넣어둔다.** 나중에 붙일 때 반나절이 날아간다.
+배포는 후순위지만 **CORS는 지금 넣어둔다.** 나중에 붙일 때 반나절이 날아간다. — **넣었다.**
 
 ```
-허용 origin: http://localhost:5173, <배포 URL — 정해지면 추가>
-허용 method: GET, POST, OPTIONS
+허용 origin : http://localhost:5173, http://127.0.0.1:5173
+              + https://*.vercel.app (프리뷰 배포는 URL 이 매번 바뀐다)
+              + <배포 URL — 정해지면 ALLOWED_ORIGINS 에 추가>
+허용 method : GET, POST, OPTIONS
+허용 header : *
 ```
 
-업로드가 `multipart/form-data`라 프리플라이트(OPTIONS)가 먼저 날아간다.
+업로드가 `multipart/form-data`라 **프리플라이트(OPTIONS)가 먼저 날아간다.**
+GET 만 열어두면 로컬에서 붙일 때부터 업로드가 통째로 막힌다.
+
+배포 origin 은 환경변수로 넣는다. 코드에 하드코딩하지 않는다.
+
+```
+ALLOWED_ORIGINS=https://<배포-URL>,http://localhost:5173
+```
