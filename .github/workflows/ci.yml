@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  api:
+    name: prefab-api · pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: 의존성 설치
+        run: pip install -e ".[dev]"
+      - name: 테스트
+        run: pytest -q
+      - name: 실제 보드 검사가 3건을 그대로 내는지
+        run: |
+          python -m prefab tests/fixtures/esp32-c6-presence-smart-light.d356 --json > /tmp/check.json
+          python - <<'PY'
+          import json
+          r = json.load(open("/tmp/check.json"))
+          got = [(f["rule"], f["net"]) for f in r["findings"]]
+          want = [("R12","PRESENCE_3V3"), ("R12","_IN_ACTIVE_LOW"), ("R11","PRESENCE_3V3")]
+          assert got == want, f"골든 결과가 바뀌었다: {got}"
+          s = r["summary"]
+          assert s["rules_run"] + s["rules_skipped"] == s["rules_total"], s
+          print("골든 통과:", got)
+          PY
