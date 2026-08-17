@@ -249,10 +249,9 @@ export function UploadPage() {
         <p className="mt-8 rounded-block bg-surface-2 px-4 py-3.5 text-[13px] leading-relaxed text-sub">
           지금은 백엔드 없이 목 데이터로 동작합니다. 샘플 결과는 실제 보드
           <span className="data"> esp32c6presencesmartlight.d356 </span>
-          를 파서와 규칙 엔진에 돌려 얻은 값입니다. 규칙 카탈로그(
-          <span className="data">GET /api/v1/rules</span>)가 없어서{" "}
-          <strong className="font-bold text-ink">"규칙 몇 개가 못 돈다"는 숫자는 표시하지 않습니다.</strong>{" "}
-          지어내지 않기 위해서입니다.
+          를 파서와 규칙 엔진에 돌려 얻은 값이고, 위 규칙 개수는 백엔드가 카탈로그에서 뽑아 준{" "}
+          <span className="data">mocks/rules.json</span> 을 세어서 표시합니다.{" "}
+          <strong className="font-bold text-ink">둘 다 손으로 적은 값이 아닙니다.</strong>
         </p>
       )}
     </Page>

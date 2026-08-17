@@ -12,6 +12,16 @@ import type { CheckResult, Finding, Severity } from "../types/api";
 const SEVERITY_ORDER: Record<Severity, number> = { CRITICAL: 0, WARNING: 1, INFO: 2 };
 
 /**
+ * `created_at` 은 계약상 UTC(`Z`)다. 서버는 시간대를 정하지 않고 화면이 변환한다.
+ * 그대로 `slice(0, 10)` 하면 한국 시간 오전 9시 이전 검사가 하루 전 날짜로 보인다.
+ */
+function toKstDate(iso: string): string {
+  const t = new Date(iso);
+  if (Number.isNaN(t.getTime())) return iso.slice(0, 10); // 파싱 못 하면 원문 그대로
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul" }).format(t);
+}
+
+/**
  * 리포트. 구조는 Lighthouse를 따른다.
  * 해제된 항목(PASS)은 접어서 하단에 둔다 — 문제부터 보여야 한다.
  */
@@ -70,7 +80,7 @@ export function ReportPage() {
       meta={[
         { label: "검사", value: check.check_id },
         { label: "보드", value: check.inputs.netlist?.filename.replace(/\.[^.]+$/, "") ?? "—" },
-        { label: "생성", value: check.created_at.slice(0, 10) },
+        { label: "생성", value: toKstDate(check.created_at) },
       ]}
     >
       {/* 실제 검사가 아니면 제일 먼저 그 사실을 말한다. 접거나 흐리게 하지 않는다 */}
