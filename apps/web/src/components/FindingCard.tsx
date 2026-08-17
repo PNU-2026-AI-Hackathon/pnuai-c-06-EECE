@@ -15,7 +15,7 @@ import { SourceMark, SourceRail } from "./Mark";
  *   점선 + 빈 마디   = 아직 모르는 것 (입력이 없거나 못 읽었다)
  * 레인은 근거가 없어도 지우지 않는다. 빈 레인이 곧 "무엇이 있어야 판정이 되는가"다.
  *
- * 회로도 레인과 나머지 사이의 redpen 1.5px 가로선이 이음매다 —
+ * 회로도 레인과 나머지 사이의 1.5px 빨간 가로선이 이음매다 —
  * 회로도가 말하는 것과 코드가 말하는 것이 갈라지는 자리.
  */
 
@@ -54,14 +54,14 @@ function Lane({
   return (
     <section
       aria-label={label}
-      className={`grid grid-cols-[11px_1fr] gap-x-3 px-4 md:grid-cols-[11px_9.5rem_1fr] md:gap-x-4 ${
-        known ? "py-4" : "py-3"
-      } ${seam ? "border-t-[1.5px] border-redpen" : ""}`}
+      className={`grid grid-cols-[12px_1fr] gap-x-3.5 px-5 md:grid-cols-[12px_10rem_1fr] md:gap-x-5 ${
+        known ? "py-5" : "py-4"
+      } ${seam ? "border-t-[1.5px] border-crit/45" : ""}`}
     >
       {/* 레일 — 구리(실선)와 틈(점선) */}
       <div aria-hidden className="relative col-start-1 row-span-2 md:row-span-1">
         <SourceRail known={known} />
-        <span className="absolute left-0 top-1 block">
+        <span className="absolute left-0 top-1.5 block">
           <SourceMark known={known} />
         </span>
       </div>
@@ -72,8 +72,8 @@ function Lane({
           known ? "mb-2 md:mb-0" : "mb-1 md:mb-0"
         }`}
       >
-        <span className="label text-ink">{label}</span>
-        <span className={`label ${known ? "text-graphite" : "text-amber"}`}>
+        <span className="text-[13px] font-bold text-ink">{label}</span>
+        <span className={`text-[12px] font-semibold ${known ? "text-mute" : "text-warn"}`}>
           {known ? "읽음" : "모름"}
         </span>
       </p>
@@ -82,7 +82,7 @@ function Lane({
         {known ? (
           <div className="space-y-4">{children}</div>
         ) : (
-          <p className="text-[13px] leading-relaxed text-graphite">{blank}</p>
+          <p className="text-[14px] leading-relaxed text-sub">{blank}</p>
         )}
       </div>
     </section>
@@ -99,9 +99,15 @@ const FOOTER_LABEL: Record<Foot, string> = {
 };
 
 const FOOTER_TONE: Record<Foot, string> = {
-  unresolved: "border-amber/40 bg-amber/5",
-  cleared: "border-verify/40 bg-verify/5",
-  next: "border-hair",
+  unresolved: "bg-warn-weak",
+  cleared: "bg-ok-weak",
+  next: "bg-surface-2",
+};
+
+const FOOTER_LABEL_TONE: Record<Foot, string> = {
+  unresolved: "text-warn",
+  cleared: "text-ok",
+  next: "text-mute",
 };
 
 export function FindingCard({ finding }: { finding: Finding }) {
@@ -109,16 +115,16 @@ export function FindingCard({ finding }: { finding: Finding }) {
   const foot: Foot = unresolved ? "unresolved" : finding.verdict === "PASS" ? "cleared" : "next";
 
   return (
-    <article className="card">
-      <header className="border-b border-hair px-4 py-3">
+    <article className="card overflow-hidden">
+      <header className="border-b border-line px-5 py-4">
         <div className="flex items-baseline gap-2">
           <SeverityBadge severity={finding.severity} />
-          <span className="data font-semibold text-ink">{finding.rule}</span>
-          <span className="min-w-0 text-[15px] font-medium">{finding.title}</span>
+          <span className="data font-semibold text-sub">{finding.rule}</span>
+          <span className="min-w-0 text-[17px] font-bold tracking-tight">{finding.title}</span>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {finding.net && (
-            <span className="data min-w-0 break-all text-graphite">{finding.net}</span>
+            <span className="data min-w-0 break-all text-mute">{finding.net}</span>
           )}
           <span className="ml-auto flex shrink-0 gap-2">
             <TierBadge tier={finding.tier} />
@@ -127,7 +133,9 @@ export function FindingCard({ finding }: { finding: Finding }) {
         </div>
       </header>
 
-      <p className="border-b border-hair px-4 py-3 text-[15px] leading-relaxed">{finding.claim}</p>
+      <p className="border-b border-line px-5 py-4 text-[15px] leading-relaxed text-sub">
+        {finding.claim}
+      </p>
 
       {LANES.map((lane, i) => {
         const items = finding.evidence.filter((e) => e.kind === lane.kind);
@@ -148,11 +156,15 @@ export function FindingCard({ finding }: { finding: Finding }) {
 
       {/* 할 말이 없으면 빈 칸을 만들지 않는다 */}
       {(unresolved || finding.suggestion) && (
-        <footer className={`border-t px-4 py-3 ${FOOTER_TONE[foot]}`}>
-          <p className="label mb-1">{FOOTER_LABEL[foot]}</p>
-          {unresolved && <p className="text-[14px] font-medium">{finding.unresolved_reason}</p>}
+        <footer className={`border-t border-line px-5 py-4 ${FOOTER_TONE[foot]}`}>
+          <p className={`mb-1.5 text-[12px] font-bold ${FOOTER_LABEL_TONE[foot]}`}>
+            {FOOTER_LABEL[foot]}
+          </p>
+          {unresolved && (
+            <p className="text-[15px] font-bold text-ink">{finding.unresolved_reason}</p>
+          )}
           {finding.suggestion && (
-            <p className="mt-1 text-[14px] leading-relaxed text-ink">{finding.suggestion}</p>
+            <p className="mt-1 text-[14px] leading-relaxed text-sub">{finding.suggestion}</p>
           )}
         </footer>
       )}

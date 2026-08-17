@@ -2,7 +2,7 @@ import type { Evidence } from "../types/api";
 
 /**
  * 근거 한 덩어리. 넷리스트 · 펌웨어 · 데이터시트 세 종류의 생김새가 다르다.
- * highlight 토큰은 redpen 밑줄로 강조한다 — 어디를 보라는 건지 손가락으로 짚어주는 역할.
+ * highlight 토큰은 강조 밑줄 + 연한 배경 — 어디를 보라는 건지 손가락으로 짚어주는 역할.
  *
  * 어느 소스에서 왔는지는 카드의 레인이 이미 말한다. 여기서는 그 안의 위치만 적는다
  * (파일:줄 · 데이터시트 표/쪽). 같은 말을 두 번 하지 않는다.
@@ -22,7 +22,7 @@ function marked(text: string, tokens: string[] | undefined) {
     tokens.includes(part) ? (
       <mark
         key={i}
-        className="bg-redpen/10 text-redpen underline decoration-redpen decoration-1 underline-offset-2"
+        className="rounded-[4px] bg-crit-weak px-0.5 font-semibold text-crit decoration-crit/40 decoration-1 underline-offset-2"
       >
         {part}
       </mark>
@@ -35,7 +35,7 @@ function marked(text: string, tokens: string[] | undefined) {
 /** 발췌 — 파일에서 그대로 떠온 것처럼 보여야 한다 */
 function Excerpt({ children }: { children: React.ReactNode }) {
   return (
-    <pre className="data overflow-x-auto whitespace-pre-wrap break-words border-l-2 border-hair bg-ink/[0.025] py-2 pl-3 pr-2 text-ink">
+    <pre className="data overflow-x-auto whitespace-pre-wrap break-words rounded-block bg-surface-2 px-3.5 py-3 text-ink">
       {children}
     </pre>
   );
@@ -44,7 +44,7 @@ function Excerpt({ children }: { children: React.ReactNode }) {
 function Frame({ label, children }: { label?: string; children: React.ReactNode }) {
   return (
     <div>
-      {label && <p className="label mb-1.5">{label}</p>}
+      {label && <p className="label mb-1.5 font-mono">{label}</p>}
       {children}
     </div>
   );
@@ -70,7 +70,7 @@ export function EvidenceBlock({ evidence }: { evidence: Evidence }) {
   return (
     <Frame label={evidence.mpn}>
       <Excerpt>{marked(evidence.quote, evidence.highlight)}</Excerpt>
-      <p className="mt-1.5 font-cond text-[11px] uppercase tracking-label text-graphite">
+      <p className="mt-1.5 text-[12px] text-mute">
         {evidence.table} · p.{evidence.page}
       </p>
     </Frame>
