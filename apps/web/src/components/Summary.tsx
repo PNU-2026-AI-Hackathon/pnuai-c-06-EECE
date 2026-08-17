@@ -1,11 +1,13 @@
 import type { CheckInputs, CheckSummary } from "../types/api";
 
+import { SourceMark } from "./Mark";
+
 /** 숫자 타일 하나. API가 0을 주면 0으로, null이면 —로 적는다 */
 function Tile({ label, value, tone }: { label: string; value: number | string; tone?: string }) {
   return (
-    <div className="border border-hair bg-vellum-2 px-4 py-3">
+    <div className="card px-5 py-4">
       <p className="label">{label}</p>
-      <p className={`font-mono text-[28px] font-semibold leading-tight ${tone ?? "text-ink"}`}>
+      <p className={`mt-1 text-[30px] font-extrabold tracking-tight ${tone ?? "text-ink"}`}>
         {value}
       </p>
     </div>
@@ -15,9 +17,9 @@ function Tile({ label, value, tone }: { label: string; value: number | string; t
 export function SummaryTiles({ summary }: { summary: CheckSummary }) {
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-      <Tile label="치명" value={summary.critical} tone="text-redpen" />
-      <Tile label="경고" value={summary.warning} tone="text-amber" />
-      <Tile label="해제됨" value={summary.cleared} tone="text-verify" />
+      <Tile label="치명" value={summary.critical} tone="text-crit" />
+      <Tile label="경고" value={summary.warning} tone="text-warn" />
+      <Tile label="해제됨" value={summary.cleared} tone="text-ok" />
       <Tile
         label="실행한 규칙"
         value={`${summary.rules_run}/${summary.rules_run + summary.rules_skipped}`}
@@ -27,13 +29,7 @@ export function SummaryTiles({ summary }: { summary: CheckSummary }) {
 }
 
 /** 무엇을 받았고 무엇이 없는지. 없는 것을 흐리게 처리하지 않는다 */
-export function InputsTable({
-  inputs,
-  summary,
-}: {
-  inputs: CheckInputs;
-  summary: CheckSummary;
-}) {
+export function InputsTable({ inputs, summary }: { inputs: CheckInputs; summary: CheckSummary }) {
   const rows = [
     {
       label: "넷리스트",
@@ -56,19 +52,20 @@ export function InputsTable({
   ];
 
   return (
-    <ul className="divide-y divide-hair border border-hair">
+    <ul className="card divide-y divide-line overflow-hidden">
       {rows.map((r) => (
-        <li key={r.label} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3">
-          <span className="label w-20 shrink-0">{r.label}</span>
+        <li key={r.label} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-5 py-4">
+          <SourceMark known={r.file !== null} />
+          <span className="w-20 shrink-0 text-[14px] font-bold">{r.label}</span>
           {r.file ? (
             <>
-              <span className="data min-w-0 flex-1 break-all text-ink">{r.file.filename}</span>
-              {r.note && <span className="data text-graphite">{r.note}</span>}
+              <span className="data min-w-0 flex-1 break-all text-sub">{r.file.filename}</span>
+              {r.note && <span className="data text-mute">{r.note}</span>}
             </>
           ) : (
             <>
-              <span className="data text-graphite">—</span>
-              <span className="min-w-0 flex-1 text-[13px] text-amber">{r.missing}</span>
+              <span className="data text-mute">—</span>
+              <span className="min-w-0 flex-1 text-[14px] text-warn">{r.missing}</span>
             </>
           )}
         </li>

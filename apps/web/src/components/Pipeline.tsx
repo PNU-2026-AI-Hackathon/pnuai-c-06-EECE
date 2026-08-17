@@ -10,18 +10,21 @@ import { StepBadge } from "./Badge";
  */
 export function Pipeline({ steps, running }: { steps: PipelineStep[]; running?: boolean }) {
   return (
-    <ol className="divide-y divide-hair border border-hair">
+    <ol className="card divide-y divide-line overflow-hidden">
       {steps.map((step) => {
         const active = running && step.status === "done";
         return (
-          <li key={step.step} className="relative flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
+          <li
+            key={step.step}
+            className="relative flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-4"
+          >
             {active && <span aria-hidden className="sweep pointer-events-none absolute inset-0" />}
-            <span className="data w-6 shrink-0 text-graphite">{step.step}</span>
-            <span className="min-w-0 flex-1 text-[15px]">{step.name}</span>
+            <span className="data flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-[12px] text-sub">
+              {step.step}
+            </span>
+            <span className="min-w-0 flex-1 text-[15px] font-semibold">{step.name}</span>
             <StepBadge status={step.status} />
-            {step.detail && (
-              <p className="w-full pl-9 text-[13px] text-graphite">{step.detail}</p>
-            )}
+            {step.detail && <p className="w-full pl-9 text-[13px] text-sub">{step.detail}</p>}
           </li>
         );
       })}

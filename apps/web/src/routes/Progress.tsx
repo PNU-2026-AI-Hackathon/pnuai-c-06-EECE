@@ -41,17 +41,17 @@ export function ProgressPage() {
       <SectionTitle no="02">진행</SectionTitle>
 
       {error && (
-        <p role="alert" className="border border-redpen bg-redpen/5 px-4 py-3 text-[14px]">
+        <p role="alert" className="rounded-block bg-crit-weak px-4 py-3 text-[14px] font-semibold text-crit">
           {error}
         </p>
       )}
 
-      {!check && !error && <p className="text-[15px] text-graphite">검사를 불러오는 중입니다.</p>}
+      {!check && !error && <p className="text-[15px] text-mute">검사를 불러오는 중입니다.</p>}
 
       {check && <Pipeline steps={check.pipeline} running={check.status === "running"} />}
 
       {check?.status === "failed" && (
-        <p role="alert" className="mt-4 border border-redpen bg-redpen/5 px-4 py-3 text-[14px]">
+        <p role="alert" className="mt-4 rounded-block bg-crit-weak px-4 py-3 text-[14px] font-semibold text-crit">
           검사가 중단되었습니다. 위 단계에서 실패 표시된 항목을 확인해 주세요.
         </p>
       )}

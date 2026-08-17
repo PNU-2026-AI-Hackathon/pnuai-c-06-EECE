@@ -1,34 +1,45 @@
 /**
- * 제도 도면 톤. 색은 API_CONTRACT.md의 토큰과 1:1로 맞춘다.
- * 모서리는 둥글리지 않는다 — borderRadius를 전부 0으로 덮는다.
+ * 토스 계열 톤. 흰 표면 · 넓은 여백 · 부드러운 라운드 · 얇은 회색 선.
+ * 색은 역할로 부른다 (bg / surface / ink / sub / line / brand / crit / warn / ok).
+ * 판정 색(crit · warn · ok)은 API_CONTRACT.md 의 severity · status 와 1:1로 맞춘다.
  */
 export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
-    borderRadius: { none: "0", DEFAULT: "0", sm: "0", md: "0", lg: "0", full: "0" },
     extend: {
       colors: {
-        vellum: "#E6E9E4",
-        "vellum-2": "#F2F4F0",
-        ink: "#171C26",
-        graphite: "#6E7683",
-        hair: "#C3C9C1",
-        redpen: "#C0322A",
-        amber: "#A9700F",
-        verify: "#2C6248",
+        bg: "#F7F8FA", // 페이지 바탕
+        surface: "#FFFFFF", // 카드 · 시트
+        "surface-2": "#F2F4F6", // 카드 안에서 한 단 낮은 면 (코드 발췌 등)
+        ink: "#191F28", // 본문
+        sub: "#4E5968", // 보조 텍스트
+        mute: "#8B95A1", // 더 흐린 텍스트 · 비활성
+        line: "#E5E8EB", // 경계선
+        brand: "#3182F6", // 강조
+        "brand-strong": "#1B64DA", // 버튼 · 링크 (작은 글씨에도 대비 확보)
+        "brand-weak": "#EBF3FE",
+        crit: "#D6293E", // CRITICAL
+        "crit-weak": "#FEECEE",
+        warn: "#B45309", // WARNING · skipped
+        "warn-weak": "#FFF4E5",
+        ok: "#087A57", // PASS · cleared · done
+        "ok-weak": "#E6F7F1",
       },
       fontFamily: {
-        sans: ["'IBM Plex Sans KR'", "system-ui", "sans-serif"],
-        cond: ["'IBM Plex Sans Condensed'", "'IBM Plex Sans KR'", "sans-serif"],
-        mono: ["'IBM Plex Mono'", "ui-monospace", "monospace"],
+        sans: ["'Pretendard Variable'", "Pretendard", "-apple-system", "system-ui", "sans-serif"],
+        mono: ["'JetBrains Mono'", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
-      letterSpacing: { label: ".16em" },
-      backgroundImage: {
-        /* 22px 미세 격자 — 제도 용지 */
-        grid: `linear-gradient(to right, rgba(23,28,38,.035) 1px, transparent 1px),
-               linear-gradient(to bottom, rgba(23,28,38,.035) 1px, transparent 1px)`,
+      borderRadius: {
+        card: "20px",
+        block: "12px",
+        chip: "8px",
       },
-      backgroundSize: { grid: "22px 22px" },
+      boxShadow: {
+        card: "0 1px 2px rgba(25,31,40,.04), 0 8px 24px rgba(25,31,40,.06)",
+        pop: "0 2px 4px rgba(25,31,40,.05), 0 12px 32px rgba(25,31,40,.10)",
+        brand: "0 8px 20px rgba(49,130,246,.24)",
+      },
+      letterSpacing: { tight: "-0.02em" },
     },
   },
   plugins: [],

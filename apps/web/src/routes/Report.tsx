@@ -27,9 +27,9 @@ export function ReportPage() {
   if (error) {
     return (
       <Page>
-        <p role="alert" className="border border-redpen bg-redpen/5 px-4 py-3 text-[14px]">
+        <p role="alert" className="rounded-block bg-crit-weak px-4 py-3 text-[14px] font-semibold text-crit">
           {error}{" "}
-          <Link to="/" className="underline">
+          <Link to="/" className="underline decoration-crit/40">
             처음으로
           </Link>
         </p>
@@ -40,7 +40,7 @@ export function ReportPage() {
   if (!check) {
     return (
       <Page>
-        <p className="text-[15px] text-graphite">리포트를 불러오는 중입니다.</p>
+        <p className="text-[15px] text-mute">리포트를 불러오는 중입니다.</p>
       </Page>
     );
   }
@@ -60,9 +60,10 @@ export function ReportPage() {
       <div className="mb-8">
         <SummaryTiles summary={check.summary} />
         {check.summary.rules_skipped > 0 && (
-          <p className="mt-3 border-l-2 border-amber pl-3 text-[13px] leading-relaxed text-graphite">
+          <p className="mt-3 rounded-block bg-warn-weak px-4 py-3.5 text-[14px] leading-relaxed text-warn">
             규칙 {check.summary.rules_skipped}개는 입력이 부족해 실행하지 못했습니다. 아래 진행
-            단계에서 사유를 확인하세요. <strong className="text-ink">돌리지 못한 규칙은 "이상 없음"이 아닙니다.</strong>
+            단계에서 사유를 확인하세요.{" "}
+            <strong className="font-bold">돌리지 못한 규칙은 "이상 없음"이 아닙니다.</strong>
           </p>
         )}
       </div>
@@ -80,7 +81,7 @@ export function ReportPage() {
       <SectionTitle no="04">발견 {open.length}건</SectionTitle>
       <div className="mb-8 space-y-4">
         {open.length === 0 ? (
-          <p className="border border-hair bg-vellum-2 px-4 py-6 text-[15px] text-graphite">
+          <p className="card px-5 py-8 text-center text-[15px] text-sub">
             실행한 규칙에서는 어긋남을 찾지 못했습니다. 실행하지 못한 규칙이 남아 있다면 위를
             확인하세요.
           </p>
@@ -90,11 +91,11 @@ export function ReportPage() {
       </div>
 
       {cleared.length > 0 && (
-        <details className="mb-8 border border-hair bg-vellum-2">
-          <summary className="cursor-pointer px-4 py-3 font-cond text-[13px] uppercase tracking-label">
+        <details className="card mb-8 overflow-hidden">
+          <summary className="cursor-pointer px-5 py-4 text-[15px] font-bold text-sub">
             해제된 항목 {cleared.length}건
           </summary>
-          <div className="space-y-4 border-t border-hair p-4">
+          <div className="space-y-4 border-t border-line bg-bg p-4">
             {cleared.map((f, i) => (
               <FindingCard key={`${f.rule}-${f.net}-${i}`} finding={f} />
             ))}

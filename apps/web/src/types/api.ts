@@ -14,7 +14,7 @@ export type EvidenceKind = "netlist" | "firmware" | "datasheet";
 export interface NetlistEvidence {
   kind: "netlist";
   text: string;
-  /** redpen 밑줄로 강조할 토큰 */
+  /** 강조 표시할 토큰 */
   highlight?: string[];
 }
 

@@ -4,20 +4,29 @@
 
 @layer base {
   body {
-    @apply bg-vellum bg-grid bg-grid text-ink font-sans antialiased;
+    @apply bg-bg font-sans text-ink antialiased;
+    /* 한글 본문은 자간을 살짝 조여야 덩어리로 읽힌다 */
+    letter-spacing: -0.01em;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply tracking-tight;
   }
 
   /* 키보드 포커스는 반드시 보인다 */
   :focus-visible {
-    outline: 2px solid theme("colors.redpen");
+    outline: 2px solid theme("colors.brand");
     outline-offset: 2px;
+    border-radius: 6px;
   }
 }
 
 @layer components {
-  /* 라벨 — condensed 대문자, 자간 넓게 */
+  /* 작은 제목 — 대문자·넓은 자간 대신 굵기와 색으로 구분한다 */
   .label {
-    @apply font-cond text-[11px] font-semibold uppercase tracking-label text-graphite;
+    @apply text-[12px] font-semibold text-mute;
   }
 
   /* 넷리스트·핀·코드·규칙 ID는 전부 mono */
@@ -26,20 +35,37 @@
   }
 
   .card {
-    @apply border border-hair bg-vellum-2;
+    @apply rounded-card border border-line bg-surface shadow-card;
+  }
+
+  /* 버튼 */
+  .btn {
+    @apply inline-flex items-center justify-center rounded-block px-5 py-3 text-[15px] font-bold transition;
+  }
+
+  .btn-primary {
+    @apply btn bg-brand-strong text-white shadow-brand hover:bg-brand disabled:opacity-40 disabled:shadow-none;
+  }
+
+  .btn-ghost {
+    @apply btn border border-line bg-surface text-sub hover:border-mute hover:text-ink;
   }
 }
 
 /* 파이프라인 진행 — 이 애니메이션 하나만 쓴다 */
 @keyframes prefab-sweep {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .sweep::after {
   content: "";
   @apply absolute inset-0;
-  background: linear-gradient(90deg, transparent, rgba(192, 50, 42, 0.18), transparent);
+  background: linear-gradient(90deg, transparent, rgba(49, 130, 246, 0.14), transparent);
   animation: prefab-sweep 1.4s linear infinite;
 }
 
