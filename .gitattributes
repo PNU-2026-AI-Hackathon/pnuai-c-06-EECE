@@ -1,0 +1,10 @@
+# Windows·macOS·Linux 가 섞여 있다. 줄바꿈은 저장소에서 LF 하나로 고정한다.
+# 이게 없으면 파일을 안 고쳐도 git status 에 전부 M 으로 뜨고,
+# 누가 무엇을 했는지가 diff 에서 안 보인다 (심사기준 1번의 증거가 오염된다).
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.pdf binary
+*.zip binary
+*.d356 text eol=lf
