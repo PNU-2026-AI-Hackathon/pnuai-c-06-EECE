@@ -46,8 +46,21 @@ cp .env.example .env        # VITE_API_BASE 설정
 pnpm dev                    # http://localhost:5173
 ```
 
-`VITE_API_BASE`를 비워두면 `src/mocks/check.json`으로 동작합니다.
-백엔드 없이 화면 작업을 할 수 있습니다.
+`VITE_API_BASE`를 비워두면 목 데이터로 동작합니다. 백엔드 없이 화면 작업을 할 수 있습니다.
+
+목은 두 벌입니다. **URL로 골라서 엽니다.**
+
+| 주소 | 무엇 |
+|---|---|
+| `/r/chk_sample01` | `src/mocks/check.json` — 실제 `.d356`을 파서·규칙 엔진에 돌린 결과 (R11 · R12) |
+| `/r/chk_target01` | `../../docs/examples/check.target-with-firmware.json` — **목표 응답 명세** (R7 · R8 · R13 포함) |
+
+두 번째는 **실제 검사 결과가 아닙니다.** 계약 예시 파일을 사본 없이 그대로 읽고,
+리포트 맨 위에 그 사실을 띄웁니다. 여기 숫자를 인용하지 마세요.
+
+백엔드가 R7·R8을 내놓기 전에 **코드 레인이 채워진 발견 카드**를 보기 위한 것입니다 —
+회로도 레인과 코드 레인이 둘 다 찬 상태가 이 제품의 얼굴인데,
+첫 번째 목만으로는 코드 레인이 영원히 비어 있습니다.
 
 ```bash
 pnpm build && pnpm preview

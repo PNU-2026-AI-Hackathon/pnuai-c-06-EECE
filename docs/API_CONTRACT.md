@@ -40,6 +40,9 @@ GET    /healthz                헬스체크
 
 없으면 `404`.
 
+> 규칙이 더 구현된 뒤의 응답 예시는 [`examples/check.target-with-firmware.json`](./examples/check.target-with-firmware.json)
+> 에 있다. **실제 결과가 아니라 목표 명세다.**
+
 ```json
 {
   "check_id": "chk_7f3a2b",
@@ -134,7 +137,21 @@ GET    /healthz                헬스체크
 | `verdict` | `FAIL` \| `PASS` \| `UNRESOLVED` |
 | `tier` | `기본` \| `차별` |
 | `evidence[].kind` | `netlist` \| `firmware` \| `datasheet` |
+| `evidence[].line` | `firmware` 근거의 줄 번호. **부재가 근거면 `null`** (아래) |
 | `unresolved_reason` | 없으면 `null` |
+
+> ### 부재도 근거다 — `firmware` 근거의 `line: null`
+> R8("회로도에 연결됐는데 코드가 초기화 안 함")은 **코드를 다 읽었고 그 핀이 없다**는 판정이다.
+> 가리킬 줄이 없으므로 `line`을 `null`로 두고, `snippet`에 무엇을 읽었고 무엇이 없었는지 적는다.
+> 화면은 이때 `파일명 : 줄` 대신 파일명만 표시한다.
+>
+> ```json
+> { "kind": "firmware", "file": "smart_shoe_cabinet_v1.ino", "line": null,
+>   "snippet": "검사한 파일 1개 · 106줄 · 참조한 핀 3개 (D2 · D3 · D10)\nD5 는 어느 파일에도 나오지 않습니다.",
+>   "highlight": ["D5"] }
+> ```
+>
+> **없는 줄 번호를 지어내지 않는다.** `line: 1` 같은 값을 채우면 사용자가 그 줄을 열어본다.
 
 - 값이 없으면 `null`. 빈 문자열이나 `"N/A"`로 채우지 않는다.
 - `highlight`는 프론트에서 강조 표시할 토큰 목록.

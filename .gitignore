@@ -25,7 +25,9 @@ venv/
 *.egg-info/
 
 # 에디터 · 로컬 도구 설정 · OS
-.claude/
+# 로컬 설정(launch.json · settings.local.json)은 빼고, 팀이 공유하는 스킬만 넣는다
+**/.claude/*
+!**/.claude/skills/
 .DS_Store
 .idea/
 .vscode/

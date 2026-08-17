@@ -87,7 +87,7 @@ function Slot({
       } ${over ? "border-brand bg-brand-weak" : ""}`}
     >
       <div className="mb-3 flex items-center gap-2">
-        <SourceMark known={file !== null} />
+        <SourceMark state={file !== null ? "read" : "unknown"} />
         <span className="text-[15px] font-bold">{title}</span>
         <span
           className={`rounded-chip px-1.5 py-0.5 text-[12px] font-semibold ${
@@ -216,10 +216,10 @@ export function UploadPage() {
 
       {/* 표기법을 여기서 한 번 가르친다. 리포트의 소스 레인이 같은 기호를 쓴다 */}
       <p className="mb-8 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-mute">
-        <SourceMark known />
+        <SourceMark state="read" />
         <span>제출됨</span>
         <span className="text-line">·</span>
-        <SourceMark known={false} />
+        <SourceMark state="unknown" />
         <span>없음 — 리포트에서 "모름"으로 남습니다</span>
       </p>
 
