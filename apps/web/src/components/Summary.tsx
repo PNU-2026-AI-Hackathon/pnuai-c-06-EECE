@@ -1,5 +1,7 @@
 import type { CheckInputs, CheckSummary } from "../types/api";
 
+import { SourceMark } from "./Mark";
+
 /** 숫자 타일 하나. API가 0을 주면 0으로, null이면 —로 적는다 */
 function Tile({ label, value, tone }: { label: string; value: number | string; tone?: string }) {
   return (
@@ -59,6 +61,7 @@ export function InputsTable({
     <ul className="divide-y divide-hair border border-hair">
       {rows.map((r) => (
         <li key={r.label} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3">
+          <SourceMark known={r.file !== null} />
           <span className="label w-20 shrink-0">{r.label}</span>
           {r.file ? (
             <>

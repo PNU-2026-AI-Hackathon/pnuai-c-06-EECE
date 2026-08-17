@@ -1,4 +1,4 @@
-import type { Severity, StepStatus, Tier } from "../types/api";
+import type { Severity, StepStatus, Tier, Verdict } from "../types/api";
 
 /**
  * 색만으로 심각도를 구분하지 않는다. 배지 안에 항상 글자가 들어간다.
@@ -36,6 +36,29 @@ export function TierBadge({ tier }: { tier: Tier }) {
       }`}
     >
       {tier}
+    </span>
+  );
+}
+
+const VERDICT_LABEL: Record<Verdict, string> = {
+  FAIL: "어긋남",
+  PASS: "해제됨",
+  UNRESOLVED: "판정 보류",
+};
+
+const VERDICT_STYLE: Record<Verdict, string> = {
+  FAIL: "border-ink text-ink",
+  PASS: "border-verify text-verify",
+  UNRESOLVED: "border-amber text-amber",
+};
+
+/** 심각도와 별개로 "판정을 내렸는가"를 따로 말한다. 보류를 실패처럼 보이게 하지 않는다 */
+export function VerdictBadge({ verdict }: { verdict: Verdict }) {
+  return (
+    <span
+      className={`border px-1.5 py-0.5 font-cond text-[11px] font-semibold uppercase tracking-label ${VERDICT_STYLE[verdict]}`}
+    >
+      {VERDICT_LABEL[verdict]}
     </span>
   );
 }

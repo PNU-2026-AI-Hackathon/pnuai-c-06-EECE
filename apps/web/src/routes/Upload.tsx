@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Page, SectionTitle } from "../components/Layout";
+import { SourceMark } from "../components/Mark";
 import { ApiFailure, createCheck, sampleCheck, usingMock } from "../lib/api";
 
 /** 슬롯 하나 — 드래그앤드롭과 파일 선택 버튼을 둘 다 제공한다 */
@@ -40,6 +41,7 @@ function Slot({
       className={`card flex flex-col p-4 ${over ? "border-redpen" : ""}`}
     >
       <div className="mb-2 flex items-baseline gap-2">
+        <SourceMark known={file !== null} />
         <span className="label text-ink">{title}</span>
         <span className="label">{required ? "필수" : "선택"}</span>
       </div>
@@ -139,6 +141,15 @@ export function UploadPage() {
           missingNote="없으면 코드 대조 규칙 5개 실행 불가"
         />
       </div>
+
+      {/* 표기법을 여기서 한 번 가르친다. 리포트의 소스 레인이 같은 기호를 쓴다 */}
+      <p className="mb-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-graphite">
+        <SourceMark known />
+        <span>제출됨</span>
+        <span className="text-hair">·</span>
+        <SourceMark known={false} />
+        <span>없음 — 리포트에서 "모름"으로 남습니다</span>
+      </p>
 
       {error && (
         <p role="alert" className="mb-4 border border-redpen bg-redpen/5 px-4 py-3 text-[14px]">
