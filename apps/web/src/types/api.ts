@@ -18,11 +18,16 @@ export interface NetlistEvidence {
   highlight?: string[];
 }
 
-/** 펌웨어 소스에서 읽은 근거 */
+/**
+ * 펌웨어 소스에서 읽은 근거.
+ *
+ * `line`이 `null`이면 **부재가 근거인 경우**다 — R8처럼 "코드를 다 읽었는데 이 핀이
+ * 어디에도 없다"가 판정의 핵심일 때. 없는 줄 번호를 지어내지 않기 위해 비운다.
+ */
 export interface FirmwareEvidence {
   kind: "firmware";
   file: string;
-  line: number;
+  line: number | null;
   snippet: string;
   highlight?: string[];
 }

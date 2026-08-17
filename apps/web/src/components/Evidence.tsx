@@ -60,8 +60,9 @@ export function EvidenceBlock({ evidence }: { evidence: Evidence }) {
   }
 
   if (evidence.kind === "firmware") {
+    // line이 null이면 "파일 전체를 읽었고 여기 없다"는 뜻이다. 줄 번호를 지어내지 않는다
     return (
-      <Frame label={`${evidence.file} : ${evidence.line}`}>
+      <Frame label={evidence.line !== null ? `${evidence.file} : ${evidence.line}` : evidence.file}>
         <Excerpt>{marked(evidence.snippet, evidence.highlight)}</Excerpt>
       </Frame>
     );

@@ -6,7 +6,7 @@ import { Page, SectionTitle } from "../components/Layout";
 import { NetlistAppendix } from "../components/NetlistAppendix";
 import { Pipeline } from "../components/Pipeline";
 import { InputsTable, SummaryTiles } from "../components/Summary";
-import { ApiFailure, getCheck } from "../lib/api";
+import { ApiFailure, checkNotice, getCheck } from "../lib/api";
 import type { CheckResult, Finding, Severity } from "../types/api";
 
 const SEVERITY_ORDER: Record<Severity, number> = { CRITICAL: 0, WARNING: 1, INFO: 2 };
@@ -63,6 +63,7 @@ export function ReportPage() {
 
   const open = check.findings.filter((f) => f.verdict !== "PASS").sort(bySeverity);
   const cleared = check.findings.filter((f) => f.verdict === "PASS").sort(bySeverity);
+  const notice = checkNotice(check.check_id);
 
   return (
     <Page
@@ -72,6 +73,16 @@ export function ReportPage() {
         { label: "생성", value: check.created_at.slice(0, 10) },
       ]}
     >
+      {/* 실제 검사가 아니면 제일 먼저 그 사실을 말한다. 접거나 흐리게 하지 않는다 */}
+      {notice && (
+        <p
+          role="note"
+          className="mb-8 rounded-block border border-warn/25 bg-warn-weak px-4 py-3.5 text-[14px] leading-relaxed text-warn"
+        >
+          <strong className="font-bold">실제 검사 결과가 아닙니다.</strong> {notice}
+        </p>
+      )}
+
       <SectionTitle no="01">요약</SectionTitle>
       <div className="mb-8">
         <SummaryTiles summary={check.summary} />

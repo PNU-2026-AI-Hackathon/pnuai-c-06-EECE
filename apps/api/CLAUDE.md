@@ -109,18 +109,33 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
 없는 것을 있다고 가정하지 않도록 정확히 적는다. **변경 시 이 절을 갱신할 것.**
 
 ### 있다 (동작 확인됨)
-- IPC-D-356 파서 — 실제 보드에서 네트 8 / 부품 10 정확히 추출
+- IPC-D-356 파서 — 실제 보드에서 네트 8 / 부품 10 정확히 추출.
+  좌표는 오프셋이 아니라 정규식 `X([+-]\d{6})Y([+-]\d{6})` 로 읽는다
 - 규칙 엔진 — R11 · R12 동작. 실제 보드에서 3건 검출
-- 실측 픽스처: `tests/fixtures/esp32c6presencesmartlight.d356`
+- 실측 픽스처: `tests/fixtures/esp32-c6-presence-smart-light.d356`
+- **펌웨어 소스 — 받았다.** `tests/fixtures/esp32-c6-presence-smart-light.firmware/`
+  기대 발견은 `tests/fixtures/esp32-c6-presence-smart-light.EXPECTED.md` 에 고정해 뒀다.
+  **R7 · R8 을 구현하면 그 문서가 정답표다.**
+- 합성 픽스처: `tests/fixtures/synthetic-divider-vs-pulldown.d356` (R12 로직 단위 테스트)
+- 음성 케이스 기준선: `tests/fixtures/NEGATIVE_CASES.md` — **경고가 뜨면 오탐인 목록**
 
 ### 없다
-- 펌웨어 파서 — **소스 파일 자체를 아직 못 받았다**
+- 펌웨어 파서 — 소스는 있고 파서가 없다
+- 모듈 핀아웃 DB — **R7 · R8 의 선행 조건.** 표는 `docs/CHIPS.md` 에 채워져 있고
+  파서가 패드마다 실크·GPIO 를 확정해 주면 된다 (아래 알려진 버그 2번)
 - 데이터시트 파이프라인 — BOM 없음, PDF 파서 없음, LLM 호출 없음
 - 부품 사실 DB — **0개**
 - GitHub Action
 
 ### 알려진 버그
-- R11과 R12가 같은 네트(`PRESENCE_3V3`)에 중복으로 뜬다. dedup 필요.
+1. R11과 R12가 같은 네트(`PRESENCE_3V3`)에 중복으로 뜬다. dedup 필요.
+2. **핀 이름이 4자로 뭉쳐 서로 다른 핀이 구분되지 않는다.** U1 레코드 25개 → 이름 18종
+   (`LP-G`×3 = D0·D1·D2, `SDIO`×3 = D3·D4·D5). 응답에 `silk`·`gpio` 를 실어야
+   R7 · R8 이 성립한다. 좌표로 풀린다 — `docs/CHIPS.md` 모듈 핀아웃 절 참조.
+3. **R12 근거 문구가 풀다운을 "pull-up" 이라고 적는다.** 네트에 `R*` 이 있으면
+   반대쪽 터미널을 안 보고 단정한다. 판정은 맞고 문구만 틀렸다.
+   재현: `python check.py ../tests/fixtures/synthetic-divider-vs-pulldown.d356` 의 `SIG_A`.
+   → 저항 반대쪽이 상위 전원이면 풀업, `GND` 면 풀다운, 다른 신호면 직렬이다.
 
 ---
 
@@ -140,6 +155,7 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
 | R10 | 회로도 변경 후 코드 미추종 (드리프트) | **차별** | netlist, firmware, git | 미구현 |
 | R11 | 네트명이 주장하는 전압 ≠ 소스 부품 전원 도메인 | 기본 | netlist | **동작** |
 | R12 | 상위 전원 도메인이 하위를 직결 | 기본 | netlist | **동작** |
+| R13? | 코드가 출력으로 구동하는 핀에 다른 출력이 연결 | **차별** | netlist, firmware | **제안 — 하드웨어 판정 대기** |
 
 **차별 등급 5개가 전부 펌웨어를 필요로 한다. 펌웨어 소스 확보가 생존 조건이다.**
 
