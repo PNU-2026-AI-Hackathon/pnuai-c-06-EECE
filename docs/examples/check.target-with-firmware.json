@@ -14,10 +14,10 @@
     }
   },
   "summary": {
-    "critical": 5,
+    "critical": 4,
     "warning": 2,
     "cleared": 0,
-    "rules_run": 5,
+    "rules_run": 4,
     "rules_skipped": 7,
     "parts_identified": 0,
     "parts_total": 10
@@ -57,7 +57,7 @@
       "step": 6,
       "name": "규칙 엔진",
       "status": "done",
-      "detail": "12개 중 5개 실행 · 7개는 입력 부족"
+      "detail": "11개 중 4개 실행 · 7개는 입력 부족"
     },
     {
       "step": 7,
@@ -123,38 +123,6 @@
         }
       ],
       "suggestion": "D10에 LED를 배선하거나, 코드에서 이 핀 사용을 제거하세요.",
-      "unresolved_reason": null
-    },
-    {
-      "rule": "R13",
-      "title": "코드가 출력으로 구동하는 핀에 다른 출력이 연결됨",
-      "tier": "차별",
-      "severity": "CRITICAL",
-      "verdict": "FAIL",
-      "net": "PRESENCE_3V3",
-      "claim": "코드는 D2를 출력으로 잡고 구동하는데, 같은 네트에 U2의 출력 핀이 붙어 있습니다. 출력 두 개가 한 네트에서 서로 밀어냅니다.",
-      "evidence": [
-        {
-          "kind": "netlist",
-          "text": "U1.D2 (GPIO2, 패드명 LP-G) → PRESENCE_3V3\nU2.OUT                      → PRESENCE_3V3\nU2.VCC                      → 5V_BUS   (U2 전원 도메인 = 5.0V)",
-          "highlight": [
-            "U1.D2",
-            "U2.OUT",
-            "5V_BUS"
-          ]
-        },
-        {
-          "kind": "firmware",
-          "file": "smart_shoe_cabinet_v1.ino",
-          "line": 25,
-          "snippet": "  pinMode(TRIG_PIN, OUTPUT);        // TRIG_PIN = D2 (14줄)\n  ...\n  digitalWrite(TRIG_PIN, HIGH);     // 48줄",
-          "highlight": [
-            "OUTPUT",
-            "digitalWrite"
-          ]
-        }
-      ],
-      "suggestion": "코드에서 D2를 입력으로 바꾸거나, 초음파 TRIG를 다른 핀으로 옮기세요. U2의 부품번호를 제출하면 출력 형태(푸시풀/오픈드레인)까지 확인해 판정을 좁힙니다.",
       "unresolved_reason": null
     },
     {

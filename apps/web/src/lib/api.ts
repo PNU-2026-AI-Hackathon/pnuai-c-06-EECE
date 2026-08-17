@@ -15,7 +15,7 @@ const BASE = import.meta.env.VITE_API_BASE as string | undefined;
 export const sampleCheck = sample as unknown as CheckResult;
 
 /**
- * 목표 응답 명세 — R7 · R8 · R13 이 구현된 뒤 응답이 어떤 모양이면 되는지 적어둔 파일.
+ * 목표 응답 명세 — R7 · R8 이 구현된 뒤 응답이 어떤 모양이면 되는지 적어둔 파일.
  * **실제 검사 결과가 아니다.** 코드 레인이 채워진 리포트를 백엔드보다 먼저 보기 위한 것이고,
  * 화면은 이게 명세라는 사실을 반드시 말해야 한다 (`checkNotice`).
  */
