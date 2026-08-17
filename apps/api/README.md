@@ -53,30 +53,54 @@
 |---|---|
 | IPC-D-356 넷리스트 파서 | ✅ 동작 (실제 보드 검증) |
 | 규칙 엔진 | ✅ 동작 |
-| 구현된 규칙 | **2 / 12** (R11, R12 — 둘 다 "기본" 등급) |
+| 구현된 규칙 | **2 / 11** (R11, R12 — 둘 다 "기본" 등급) |
+| REST API (4개 엔드포인트 + CORS) | ✅ 동작 |
+| CLI (`python -m prefab`) | ✅ 동작 |
 | 펌웨어 정적 분석 | ⬜ 미구현 |
+| 모듈 핀아웃 DB | **0 모듈** |
 | 데이터시트 파이프라인 | ⬜ 미구현 |
 | 부품 사실 DB | **0 부품** |
-| GitHub Action | ⬜ 미구현 |
+| GitHub Action (CI) | ✅ pytest + 골든 검사 |
 
 ### 알려진 문제
-- R11과 R12가 같은 네트에 중복 검출됨 (dedup 필요)
+- R11과 R12가 같은 네트에 중복 검출됨 (dedup 필요).
+  `test_no_duplicate_net_across_rules` 에 strict xfail 로 고정해 뒀다.
 
 ---
 
 ## 빠른 시작
 
 ```bash
-git clone <repo> && cd prefab-api
+cd apps/api
 uv sync                     # 또는 pip install -e ".[dev]"
-pytest -q
+pytest -q                   # 중복 검출 1건은 xfail
 
 # 실제 보드로 돌려보기
-python -m prefab tests/fixtures/esp32c6presencesmartlight.d356
+python -m prefab tests/fixtures/esp32-c6-presence-smart-light.d356
+
+# 프론트 목 데이터 재생성 (요청서 3번)
+python -m prefab tests/fixtures/esp32-c6-presence-smart-light.d356 --json \
+  > ../web/src/mocks/check.json
+python -m prefab --rules-json > ../web/src/mocks/rules.json
 
 # API 서버
-uvicorn web.app:app --reload
+ALLOWED_ORIGINS=http://localhost:5173 uvicorn web.app:app --reload --port 8000
+
+# 배포한 URL 확인 (헬스체크 · CORS 프리플라이트 · 업로드 · 골든 결과)
+./scripts/smoke.sh https://<배포-URL>
 ```
+
+## 배포
+
+```bash
+# Railway
+railway up                  # apps/api/Dockerfile 을 씀 (railway.json)
+railway variables --set ALLOWED_ORIGINS=https://<vercel-url>,http://localhost:5173
+
+# Render 는 저장소 루트의 render.yaml 을 읽는다
+```
+
+`ALLOWED_ORIGINS` 를 안 넣으면 localhost 만 허용된다 — **배포된 프론트에서 업로드가 막힌다.**
 
 ---
 
@@ -105,21 +129,24 @@ curl -F "netlist=@board.d356" https://<host>/api/v1/checks
 
 `기본` 등급은 기존 상용 도구가 이미 제공하는 범위, `차별`은 Prefab만 하는 것입니다.
 
+**이 표는 사본입니다. 진실은 `src/prefab/catalog.py` 하나입니다.**
+살아 있는 목록은 `python -m prefab --rules-json` 또는 `GET /api/v1/rules` 로 보세요.
+
 | ID | 규칙 | 등급 | 필요 입력 | 상태 |
 |---|---|---|---|---|
-| R1 | 코드가 입력 전용 핀(GPIO34~39)에 OUTPUT 설정 | 차별 | netlist, firmware | ⬜ |
-| R2 | 회로도가 SPI flash 핀(GPIO6~11)에 연결 | 기본 | netlist | ⬜ |
-| R3 | strapping 핀 부팅 상태 오류 | 기본 | netlist | ⬜ |
-| R4 | 외부 부품 출력이 GPIO 입력 최대 초과 | 기본 | netlist, datasheet | ⬜ |
-| R5 | ADC2 사용 + 같은 빌드에 WiFi 초기화 | 차별 | firmware | ⬜ |
-| R7 | 코드가 쓰는 핀이 회로도에 미연결 | 차별 | netlist, firmware | ⬜ |
-| R8 | 회로도에 연결됐는데 코드가 초기화 안 함 | 차별 | netlist, firmware | ⬜ |
-| R9 | 부팅 시 출력 나오는 핀에 부하 | 기본 | netlist | ⬜ |
-| R10 | 회로도 변경 후 코드 미추종 (드리프트) | 차별 | netlist, firmware, git | ⬜ |
+| R01 | 코드가 이 칩에서 쓸 수 없는 핀을 사용 | 차별 | netlist, firmware | ⬜ |
+| R02 | 회로도가 SPI flash 핀에 연결 | 기본 | netlist | ⬜ |
+| R03 | strapping 핀 부팅 상태 오류 | 기본 | netlist | ⬜ |
+| R04 | 외부 부품 출력이 GPIO 입력 최대 정격 초과 | 기본 | netlist, bom | ⬜ |
+| R05 | 이 칩이 지원하지 않는 주변장치 조합 | 차별 | firmware | ⬜ |
+| R07 | 코드가 쓰는 핀이 회로도에 미연결 | 차별 | netlist, firmware | ⬜ |
+| R08 | 회로도에 연결됐는데 코드가 초기화 안 함 | 차별 | netlist, firmware | ⬜ |
+| R09 | 부팅 시 출력 나오는 핀에 부하 | 기본 | netlist | ⬜ |
+| R10 | 회로도 변경 후 코드 미추종 (드리프트) | 차별 | netlist, firmware | ⬜ |
 | R11 | 네트명이 주장하는 전압 ≠ 소스 부품 전원 도메인 | 기본 | netlist | ✅ |
 | R12 | 상위 전원 도메인이 하위를 직결 | 기본 | netlist | ✅ |
 
-R6(I2C 풀업 누락)은 Flux Design Review가 이미 제공하므로 폐기했습니다.
+전체 11개. R6(I2C 풀업 누락)은 Flux Design Review가 이미 제공하므로 폐기했고, 번호를 재사용하지 않습니다.
 
 ---
 
