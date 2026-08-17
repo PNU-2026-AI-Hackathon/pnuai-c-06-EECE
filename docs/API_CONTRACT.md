@@ -40,6 +40,9 @@ GET    /healthz                헬스체크
 
 없으면 `404`.
 
+> 규칙이 더 구현된 뒤의 응답 예시는 [`examples/check.target-with-firmware.json`](./examples/check.target-with-firmware.json)
+> 에 있다. **실제 결과가 아니라 목표 명세다.**
+
 ```json
 {
   "check_id": "chk_7f3a2b",

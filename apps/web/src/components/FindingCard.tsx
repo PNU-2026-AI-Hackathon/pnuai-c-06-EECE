@@ -1,8 +1,8 @@
-import type { EvidenceKind, Finding } from "../types/api";
+import type { CheckInputs, EvidenceKind, Finding } from "../types/api";
 
 import { SeverityBadge, TierBadge, VerdictBadge } from "./Badge";
 import { EvidenceBlock } from "./Evidence";
-import { SourceMark, SourceRail } from "./Mark";
+import { SourceMark, SourceRail, type SourceState } from "./Mark";
 
 /**
  * 제품의 얼굴.
@@ -19,67 +19,97 @@ import { SourceMark, SourceRail } from "./Mark";
  * 회로도가 말하는 것과 코드가 말하는 것이 갈라지는 자리.
  */
 
-const LANES: { kind: EvidenceKind; label: string; blank: string }[] = [
+const LANES: {
+  kind: EvidenceKind;
+  label: string;
+  /** 소스 자체가 없을 때 — 무엇을 주면 채워지는지 */
+  unknown: string;
+  /** 소스는 받았지만 이 판정의 근거로 쓰이지 않았을 때 */
+  none: string;
+}[] = [
   {
     kind: "netlist",
     label: "회로도가 아는 것",
-    blank: "이 발견에는 넷리스트 근거가 없습니다.",
+    unknown: "넷리스트가 없어 회로 연결을 확인하지 못했습니다.",
+    none: "이 판정은 회로도 연결을 근거로 쓰지 않았습니다.",
   },
   {
     kind: "firmware",
     label: "코드가 아는 것",
-    blank: "펌웨어를 올리면 이 줄이 채워집니다. 지금은 코드가 이 핀을 어떻게 쓰는지 모릅니다.",
+    unknown: "펌웨어를 올리면 이 줄이 채워집니다. 지금은 코드가 이 핀을 어떻게 쓰는지 모릅니다.",
+    none: "펌웨어는 읽었지만, 이 판정은 코드를 근거로 쓰지 않았습니다.",
   },
   {
     kind: "datasheet",
     label: "데이터시트가 아는 것",
-    blank: "부품 목록(BOM)을 올리면 데이터시트를 찾아 이 줄을 채웁니다.",
+    unknown: "부품 목록(BOM)을 올리면 데이터시트를 찾아 이 줄을 채웁니다.",
+    none: "데이터시트에서 이 판정에 쓸 값을 찾지 못했습니다.",
   },
 ];
 
+/** 소스를 갖고 있는지 — 근거가 붙었는지와 별개다 */
+function haveSource(kind: EvidenceKind, inputs?: CheckInputs): boolean {
+  if (!inputs) return false;
+  if (kind === "netlist") return inputs.netlist !== null;
+  if (kind === "firmware") return inputs.firmware !== null;
+  return inputs.bom !== null; // 데이터시트는 BOM의 부품번호로 찾는다
+}
+
+const STATE_LABEL: Record<SourceState, string> = {
+  read: "읽음",
+  none: "근거 없음",
+  unknown: "모름",
+};
+
 function Lane({
   label,
-  known,
+  state,
   blank,
   seam,
   children,
 }: {
   label: string;
-  known: boolean;
+  state: SourceState;
+  /** 근거가 없을 때 쓸 문구 */
   blank: string;
   /** 회로도 레인과 코드 레인 사이의 이음매 */
   seam?: boolean;
   children?: React.ReactNode;
 }) {
+  const read = state === "read";
   return (
     <section
       aria-label={label}
       className={`grid grid-cols-[12px_1fr] gap-x-3.5 px-5 md:grid-cols-[12px_10rem_1fr] md:gap-x-5 ${
-        known ? "py-5" : "py-4"
+        read ? "py-5" : "py-4"
       } ${seam ? "border-t-[1.5px] border-crit/45" : ""}`}
     >
       {/* 레일 — 구리(실선)와 틈(점선) */}
       <div aria-hidden className="relative col-start-1 row-span-2 md:row-span-1">
-        <SourceRail known={known} />
+        <SourceRail state={state} />
         <span className="absolute left-0 top-1.5 block">
-          <SourceMark known={known} />
+          <SourceMark state={state} />
         </span>
       </div>
 
       {/* 소스 이름 — 좁은 화면에서는 내용 위에, 넓은 화면에서는 왼쪽 열에 */}
       <p
         className={`col-start-2 row-start-1 flex flex-wrap items-baseline gap-x-2 md:flex-col md:gap-y-0.5 ${
-          known ? "mb-2 md:mb-0" : "mb-1 md:mb-0"
+          read ? "mb-2 md:mb-0" : "mb-1 md:mb-0"
         }`}
       >
         <span className="text-[13px] font-bold text-ink">{label}</span>
-        <span className={`text-[12px] font-semibold ${known ? "text-mute" : "text-warn"}`}>
-          {known ? "읽음" : "모름"}
+        <span
+          className={`text-[12px] font-semibold ${
+            state === "unknown" ? "text-warn" : "text-mute"
+          }`}
+        >
+          {STATE_LABEL[state]}
         </span>
       </p>
 
       <div className="col-start-2 row-start-2 min-w-0 md:col-start-3 md:row-start-1">
-        {known ? (
+        {read ? (
           <div className="space-y-4">{children}</div>
         ) : (
           <p className="text-[14px] leading-relaxed text-sub">{blank}</p>
@@ -110,7 +140,14 @@ const FOOTER_LABEL_TONE: Record<Foot, string> = {
   next: "text-mute",
 };
 
-export function FindingCard({ finding }: { finding: Finding }) {
+export function FindingCard({
+  finding,
+  inputs,
+}: {
+  finding: Finding;
+  /** 무엇을 제출받았는지. "모름"과 "근거 없음"을 구분하는 데 쓴다 */
+  inputs?: CheckInputs;
+}) {
   const unresolved = finding.unresolved_reason !== null;
   const foot: Foot = unresolved ? "unresolved" : finding.verdict === "PASS" ? "cleared" : "next";
 
@@ -139,12 +176,14 @@ export function FindingCard({ finding }: { finding: Finding }) {
 
       {LANES.map((lane, i) => {
         const items = finding.evidence.filter((e) => e.kind === lane.kind);
+        const state: SourceState =
+          items.length > 0 ? "read" : haveSource(lane.kind, inputs) ? "none" : "unknown";
         return (
           <Lane
             key={lane.kind}
             label={lane.label}
-            known={items.length > 0}
-            blank={lane.blank}
+            state={state}
+            blank={state === "none" ? lane.none : lane.unknown}
             seam={i === 1}
           >
             {items.map((e, j) => (

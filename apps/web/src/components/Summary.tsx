@@ -55,7 +55,7 @@ export function InputsTable({ inputs, summary }: { inputs: CheckInputs; summary:
     <ul className="card divide-y divide-line overflow-hidden">
       {rows.map((r) => (
         <li key={r.label} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-5 py-4">
-          <SourceMark known={r.file !== null} />
+          <SourceMark state={r.file !== null ? "read" : "unknown"} />
           <span className="w-20 shrink-0 text-[14px] font-bold">{r.label}</span>
           {r.file ? (
             <>

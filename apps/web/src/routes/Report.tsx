@@ -7,7 +7,9 @@ import { NetlistAppendix } from "../components/NetlistAppendix";
 import { Pipeline } from "../components/Pipeline";
 import { InputsTable, SummaryTiles } from "../components/Summary";
 import { ApiFailure, getCheck } from "../lib/api";
-import type { CheckResult } from "../types/api";
+import type { CheckResult, Finding, Severity } from "../types/api";
+
+const SEVERITY_ORDER: Record<Severity, number> = { CRITICAL: 0, WARNING: 1, INFO: 2 };
 
 /**
  * 리포트. 구조는 Lighthouse를 따른다.
@@ -55,8 +57,12 @@ export function ReportPage() {
     );
   }
 
-  const open = check.findings.filter((f) => f.verdict !== "PASS");
-  const cleared = check.findings.filter((f) => f.verdict === "PASS");
+  // 심각도 순으로 보여준다. 같은 심각도 안에서는 서버가 준 순서를 지킨다
+  const bySeverity = (a: Finding, b: Finding) =>
+    SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity];
+
+  const open = check.findings.filter((f) => f.verdict !== "PASS").sort(bySeverity);
+  const cleared = check.findings.filter((f) => f.verdict === "PASS").sort(bySeverity);
 
   return (
     <Page
@@ -96,7 +102,9 @@ export function ReportPage() {
             확인하세요.
           </p>
         ) : (
-          open.map((f, i) => <FindingCard key={`${f.rule}-${f.net}-${i}`} finding={f} />)
+          open.map((f, i) => (
+            <FindingCard key={`${f.rule}-${f.net}-${i}`} finding={f} inputs={check.inputs} />
+          ))
         )}
       </div>
 
@@ -107,7 +115,7 @@ export function ReportPage() {
           </summary>
           <div className="space-y-4 border-t border-line bg-bg p-4">
             {cleared.map((f, i) => (
-              <FindingCard key={`${f.rule}-${f.net}-${i}`} finding={f} />
+              <FindingCard key={`${f.rule}-${f.net}-${i}`} finding={f} inputs={check.inputs} />
             ))}
           </div>
         </details>
