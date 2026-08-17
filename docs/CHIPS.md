@@ -67,37 +67,78 @@ R7·R8·R10은 칩과 무관합니다. 코드가 참조하는 핀과 넷리스�
 
 ---
 
-## 아직 못 채운 칸 — 모듈 핀아웃
+## 모듈 핀아웃 — XIAO ESP32-C6
 
-칩 핀 번호를 알아도 **보드 실크 라벨과 매칭이 안 됩니다.**
+칩 핀 번호를 알아도 **보드 실크 라벨과 매칭이 안 된다.**
+IPC-D-356 이 핀 이름을 **4자에서 자르기 때문**이다.
 
-우리 보드(XIAO ESP32-C6)의 넷리스트에서 U1의 핀 이름은 이렇게 나옵니다.
+우리 보드(U1)의 넷리스트 레코드는 **25개인데 이름 종류는 18개**다.
+물리적으로 다른 핀이 같은 이름으로 뭉친다.
 
 ```
-3V3, 3V3_, 5V, BAT, BOOT, D10_, D7_R, D8_S, D9_M,
-EN, GND, GND_, GPIO, LP-G, LP-I, MTDI, MTMS, SDIO
+LP-G × 3    LP_GPIO0 / LP_GPIO1 / LP_GPIO2
+SDIO × 3    SDIO_DATA1 / SDIO_DATA2 / SDIO_DATA3
+LP-I × 2 · BAT × 2 · GND_ × 2
 ```
 
-IPC-D-356이 핀 이름을 **4자에서 자르기 때문**입니다. `LP-GPIO0` → `LP-G` 가 됩니다.
-`D7_R` 가 어느 GPIO인지 이 파일만으로는 알 수 없습니다.
+### 실크 라벨 → GPIO
 
-그래서 **모듈 핀아웃 DB**가 필요합니다.
+| 실크 | GPIO | 부가 기능 | 넷리스트에서 잘린 이름 |
+|---|---|---|---|
+| D0 | GPIO0 | LP_GPIO0 · ADC | `LP-G` |
+| D1 | GPIO1 | LP_GPIO1 · ADC | `LP-G` |
+| D2 | GPIO2 | LP_GPIO2 · ADC | `LP-G` |
+| D3 | GPIO21 | SDIO_DATA1 | `SDIO` |
+| D4 | GPIO22 | SDIO_DATA2 · I2C SDA | `SDIO` |
+| D5 | GPIO23 | SDIO_DATA3 · I2C SCL | `SDIO` |
+| D6 | GPIO16 | UART TX | `GPIO` |
+| D7 | GPIO17 | UART RX | `D7_R` |
+| D8 | GPIO19 | SPI SCK | `D8_S` |
+| D9 | GPIO20 | SPI MISO | `D9_M` |
+| D10 | GPIO18 | SPI MOSI | `D10_` |
+
+출처: [XIAO ESP32C6 — Seeed Studio Wiki](https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/)
+
+### 같은 이름을 좌표로 구분한다
+
+헤더는 두 열이고 피치는 1000 (0.1 inch) 이다. Y 내림차순이 실크 순서다.
+
+| Y | X=-2635 (왼쪽) | 실크 | X=3365 (오른쪽) | 실크 |
+|---:|---|---|---|---|
+| 7922 | `LP-G` | D0 | `5V` | 5V |
+| 6922 | `LP-G` | D1 | `GND` | GND |
+| 5922 | `LP-G` | **D2** | `3V3` | 3V3 |
+| 4922 | `SDIO` | D3 | `D10_` | D10 |
+| 3922 | `SDIO` | D4 | `D9_M` | D9 |
+| 2922 | `SDIO` | **D5** | `D8_S` | D8 |
+| 1922 | `GPIO` | D6 | `D7_R` | D7 |
+
+**오른쪽 열이 XIAO 표준 배치와 7/7 일치**하므로 왼쪽 열은 D0~D6 순서다.
+절단 패턴(`LP-G`×3 · `SDIO`×3 · `GPIO`)도 위 표에서 독립적으로 같은 답이 나온다.
+
+> **하드웨어 담당 확인 요청**: 이 표는 좌표 + 공식 문서로 추론한 것이다.
+> 실물 보드 실크와 한 번만 대조해 주면 확정된다. 어긋나면 이 표부터 고친다.
+
+### 파서에 필요한 것
+
+이름만으로는 D3 · D4 · D5 를 구분할 수 없으므로, 좌표 클러스터링으로 패드마다
+실크 라벨과 GPIO 번호를 확정해야 한다. 그게 없으면 R1 · R5 · R7 · R8 이
+**우리 보드에서 전부 못 돈다.** 지금 도는 R11 · R12 는 전원 도메인만 보기 때문에
+핀 번호가 필요 없었을 뿐이다.
 
 ```jsonc
-// 이런 형태
 {
   "XIAO-ESP32C6": {
     "chip": "esp32c6",
-    "pins": { "D0": "GPIO0", "D1": "GPIO1", "D2": "GPIO2", "...": "..." }
+    "pins": { "D0": 0, "D1": 1, "D2": 2, "D3": 21, "D4": 22, "D5": 23,
+              "D6": 16, "D7": 17, "D8": 19, "D9": 20, "D10": 18 }
   }
 }
 ```
 
-이게 없으면 R1·R5·R7·R8이 **우리 보드에서 전부 못 돕니다.**
-지금 도는 R11·R12는 전원 도메인만 보기 때문에 핀 번호가 필요 없었을 뿐입니다.
-
-> 하드웨어 담당께: XIAO ESP32-C6의 실크 라벨 → GPIO 번호 대응표가 가장 급합니다.
-> Seeed 공식 핀아웃 문서를 그대로 옮겨 적으면 됩니다.
+실제 대조 사례는
+[`apps/api/tests/fixtures/esp32-c6-presence-smart-light.EXPECTED.md`](../apps/api/tests/fixtures/esp32-c6-presence-smart-light.EXPECTED.md)
+에 있다.
 
 ---
 
@@ -107,5 +148,6 @@ IPC-D-356이 핀 이름을 **4자에서 자르기 때문**입니다. `LP-GPIO0` 
 - [GPIO & RTC GPIO — ESP32-C6, ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-reference/peripherals/gpio.html)
 - [Boot Mode Selection — ESP32-C6, esptool](https://docs.espressif.com/projects/esptool/en/latest/esp32c6/advanced-topics/boot-mode-selection.html)
 - [ADC2 / WiFi 충돌 — ESP-IDF](https://github.com/espressif/esp-idf/blob/v4.0.3/docs/en/api-reference/peripherals/adc.rst)
+- [XIAO ESP32C6 핀아웃 — Seeed Studio Wiki](https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/)
 
 표를 고칠 때는 **근거 링크를 함께 남깁니다.** 출처 없는 핀 번호는 규칙에 넣지 않습니다.
