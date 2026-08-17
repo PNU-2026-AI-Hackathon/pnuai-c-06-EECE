@@ -47,6 +47,10 @@ def build_pipeline(
     step = dict(PIPELINE_NAMES)
 
     parse_detail = f"네트 {netlist.net_count} · 부품 {netlist.part_count}"
+    # 읽으며 뺀 줄이 있으면 그대로 붙인다. 조용히 버리지 않는다 (CLAUDE.md 2-4).
+    notes = netlist.parse_notes()
+    if notes:
+        parse_detail += " · " + " · ".join(notes)
 
     if has_bom:
         identify = ("done", "BOM 으로 부품번호 확인")
