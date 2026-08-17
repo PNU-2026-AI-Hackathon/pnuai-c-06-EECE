@@ -1,0 +1,119 @@
+{
+  "rules": [
+    {
+      "id": "R01",
+      "title": "코드가 이 칩에서 쓸 수 없는 핀을 사용",
+      "tier": "차별",
+      "severity": "CRITICAL",
+      "needs": [
+        "netlist",
+        "firmware"
+      ],
+      "implemented": false
+    },
+    {
+      "id": "R02",
+      "title": "회로도가 SPI flash 핀에 연결",
+      "tier": "기본",
+      "severity": "CRITICAL",
+      "needs": [
+        "netlist"
+      ],
+      "implemented": false
+    },
+    {
+      "id": "R03",
+      "title": "strapping 핀 부팅 상태 오류",
+      "tier": "기본",
+      "severity": "WARNING",
+      "needs": [
+        "netlist"
+      ],
+      "implemented": false
+    },
+    {
+      "id": "R04",
+      "title": "외부 부품 출력이 GPIO 입력 최대 정격 초과",
+      "tier": "기본",
+      "severity": "CRITICAL",
+      "needs": [
+        "netlist",
+        "bom"
+      ],
+      "implemented": false
+    },
+    {
+      "id": "R05",
+      "title": "이 칩이 지원하지 않는 주변장치 조합",
+      "tier": "차별",
+      "severity": "WARNING",
+      "needs": [
+        "firmware"
+      ],
+      "implemented": false
+    },
+    {
+      "id": "R07",
+      "title": "코드가 쓰는 핀이 회로도에 미연결",
+      "tier": "차별",
+      "severity": "CRITICAL",
+      "needs": [
+        "netlist",
+        "firmware"
+      ],
+      "implemented": false
+    },
+    {
+      "id": "R08",
+      "title": "회로도에 연결됐는데 코드가 초기화 안 함",
+      "tier": "차별",
+      "severity": "WARNING",
+      "needs": [
+        "netlist",
+        "firmware"
+      ],
+      "implemented": false
+    },
+    {
+      "id": "R09",
+      "title": "부팅 시 출력 나오는 핀에 부하 연결",
+      "tier": "기본",
+      "severity": "WARNING",
+      "needs": [
+        "netlist"
+      ],
+      "implemented": false
+    },
+    {
+      "id": "R10",
+      "title": "회로도 변경 후 코드 미추종 (드리프트)",
+      "tier": "차별",
+      "severity": "WARNING",
+      "needs": [
+        "netlist",
+        "firmware"
+      ],
+      "implemented": false
+    },
+    {
+      "id": "R11",
+      "title": "네트명이 주장하는 전압과 소스 부품의 전원 도메인이 다름",
+      "tier": "기본",
+      "severity": "WARNING",
+      "needs": [
+        "netlist"
+      ],
+      "implemented": true
+    },
+    {
+      "id": "R12",
+      "title": "상위 전원 도메인이 하위를 직결",
+      "tier": "기본",
+      "severity": "CRITICAL",
+      "needs": [
+        "netlist"
+      ],
+      "implemented": true
+    }
+  ]
+}
