@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-vellum bg-grid bg-grid text-ink font-sans antialiased;
+  }
+
+  /* 키보드 포커스는 반드시 보인다 */
+  :focus-visible {
+    outline: 2px solid theme("colors.redpen");
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* 라벨 — condensed 대문자, 자간 넓게 */
+  .label {
+    @apply font-cond text-[11px] font-semibold uppercase tracking-label text-graphite;
+  }
+
+  /* 넷리스트·핀·코드·규칙 ID는 전부 mono */
+  .data {
+    @apply font-mono text-[13px] leading-relaxed;
+  }
+
+  .card {
+    @apply border border-hair bg-vellum-2;
+  }
+}
+
+/* 파이프라인 진행 — 이 애니메이션 하나만 쓴다 */
+@keyframes prefab-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.sweep::after {
+  content: "";
+  @apply absolute inset-0;
+  background: linear-gradient(90deg, transparent, rgba(192, 50, 42, 0.18), transparent);
+  animation: prefab-sweep 1.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sweep::after {
+    animation: none;
+  }
+}

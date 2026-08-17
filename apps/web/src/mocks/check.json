@@ -1,0 +1,414 @@
+{
+  "check_id": "chk_sample01",
+  "status": "done",
+  "created_at": "2026-08-17T04:20:00Z",
+  "inputs": {
+    "netlist": {
+      "filename": "esp32c6presencesmartlight.d356",
+      "nets": 8,
+      "parts": 10
+    },
+    "bom": null,
+    "firmware": null
+  },
+  "summary": {
+    "critical": 2,
+    "warning": 1,
+    "cleared": 0,
+    "rules_run": 2,
+    "rules_skipped": 10,
+    "parts_identified": 0,
+    "parts_total": 10
+  },
+  "pipeline": [
+    {
+      "step": 1,
+      "name": "넷리스트 파싱",
+      "status": "done",
+      "detail": "네트 8 · 부품 10"
+    },
+    {
+      "step": 2,
+      "name": "부품 식별",
+      "status": "partial",
+      "detail": "BOM 없음 · 좌표 클러스터링으로 전원 도메인만 추정"
+    },
+    {
+      "step": 3,
+      "name": "펌웨어 정적 분석",
+      "status": "skipped",
+      "detail": "펌웨어 미제출"
+    },
+    {
+      "step": 4,
+      "name": "데이터시트 수집",
+      "status": "skipped",
+      "detail": "BOM 없음 · 부품번호를 알 수 없음"
+    },
+    {
+      "step": 5,
+      "name": "전기적 사실 추출",
+      "status": "skipped",
+      "detail": "데이터시트 없음"
+    },
+    {
+      "step": 6,
+      "name": "규칙 엔진",
+      "status": "done",
+      "detail": "12개 중 2개 실행 · 10개는 입력 부족"
+    },
+    {
+      "step": 7,
+      "name": "리포트 생성",
+      "status": "done",
+      "detail": null
+    }
+  ],
+  "findings": [
+    {
+      "rule": "R12",
+      "title": "상위 전원 도메인이 하위를 직결",
+      "tier": "기본",
+      "severity": "CRITICAL",
+      "verdict": "FAIL",
+      "net": "PRESENCE_3V3",
+      "claim": "5V로 동작하는 U2의 출력이 3.3V로 동작하는 U1 핀에 직결되어 있습니다. 사이에 직렬 저항도 분압도 레벨 시프터도 없습니다.",
+      "evidence": [
+        {
+          "kind": "netlist",
+          "text": "U2.VCC → 5V_BUS\nU2.OUT → PRESENCE_3V3\nU1.LP-G → PRESENCE_3V3\nU1.3V3 → 3V3",
+          "highlight": [
+            "5V_BUS",
+            "U2.OUT",
+            "U1.LP-G"
+          ]
+        }
+      ],
+      "suggestion": "U2의 부품번호(MPN)를 BOM으로 제출하면 데이터시트의 출력 하이 전압(Voh)을 읽어 판정합니다. Voh가 3.6V 이하면 이 항목은 해제됩니다.",
+      "unresolved_reason": "U2 미식별 — BOM 필요"
+    },
+    {
+      "rule": "R12",
+      "title": "상위 전원 도메인이 하위를 직결",
+      "tier": "기본",
+      "severity": "CRITICAL",
+      "verdict": "FAIL",
+      "net": "_IN_ACTIVE_LOW",
+      "claim": "5V로 추정되는 K1이 3.3V로 동작하는 U1을 직접 구동합니다. 이 네트의 R3는 풀업이라 직렬 보호 역할을 하지 못합니다.",
+      "evidence": [
+        {
+          "kind": "netlist",
+          "text": "K1.pad- → _IN_ACTIVE_LOW\nR3.P1 → _IN_ACTIVE_LOW\nR3.P2 → 3V3\nU1.SDIO → _IN_ACTIVE_LOW",
+          "highlight": [
+            "K1.pad-",
+            "R3.P2",
+            "U1.SDIO"
+          ]
+        }
+      ],
+      "suggestion": "K1의 부품번호를 제출하면 접점/입력 전압 규격으로 판정합니다. R3를 직렬로 옮기는 것만으로는 해결되지 않을 수 있습니다.",
+      "unresolved_reason": "K1 미식별 — BOM 필요"
+    },
+    {
+      "rule": "R11",
+      "title": "네트명이 주장하는 전압과 소스 부품의 전원 도메인이 다름",
+      "tier": "기본",
+      "severity": "WARNING",
+      "verdict": "FAIL",
+      "net": "PRESENCE_3V3",
+      "claim": "네트 이름은 3.3V라고 말하는데, 이 네트를 구동하는 U2는 5V로 동작합니다.",
+      "evidence": [
+        {
+          "kind": "netlist",
+          "text": "네트명: PRESENCE_3V3\nU2.VCC → 5V_BUS   (U2 전원 도메인 = 5.0V)\nU2.OUT → PRESENCE_3V3   (이 네트의 소스)",
+          "highlight": [
+            "PRESENCE_3V3",
+            "5V_BUS"
+          ]
+        }
+      ],
+      "suggestion": "이름을 바꾸든 회로를 바꾸든 하나는 필요합니다. 이름만 맞추면 다음 사람이 또 속습니다.",
+      "unresolved_reason": "U2 미식별 — BOM 필요"
+    }
+  ],
+  "netlist": {
+    "nets": [
+      {
+        "name": "GND_BUS",
+        "vias": 2,
+        "connections": [
+          {
+            "ref": "J2",
+            "pin": "2"
+          },
+          {
+            "ref": "R1",
+            "pin": "P2"
+          },
+          {
+            "ref": "C2",
+            "pin": "P2"
+          },
+          {
+            "ref": "K1",
+            "pin": "pad-"
+          },
+          {
+            "ref": "R2",
+            "pin": "P2"
+          },
+          {
+            "ref": "J1",
+            "pin": "SHIE"
+          },
+          {
+            "ref": "J1",
+            "pin": "GND_"
+          },
+          {
+            "ref": "U1",
+            "pin": "GND_"
+          },
+          {
+            "ref": "U1",
+            "pin": "GND"
+          },
+          {
+            "ref": "C1",
+            "pin": "P2"
+          },
+          {
+            "ref": "U2",
+            "pin": "GND"
+          }
+        ]
+      },
+      {
+        "name": "5V_BUS",
+        "vias": 2,
+        "connections": [
+          {
+            "ref": "C2",
+            "pin": "P1"
+          },
+          {
+            "ref": "K1",
+            "pin": "pad-"
+          },
+          {
+            "ref": "J1",
+            "pin": "VBUS"
+          },
+          {
+            "ref": "U1",
+            "pin": "5V"
+          },
+          {
+            "ref": "C1",
+            "pin": "P1"
+          },
+          {
+            "ref": "U2",
+            "pin": "VCC"
+          }
+        ]
+      },
+      {
+        "name": "_IN_ACTIVE_LOW",
+        "vias": 0,
+        "connections": [
+          {
+            "ref": "K1",
+            "pin": "pad-"
+          },
+          {
+            "ref": "R3",
+            "pin": "P1"
+          },
+          {
+            "ref": "U1",
+            "pin": "SDIO"
+          }
+        ]
+      },
+      {
+        "name": "3V3",
+        "vias": 0,
+        "connections": [
+          {
+            "ref": "R3",
+            "pin": "P2"
+          },
+          {
+            "ref": "U1",
+            "pin": "3V3"
+          }
+        ]
+      },
+      {
+        "name": "D_POS_SWITCHED",
+        "vias": 0,
+        "connections": [
+          {
+            "ref": "J2",
+            "pin": "1"
+          },
+          {
+            "ref": "K1",
+            "pin": "pad-"
+          }
+        ]
+      },
+      {
+        "name": "PRESENCE_3V3",
+        "vias": 2,
+        "connections": [
+          {
+            "ref": "U1",
+            "pin": "LP-G"
+          },
+          {
+            "ref": "U2",
+            "pin": "OUT"
+          }
+        ]
+      },
+      {
+        "name": "USB_CC1",
+        "vias": 0,
+        "connections": [
+          {
+            "ref": "R1",
+            "pin": "P1"
+          },
+          {
+            "ref": "J1",
+            "pin": "CC1"
+          }
+        ]
+      },
+      {
+        "name": "USB_CC2",
+        "vias": 2,
+        "connections": [
+          {
+            "ref": "R2",
+            "pin": "P1"
+          },
+          {
+            "ref": "J1",
+            "pin": "CC2"
+          }
+        ]
+      }
+    ],
+    "parts": [
+      {
+        "ref": "C1",
+        "pins": [
+          "P1",
+          "P2"
+        ],
+        "mpn": null
+      },
+      {
+        "ref": "C2",
+        "pins": [
+          "P1",
+          "P2"
+        ],
+        "mpn": null
+      },
+      {
+        "ref": "J1",
+        "pins": [
+          "CC1",
+          "CC2",
+          "DN1",
+          "DN2",
+          "DP1",
+          "DP2",
+          "GND_",
+          "SBU1",
+          "SBU2",
+          "SHIE",
+          "VBUS"
+        ],
+        "mpn": null
+      },
+      {
+        "ref": "J2",
+        "pins": [
+          "1",
+          "2"
+        ],
+        "mpn": null
+      },
+      {
+        "ref": "K1",
+        "pins": [
+          "pad-"
+        ],
+        "mpn": null
+      },
+      {
+        "ref": "R1",
+        "pins": [
+          "P1",
+          "P2"
+        ],
+        "mpn": null
+      },
+      {
+        "ref": "R2",
+        "pins": [
+          "P1",
+          "P2"
+        ],
+        "mpn": null
+      },
+      {
+        "ref": "R3",
+        "pins": [
+          "P1",
+          "P2"
+        ],
+        "mpn": null
+      },
+      {
+        "ref": "U1",
+        "pins": [
+          "3V3",
+          "3V3_",
+          "5V",
+          "BAT",
+          "BOOT",
+          "D10_",
+          "D7_R",
+          "D8_S",
+          "D9_M",
+          "EN",
+          "GND",
+          "GND_",
+          "GPIO",
+          "LP-G",
+          "LP-I",
+          "MTDI",
+          "MTMS",
+          "SDIO"
+        ],
+        "mpn": null
+      },
+      {
+        "ref": "U2",
+        "pins": [
+          "GND",
+          "OUT",
+          "UART",
+          "VCC"
+        ],
+        "mpn": null
+      }
+    ]
+  }
+}
