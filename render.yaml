@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: prefab-api
+    runtime: docker
+    rootDir: apps/api
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    plan: free
+    envVars:
+      - key: ALLOWED_ORIGINS
+        sync: false      # Vercel 배포 URL 을 대시보드에서 넣는다

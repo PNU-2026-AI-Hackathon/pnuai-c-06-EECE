@@ -109,53 +109,74 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
 없는 것을 있다고 가정하지 않도록 정확히 적는다. **변경 시 이 절을 갱신할 것.**
 
 ### 있다 (동작 확인됨)
+- `src/prefab` 패키지 — `_incoming/` 프로토타입 이식 완료.
+  이식 전후 JSON 이 **바이트 단위로 같다** (규칙 개수 정정분 제외)
 - IPC-D-356 파서 — 실제 보드에서 네트 8 / 부품 10 정확히 추출.
   좌표는 오프셋이 아니라 정규식 `X([+-]\d{6})Y([+-]\d{6})` 로 읽는다
 - 규칙 엔진 — R11 · R12 동작. 실제 보드에서 3건 검출
+- 규칙 카탈로그 (`catalog.py`) — 규칙 개수의 **유일한 진실**.
+  `GET /rules` 와 `summary.rules_*` 가 전부 여기서 계산된다
+- FastAPI (`web/app.py`) — 엔드포인트 4개 + CORS. 로직은 `web/service.py` 에 있다
+- CLI — `python -m prefab <파일> [--json|--rules-json]`
 - 실측 픽스처: `tests/fixtures/esp32-c6-presence-smart-light.d356`
+- 골든 테스트 — 3건·10부품·8네트·K1 2그룹
 - **펌웨어 소스 — 받았다.** `tests/fixtures/esp32-c6-presence-smart-light.firmware/`
-  기대 발견은 `tests/fixtures/esp32-c6-presence-smart-light.EXPECTED.md` 에 고정해 뒀다.
+  기대 발견은 `tests/fixtures/esp32-c6-presence-smart-light.EXPECTED.md` 에 고정돼 있다.
   **R7 · R8 을 구현하면 그 문서가 정답표다.**
 - 합성 픽스처: `tests/fixtures/synthetic-divider-vs-pulldown.d356` (R12 로직 단위 테스트)
 - 음성 케이스 기준선: `tests/fixtures/NEGATIVE_CASES.md` — **경고가 뜨면 오탐인 목록**
 
 ### 없다
-- 펌웨어 파서 — 소스는 있고 파서가 없다
-- 모듈 핀아웃 DB — **R7 · R8 의 선행 조건.** 표는 `docs/CHIPS.md` 에 채워져 있고
-  파서가 패드마다 실크·GPIO 를 확정해 주면 된다 (아래 알려진 버그 2번)
+- 펌웨어 파서 — **소스는 있고 파서가 없다**
+- 모듈 핀아웃 DB — **R7 · R8 의 선행 조건.** 실크→GPIO 표는 `docs/CHIPS.md` 에 채워져 있고
+  하드웨어 담당 확정까지 끝났다. 파서가 패드마다 실크·GPIO 를 실어 주면 된다 (알려진 버그 2번)
 - 데이터시트 파이프라인 — BOM 없음, PDF 파서 없음, LLM 호출 없음
 - 부품 사실 DB — **0개**
-- GitHub Action
 
 ### 알려진 버그
 1. R11과 R12가 같은 네트(`PRESENCE_3V3`)에 중복으로 뜬다. dedup 필요.
+   `test_golden_real_board.py::test_no_duplicate_net_across_rules` 에 **strict xfail** 로 박아 뒀다.
+   고치면 그 테스트가 XPASS 로 터진다. 그때 데코레이터를 지운다.
 2. **핀 이름이 4자로 뭉쳐 서로 다른 핀이 구분되지 않는다.** U1 레코드 25개 → 이름 18종
-   (`LP-G`×3 = D0·D1·D2, `SDIO`×3 = D3·D4·D5). 응답에 `silk`·`gpio` 를 실어야
-   R7 · R8 이 성립한다. 좌표로 풀린다 — `docs/CHIPS.md` 모듈 핀아웃 절 참조.
-3. **R12 근거 문구가 풀다운을 "pull-up" 이라고 적는다.** 네트에 `R*` 이 있으면
-   반대쪽 터미널을 안 보고 단정한다. 판정은 맞고 문구만 틀렸다.
-   재현: `python check.py ../tests/fixtures/synthetic-divider-vs-pulldown.d356` 의 `SIG_A`.
-   → 저항 반대쪽이 상위 전원이면 풀업, `GND` 면 풀다운, 다른 신호면 직렬이다.
+   (`LP-G`×3 = D0·D1·D2, `SDIO`×3 = D3·D4·D5). K1 도 6패드가 전부 `pad-` 다.
+   응답에 `silk`·`gpio` 를 실어야 R7 · R8 이 성립한다.
+   **좌표로 풀린다** — `docs/CHIPS.md` 모듈 핀아웃 절에 대조표가 있고 하드웨어 확정을 받았다.
+3. **R12 근거 문구가 풀다운을 "풀업" 이라고 적는다.** `graph.series_candidates()` 가
+   네트의 `R*`·`D*` 를 그대로 돌려주고, `r12_cross_domain.py` 가 그걸 무조건 "풀업"이라 쓴다.
+   **저항 반대쪽 터미널을 보지 않는다.** 판정은 맞고 문구만 틀렸다.
+   재현: `python -m prefab tests/fixtures/synthetic-divider-vs-pulldown.d356` 의 `SIG_A`
+   (저항이 `GND` 로 가는 풀다운인데 "풀업"이라고 나온다).
+   → 반대쪽이 상위 전원이면 풀업, `GND` 면 풀다운, 다른 신호면 직렬이다.
+4. **R12 근거 문구가 신호 방향을 단정한다.** `K1 (5.0V) drives U1 (3.3V)` 라고 쓰는데
+   `_IN_ACTIVE_LOW` 의 K1 패드는 제어부의 `IN`, 즉 **입력**이다 (좌표로 확정).
+   실제로는 U1 의 D5 가 구동한다. 넷리스트에 핀 방향이 없으니 가정 자체는 어쩔 수 없고
+   판정을 `UNRESOLVED` 로 둔 것도 맞다. 문구가 단정하는 것만 고치면 된다.
 
 ---
 
 ## 7. 규칙 카탈로그
 
+> **이 표는 사본이다. 진실은 `src/prefab/catalog.py` 하나다.**
+> 표와 코드가 어긋나면 코드가 맞다. 실제로 한 번 어긋났다 (여기 12개, 카탈로그 11개).
+> `tests/test_catalog.py` 가 재발을 막는다. 규칙 ID 는 세 자리 고정이다 (`R01`…`R12`).
+
 | ID | 규칙 | 등급 | NEEDS | 상태 |
 |---|---|---|---|---|
-| R1 | 코드가 입력 전용 핀(GPIO34~39)에 OUTPUT 설정 | **차별** | netlist, firmware | 미구현 |
-| R2 | 회로도가 SPI flash 핀(GPIO6~11)에 연결 | 기본 | netlist | 미구현 |
-| R3 | strapping 핀 부팅 상태 오류 | 기본 | netlist | 미구현 |
-| R4 | 외부 부품 출력이 GPIO 입력 최대 초과 | 기본 | netlist, datasheet | 미구현 |
-| R5 | ADC2 사용 + 같은 빌드에 WiFi 초기화 | **차별** | firmware | 미구현 |
-| ~~R6~~ | ~~I2C 풀업 누락~~ | — | — | **폐기 — Flux가 이미 함** |
-| R7 | 코드가 쓰는 핀이 회로도에 미연결 | **차별** | netlist, firmware | 미구현 |
-| R8 | 회로도에 연결됐는데 코드가 초기화 안 함 | **차별** | netlist, firmware | 미구현 |
-| R9 | 부팅 시 출력 나오는 핀에 부하 | 기본 | netlist | 미구현 |
-| R10 | 회로도 변경 후 코드 미추종 (드리프트) | **차별** | netlist, firmware, git | 미구현 |
+| R01 | 코드가 이 칩에서 쓸 수 없는 핀을 사용 | **차별** | netlist, firmware | 미구현 |
+| R02 | 회로도가 SPI flash 핀에 연결 | 기본 | netlist | 미구현 |
+| R03 | strapping 핀 부팅 상태 오류 | 기본 | netlist | 미구현 |
+| R04 | 외부 부품 출력이 GPIO 입력 최대 정격 초과 | 기본 | netlist, bom | 미구현 |
+| R05 | 이 칩이 지원하지 않는 주변장치 조합 | **차별** | firmware | 미구현 |
+| ~~R06~~ | ~~I2C 풀업 누락~~ | — | — | **폐기 — Flux가 이미 함. 번호 재사용 금지** |
+| R07 | 코드가 쓰는 핀이 회로도에 미연결 | **차별** | netlist, firmware | 미구현 |
+| R08 | 회로도에 연결됐는데 코드가 초기화 안 함 | **차별** | netlist, firmware | 미구현 |
+| R09 | 부팅 시 출력 나오는 핀에 부하 | 기본 | netlist | 미구현 |
+| R10 | 회로도 변경 후 코드 미추종 (드리프트) | **차별** | netlist, firmware | 미구현 |
 | R11 | 네트명이 주장하는 전압 ≠ 소스 부품 전원 도메인 | 기본 | netlist | **동작** |
 | R12 | 상위 전원 도메인이 하위를 직결 | 기본 | netlist | **동작** |
 | ~~R13~~ | ~~코드가 출력으로 구동하는 핀에 다른 출력이 연결~~ | — | — | **기각 — 하드웨어 판정 "문제 안 됨"** |
+
+카탈로그 전체 **11개**. `NEEDS` 어휘는 계약과 같은 `netlist` / `bom` / `firmware` 세 개뿐이다.
 
 **차별 등급 5개가 전부 펌웨어를 필요로 한다. 펌웨어 소스 확보가 생존 조건이다.**
 
@@ -166,15 +187,23 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
 ```
 src/prefab/
   types.py          Finding, Severity, Verdict, Evidence, Context
+  catalog.py        규칙 카탈로그 — 규칙 개수의 유일한 진실
   netlist/d356.py   IPC-D-356 파서
-  netlist/graph.py  부품·네트 그래프, X좌표 패드 클러스터링
+  netlist/graph.py  부품·네트 그래프, X좌표 패드 클러스터링, 전원 도메인 추론
   firmware/         (스텁) 펌웨어 정적 분석
   datasheet/        (스텁) 데이터시트 사실 추출
-  rules/            규칙 모듈 + 레지스트리
+  rules/            규칙 모듈 + 레지스트리 (여기 등록되면 '구현됨')
   engine.py         규칙 실행 → Finding 수집 → 정렬
-web/app.py          FastAPI
-tests/              규칙당 3개 + 실제 보드 골든 테스트
+  report.py         계약 응답 dict 조립 (summary · pipeline)
+  runner.py         파싱 → 그래프 → 엔진. CLI 와 web 이 같이 쓴다
+  __main__.py       python -m prefab <파일> [--json|--rules-json]
+web/service.py      검증 · 오류 · SQLite. HTTP 프레임워크를 모른다
+web/app.py          FastAPI 어댑터. 판정도 검증도 여기 없다
+scripts/smoke.sh    배포한 URL 이 진짜 도는지 확인
+tests/              규칙당 3개 + 실제 보드 골든 테스트 + 카탈로그 정합성
 ```
+
+`web/app.py` 를 얇게 유지한다. 로직을 여기에 쓰면 FastAPI 없이 테스트할 수 없게 된다.
 
 ### 규칙 모듈 계약
 
