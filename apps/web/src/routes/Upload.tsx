@@ -1,9 +1,48 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Page, SectionTitle } from "../components/Layout";
 import { SourceMark } from "../components/Mark";
-import { ApiFailure, createCheck, sampleCheck, usingMock } from "../lib/api";
+import { ApiFailure, createCheck, getRules, sampleCheck, usingMock } from "../lib/api";
+import type { RuleInfo } from "../types/api";
+
+/**
+ * 이 입력이 없으면 어떤 규칙이 못 도는가.
+ *
+ * 개수를 **카탈로그에서 세어서** 말한다. 코드에 숫자를 박지 않는다.
+ * 규칙이 늘거나 구현 상태가 바뀌면 이 문구도 같이 바뀐다.
+ */
+type Impact = { blocked: RuleInfo[]; pending: RuleInfo[] };
+
+function impactOf(rules: RuleInfo[] | null, need: "bom" | "firmware"): Impact | null {
+  if (!rules) return null;
+  const hit = rules.filter((r) => r.needs.includes(need));
+  return {
+    blocked: hit.filter((r) => r.implemented),
+    pending: hit.filter((r) => !r.implemented),
+  };
+}
+
+function ImpactNote({ impact }: { impact: Impact }) {
+  if (impact.blocked.length === 0 && impact.pending.length === 0) return null;
+
+  return (
+    <p className="mb-4 text-[12px] leading-relaxed text-mute">
+      {impact.blocked.length > 0 && (
+        <span className="block">
+          실행 못 하는 규칙 {impact.blocked.length}개 —{" "}
+          <span className="data">{impact.blocked.map((r) => r.id).join(" · ")}</span>
+        </span>
+      )}
+      {impact.pending.length > 0 && (
+        <span className="block">
+          이 입력을 쓰는 규칙 {impact.pending.length}개는 아직 구현 전 —{" "}
+          <span className="data">{impact.pending.map((r) => r.id).join(" · ")}</span>
+        </span>
+      )}
+    </p>
+  );
+}
 
 /** 슬롯 하나 — 드래그앤드롭과 파일 선택 버튼을 둘 다 제공한다 */
 function Slot({
@@ -13,14 +52,17 @@ function Slot({
   file,
   onPick,
   missingNote,
+  impact,
 }: {
   title: string;
   required?: boolean;
   accept: string;
   file: File | null;
   onPick: (f: File | null) => void;
-  /** 비었을 때 무엇을 못 하게 되는지 */
+  /** 비었을 때 무엇을 못 하게 되는지 — 규칙 개수와 무관한 설명 */
   missingNote?: string;
+  /** 규칙 카탈로그로 계산한 영향. 카탈로그가 없으면 null이고, 그때는 개수를 말하지 않는다 */
+  impact?: Impact | null;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
@@ -69,7 +111,10 @@ function Slot({
         </>
       ) : (
         <>
-          {missingNote && <p className="mb-4 text-[13px] leading-relaxed text-warn">{missingNote}</p>}
+          {missingNote && (
+            <p className="mb-2 text-[13px] leading-relaxed text-warn">{missingNote}</p>
+          )}
+          {impact && <ImpactNote impact={impact} />}
           <input
             ref={inputRef}
             type="file"
@@ -97,6 +142,18 @@ export function UploadPage() {
   const [firmware, setFirmware] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [rules, setRules] = useState<RuleInfo[] | null>(null);
+
+  // 카탈로그는 있으면 쓰고 없으면 없이 간다. 못 받아도 업로드는 막지 않는다
+  useEffect(() => {
+    let alive = true;
+    getRules()
+      .then((r) => alive && setRules(r))
+      .catch(() => alive && setRules(null));
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   async function run() {
     if (!netlist) {
@@ -144,14 +201,16 @@ export function UploadPage() {
           accept=".csv"
           file={bom}
           onPick={setBom}
-          missingNote="없으면 부품 식별 불가 · 오탐 증가"
+          missingNote="없으면 부품을 식별할 수 없어 데이터시트 판정이 전부 보류됩니다."
+          impact={impactOf(rules, "bom")}
         />
         <Slot
           title="펌웨어"
           accept=".zip"
           file={firmware}
           onPick={setFirmware}
-          missingNote="없으면 코드 대조 규칙 5개 실행 불가"
+          missingNote="없으면 코드가 핀을 어떻게 쓰는지 대조할 수 없습니다."
+          impact={impactOf(rules, "firmware")}
         />
       </div>
 
@@ -190,7 +249,10 @@ export function UploadPage() {
         <p className="mt-8 rounded-block bg-surface-2 px-4 py-3.5 text-[13px] leading-relaxed text-sub">
           지금은 백엔드 없이 목 데이터로 동작합니다. 샘플 결과는 실제 보드
           <span className="data"> esp32c6presencesmartlight.d356 </span>
-          를 파서와 규칙 엔진에 돌려 얻은 값입니다.
+          를 파서와 규칙 엔진에 돌려 얻은 값입니다. 규칙 카탈로그(
+          <span className="data">GET /api/v1/rules</span>)가 없어서{" "}
+          <strong className="font-bold text-ink">"규칙 몇 개가 못 돈다"는 숫자는 표시하지 않습니다.</strong>{" "}
+          지어내지 않기 위해서입니다.
         </p>
       )}
     </Page>

@@ -6,7 +6,7 @@ import { Page, SectionTitle } from "../components/Layout";
 import { NetlistAppendix } from "../components/NetlistAppendix";
 import { Pipeline } from "../components/Pipeline";
 import { InputsTable, SummaryTiles } from "../components/Summary";
-import { getCheck } from "../lib/api";
+import { ApiFailure, getCheck } from "../lib/api";
 import type { CheckResult } from "../types/api";
 
 /**
@@ -21,18 +21,28 @@ export function ReportPage() {
   useEffect(() => {
     getCheck(id)
       .then(setCheck)
-      .catch(() => setError("검사 결과를 찾지 못했습니다."));
+      // 서버가 내려준 문구를 그대로 쓴다. 프론트가 다시 지어내지 않는다
+      .catch((e) =>
+        setError(
+          e instanceof ApiFailure ? e.message : "검사 결과를 불러오지 못했습니다. 연결을 확인해 주세요."
+        )
+      );
   }, [id]);
 
   if (error) {
     return (
       <Page>
-        <p role="alert" className="rounded-block bg-crit-weak px-4 py-3 text-[14px] font-semibold text-crit">
-          {error}{" "}
-          <Link to="/" className="underline decoration-crit/40">
+        <div className="card mx-auto max-w-md px-6 py-8 text-center">
+          <p role="alert" className="text-[17px] font-bold">
+            {error}
+          </p>
+          <p className="mt-2 text-[14px] leading-relaxed text-sub">
+            링크가 오래됐거나 검사 결과가 사라졌을 수 있습니다.
+          </p>
+          <Link to="/" className="btn-primary mt-6">
             처음으로
           </Link>
-        </p>
+        </div>
       </Page>
     );
   }
