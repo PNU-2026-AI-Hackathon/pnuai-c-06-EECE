@@ -73,3 +73,75 @@ def test_ordered_net_names_puts_busiest_first():
     nl = parse(FIXTURE)
     assert nl.ordered_net_names()[0] == "GND_BUS"
     assert nl.ordered_net_names()[1] == "5V_BUS"
+
+
+# ---------------------------------------------------------------- 도구별 차이
+#
+# 같은 IPC-D-356 인데 도구마다 내보내는 것이 다르다. 실측으로 확인한 것:
+#   Flux   핀 이름(VBUS · GND_) · 317/327 만
+#   KiCad  패드 번호(1 · 2 · 3) · 비도금 홀을 367 로
+#   Eagle  핀 이름 · 홀을 347 로 (ULP 소스 확인)
+# 전부 P UNITS CUST 0 (인치) 을 쓴다.
+
+
+def test_kicad_non_electrical_records_are_reported_not_silently_dropped():
+    """KiCad 는 비도금 홀을 367 로 낸다. 빼는 건 맞지만 조용히 빼면 안 된다.
+
+    실제 오픈소스 보드(VhARIO-ESPC3)를 kicad-cli 로 뽑으니 367 이 6줄 나왔다.
+    """
+    text = "\n".join(
+        [
+            "P  UNITS CUST 0",
+            "317NET1              U1    -1    D0100PA00X+001000Y+001000X0100Y0100R000",
+            "327NET1              U2    -2    D0000PA00X+002000Y+001000X0100Y0100R000",
+            "367N/C               H1          D0984UA00X+003000Y+001000X0984Y0000R000",
+            "999",
+        ]
+    )
+    nl = parse_text(text)
+    assert nl.non_electrical == {"367": 1}
+    assert nl.unknown_records == {}
+    assert "비도금 홀" in " ".join(nl.parse_notes())
+
+
+def test_unknown_record_type_is_surfaced_as_a_warning():
+    """모르는 레코드는 연결을 놓친 것일 수 있다. 반드시 알린다."""
+    text = "\n".join(
+        [
+            "P  UNITS CUST 0",
+            "317NET1              U1    -1    D0100PA00X+001000Y+001000X0100Y0100R000",
+            "397NET9              U9    -9    D0100PA00X+009000Y+009000X0100Y0100R000",
+            "999",
+        ]
+    )
+    nl = parse_text(text)
+    assert nl.unknown_records == {"397": 1}
+    assert any("모르는 레코드" in n for n in nl.parse_notes())
+
+
+def test_metric_units_are_rejected_instead_of_silently_misread():
+    """미터법을 인치로 읽으면 좌표가 25.4배 틀려 패드 그룹이 잘못 나뉜다.
+
+    지금 아는 도구는 전부 CUST 0 이지만 형식은 미터법을 허용한다.
+    조용히 틀리느니 읽기를 거부한다.
+    """
+    import pytest
+
+    text = "\n".join(
+        [
+            "P  UNITS CUST 1",
+            "317NET1              U1    -1    D0100PA00X+001000Y+001000X0100Y0100R000",
+            "999",
+        ]
+    )
+    with pytest.raises(NetlistParseError) as e:
+        parse_text(text)
+    assert "CUST 1" in str(e.value)
+
+
+def test_flux_fixture_has_nothing_to_report():
+    """Flux 출처 픽스처는 뺄 레코드가 없다. 회귀 감시용."""
+    nl = parse(FIXTURE)
+    assert nl.non_electrical == {}
+    assert nl.unknown_records == {}
+    assert nl.parse_notes() == []

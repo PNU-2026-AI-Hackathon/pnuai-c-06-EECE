@@ -4,6 +4,7 @@ _incoming/parse_d356.py 를 그대로 이식한 것이다. 오프셋과 판정 �
 
 고정폭 레코드 (0-indexed, 실측 검증):
   [0:3]    레코드 타입   317=through-hole/via, 327=SMT
+                        (도구마다 다른 것도 온다 — KiCad 367=비도금홀, Eagle 347=홀)
   [3:17]   네트명 (14자)
   [20:26]  reference designator (6자)
   [26]     '-' 구분자
@@ -22,11 +23,25 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 
-#: 우리가 읽는 레코드 타입만 남긴다. 나머지 줄은 조용히 버린다.
+#: 전기적 연결을 담은 레코드. 판정에 쓰는 것은 이것뿐이다.
 RECORD_TYPES = {"317": "THRU/VIA", "327": "SMT"}
 
-#: 좌표는 0.0001 inch 단위로 적혀 있다.
+#: 전기적 연결이 아니라서 빼는 레코드.
+#: **빼는 건 맞지만 조용히 빼지 않는다** (CLAUDE.md 2-4).
+#: 도구마다 코드가 다르다 — KiCad 는 비도금 홀을 367, Eagle ULP 은 홀을 347 로 낸다.
+NON_ELECTRICAL_TYPES = {
+    "347": "홀 (Eagle)",
+    "367": "비도금 홀 (KiCad)",
+}
+
+#: 좌표 단위는 `P UNITS CUST n` 줄이 선언한다.
+#: CUST 0 = 인치(0.0001), CUST 1 = 미터법(0.001mm).
+#: 지금까지 실측한 도구는 전부 CUST 0 이다 (Flux · KiCad · Eagle ULP).
+#: 미터법 파일을 인치로 읽으면 좌표가 25.4배 틀려 패드 그룹이 잘못 나뉜다.
+#: 그러면 핀을 잘못 짚고, 그 위에 세운 판정이 전부 틀린다. 그래서 조용히 넘기지 않는다.
+UNITS_IMPERIAL = "0"
 COORD_SCALE = 10000
+_UNITS = re.compile(r"^P\s+UNITS\s+CUST\s+(\d)", re.I)
 
 #: 연결이 없는 패드가 모이는 자리표시 네트명. 네트 수에 세지 않는다.
 NO_CONNECT = "N/C"
@@ -66,11 +81,26 @@ class Netlist:
         parts: "OrderedDict[str, set[str]]",
         meta: list[str],
         filename: str = "",
+        non_electrical: "OrderedDict[str, int] | None" = None,
+        unknown_records: "OrderedDict[str, int] | None" = None,
     ) -> None:
         self.nets = nets
         self.parts = parts
         self.meta = meta
         self.filename = filename
+        #: 전기적 연결이 아니라 뺀 레코드 (타입 → 개수). 정상이지만 기록해 둔다.
+        self.non_electrical = non_electrical or OrderedDict()
+        #: **우리가 모르는 레코드** (타입 → 개수). 연결을 놓쳤을 수 있으므로 반드시 알린다.
+        self.unknown_records = unknown_records or OrderedDict()
+
+    def parse_notes(self) -> list[str]:
+        """파일을 읽으며 뺀 것. 화면과 파이프라인이 그대로 보여준다."""
+        notes: list[str] = []
+        for code, n in self.non_electrical.items():
+            notes.append(f"{NON_ELECTRICAL_TYPES.get(code, code)} {n}줄 제외")
+        for code, n in self.unknown_records.items():
+            notes.append(f"⚠ 모르는 레코드 {code} {n}줄 — 연결을 놓쳤을 수 있습니다")
+        return notes
 
     # ------------------------------------------------------------------ 조회
 
@@ -144,6 +174,8 @@ def parse_text(text: str, filename: str = "") -> Netlist:
     nets: "OrderedDict[str, list[Pad]]" = OrderedDict()
     parts: "OrderedDict[str, set[str]]" = OrderedDict()
     meta: list[str] = []
+    non_electrical: "OrderedDict[str, int]" = OrderedDict()
+    unknown: "OrderedDict[str, int]" = OrderedDict()
 
     for raw in text.splitlines():
         line = raw.rstrip("\n")
@@ -151,12 +183,24 @@ def parse_text(text: str, filename: str = "") -> Netlist:
             continue
         if line.startswith("P "):
             meta.append(line.strip())
+            um = _UNITS.match(line)
+            if um and um.group(1) != UNITS_IMPERIAL:
+                raise NetlistParseError(
+                    f"좌표 단위가 인치가 아닙니다 (P UNITS CUST {um.group(1)}). "
+                    "지금 파서는 0.0001 inch 단위(CUST 0)만 읽습니다. "
+                    "이대로 읽으면 좌표가 어긋나 핀 그룹이 잘못 나뉘고 판정이 틀립니다."
+                )
             continue
         if line.startswith("999"):
             break
 
         record = line[0:3]
         if record not in RECORD_TYPES:
+            # 버리더라도 무엇을 버렸는지 남긴다. 모르는 타입은 연결을 놓친 것일 수 있다.
+            if record in NON_ELECTRICAL_TYPES:
+                non_electrical[record] = non_electrical.get(record, 0) + 1
+            elif record[:1].isdigit():
+                unknown[record] = unknown.get(record, 0) + 1
             continue
 
         net = line[_NET].strip()
@@ -183,7 +227,14 @@ def parse_text(text: str, filename: str = "") -> Netlist:
             "317/327 로 시작하는 고정폭 레코드가 있는 파일인지 확인해 주세요."
         )
 
-    return Netlist(nets=nets, parts=parts, meta=meta, filename=filename)
+    return Netlist(
+        nets=nets,
+        parts=parts,
+        meta=meta,
+        filename=filename,
+        non_electrical=non_electrical,
+        unknown_records=unknown,
+    )
 
 
 def parse(path: "str | Path") -> Netlist:
