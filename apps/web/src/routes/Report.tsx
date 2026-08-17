@@ -71,6 +71,16 @@ export function ReportPage() {
   const bySeverity = (a: Finding, b: Finding) =>
     SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity];
 
+  /**
+   * 발견이 하나도 없는데 그 이유가 "볼 수 없어서"인 경우를 구분한다.
+   * 규칙을 다 돌렸고 부품도 식별했는데 0건이면 그건 진짜 "이상 없음"이다.
+   */
+  const nothingFound =
+    check.summary.critical + check.summary.warning + check.summary.cleared === 0;
+  const couldNotLook =
+    check.summary.rules_skipped > 0 ||
+    (check.summary.parts_total > 0 && check.summary.parts_identified === 0);
+
   const open = check.findings.filter((f) => f.verdict !== "PASS").sort(bySeverity);
   const cleared = check.findings.filter((f) => f.verdict === "PASS").sort(bySeverity);
   const notice = checkNotice(check.check_id);
@@ -96,7 +106,24 @@ export function ReportPage() {
       <SectionTitle no="01">요약</SectionTitle>
       <div className="mb-8">
         <SummaryTiles summary={check.summary} />
-        {check.summary.rules_skipped > 0 && (
+
+        {/*
+          발견 0건은 두 가지 뜻이 될 수 있다 — "검사했고 깨끗함" 과 "볼 수 없어서 못 찾음".
+          화면이 그걸 구분하지 않으면 사용자는 전자로 읽는다. 그게 숨기는 것이다 (CLAUDE.md 2-2).
+          실제 오픈소스 보드에서 부품 55개 중 0개만 식별된 채 0건이 나온 적이 있다.
+        */}
+        {nothingFound && couldNotLook && (
+          <p className="mt-3 rounded-block bg-crit-weak px-4 py-3.5 text-[14px] leading-relaxed text-crit">
+            <strong className="font-bold">발견 0건은 "이상 없음"이 아닙니다.</strong> 이 검사는
+            결론을 내리지 못했습니다 — 규칙 {check.summary.rules_total}개 중{" "}
+            {check.summary.rules_run}개만 실행됐고
+            {check.summary.parts_total > 0 &&
+              ` 부품 ${check.summary.parts_total}개 중 ${check.summary.parts_identified}개만 식별됐습니다`}
+            . 아래 진행 단계에서 무엇이 막혔는지 확인하세요.
+          </p>
+        )}
+
+        {!(nothingFound && couldNotLook) && check.summary.rules_skipped > 0 && (
           <p className="mt-3 rounded-block bg-warn-weak px-4 py-3.5 text-[14px] leading-relaxed text-warn">
             규칙 {check.summary.rules_skipped}개는 입력이 부족해 실행하지 못했습니다. 아래 진행
             단계에서 사유를 확인하세요.{" "}
