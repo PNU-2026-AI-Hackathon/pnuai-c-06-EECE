@@ -137,7 +137,7 @@ GET    /healthz                헬스체크
 | `unresolved_reason` | 없으면 `null` |
 
 - 값이 없으면 `null`. 빈 문자열이나 `"N/A"`로 채우지 않는다.
-- `highlight`는 프론트에서 redpen 밑줄로 강조할 토큰 목록.
+- `highlight`는 프론트에서 강조 표시할 토큰 목록.
 
 ---
 
@@ -179,22 +179,29 @@ GET    /healthz                헬스체크
 
 ## 디자인 토큰 (프론트 공유)
 
-```
-vellum      #E6E9E4    제도 용지 (배경)
-vellum-2    #F2F4F0    카드 배경
-ink         #171C26    제도 잉크 (본문)
-graphite    #6E7683    보조 텍스트
-hair        #C3C9C1    헤어라인
-redpen      #C0322A    교정 빨간펜 · CRITICAL · 이음매
-amber       #A9700F    WARNING · skipped
-verify      #2C6248    PASS · cleared
+토스 계열 톤. 색은 역할 이름으로 부른다.
+값의 진실은 `apps/web/tailwind.config.js` 하나다 — 여기는 사본이다.
 
-font-sans   'IBM Plex Sans KR'
-font-cond   'IBM Plex Sans Condensed'   라벨 · 대문자 · letter-spacing .16em
-font-mono   'IBM Plex Mono'             넷리스트 · 코드 · 핀 이름 · 규칙 ID
+```
+bg          #F7F8FA    페이지 바탕
+surface     #FFFFFF    카드 · 시트
+surface-2   #F2F4F6    카드 안에서 한 단 낮은 면 (코드 발췌 · 칩)
+ink         #191F28    본문
+sub         #4E5968    보조 텍스트
+mute        #8B95A1    더 흐린 텍스트 · 비활성
+line        #E5E8EB    경계선
+
+brand        #3182F6   강조
+brand-strong #1B64DA   버튼 · 링크
+crit  #D6293E / crit-weak  #FEECEE    CRITICAL
+warn  #B45309 / warn-weak  #FFF4E5    WARNING · skipped
+ok    #087A57 / ok-weak    #E6F7F1    PASS · cleared · done
+
+font-sans   'Pretendard'
+font-mono   'JetBrains Mono'    넷리스트 · 코드 · 핀 이름 · 규칙 ID
 ```
 
----
+`highlight` 토큰은 `crit-weak` 배경 + `crit` 굵은 글자로 강조한다.
 
 ## CORS
 
