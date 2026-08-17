@@ -1,4 +1,4 @@
-import type { CheckCreated, CheckResult } from "../types/api";
+import type { CheckCreated, CheckResult, RuleInfo } from "../types/api";
 
 import sample from "../mocks/check.json";
 
@@ -53,6 +53,28 @@ export async function createCheck(files: {
 
 /** 결과 조회 */
 export async function getCheck(id: string): Promise<CheckResult> {
-  if (!BASE) return sampleCheck;
+  if (!BASE) {
+    // 목이 아는 검사는 샘플 하나뿐이다. 모르는 id를 아는 척하지 않는다
+    if (id !== sampleCheck.check_id) {
+      throw new ApiFailure(
+        "그런 검사가 없습니다. 처음 화면에서 다시 실행해 주세요.",
+        "CHECK_NOT_FOUND"
+      );
+    }
+    return sampleCheck;
+  }
   return unwrap(await fetch(`${BASE}/api/v1/checks/${id}`));
+}
+
+/**
+ * 규칙 카탈로그.
+ *
+ * 화면이 "규칙 몇 개가 못 돈다"를 말하려면 이 목록이 있어야 한다.
+ * 목 모드에는 카탈로그가 없다 — 그래서 `null`을 준다.
+ * **숫자를 지어내지 않기 위해서다.** 카탈로그가 없으면 화면은 개수를 말하지 않는다.
+ */
+export async function getRules(): Promise<RuleInfo[] | null> {
+  if (!BASE) return null;
+  const body = await unwrap(await fetch(`${BASE}/api/v1/rules`));
+  return body?.rules ?? null;
 }

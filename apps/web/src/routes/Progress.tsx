@@ -3,7 +3,7 @@ import { Navigate, useParams } from "react-router-dom";
 
 import { Page, SectionTitle } from "../components/Layout";
 import { Pipeline } from "../components/Pipeline";
-import { getCheck } from "../lib/api";
+import { ApiFailure, getCheck } from "../lib/api";
 import type { CheckResult } from "../types/api";
 
 /** 처리 중 — 1초마다 결과를 물어보고 done이 되면 리포트로 넘긴다 */
@@ -22,8 +22,14 @@ export function ProgressPage() {
         if (!alive) return;
         setCheck(next);
         if (next.status === "running") timer = window.setTimeout(poll, 1000);
-      } catch {
-        if (alive) setError("결과를 가져오지 못했습니다. 검사 주소를 다시 확인해 주세요.");
+      } catch (e) {
+        // 서버 문구를 그대로 보여준다
+        if (alive)
+          setError(
+            e instanceof ApiFailure
+              ? e.message
+              : "결과를 가져오지 못했습니다. 연결을 확인해 주세요."
+          );
       }
     };
 
