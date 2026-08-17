@@ -76,6 +76,12 @@ export interface CheckSummary {
   cleared: number;
   rules_run: number;
   rules_skipped: number;
+  /**
+   * 카탈로그 전체 규칙 수. `rules_run + rules_skipped == rules_total` 이 항상 성립한다
+   * (계약이 보장한다). 그래도 이 값을 직접 쓴다 — 합으로 계산하면 백엔드가
+   * "후보에도 안 든 규칙"을 도입하는 순간 조용히 틀린다.
+   */
+  rules_total: number;
   parts_identified: number;
   parts_total: number;
 }

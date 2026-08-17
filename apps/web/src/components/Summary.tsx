@@ -22,7 +22,7 @@ export function SummaryTiles({ summary }: { summary: CheckSummary }) {
       <Tile label="해제됨" value={summary.cleared} tone="text-ok" />
       <Tile
         label="실행한 규칙"
-        value={`${summary.rules_run}/${summary.rules_run + summary.rules_skipped}`}
+        value={`${summary.rules_run}/${summary.rules_total}`}
       />
     </div>
   );

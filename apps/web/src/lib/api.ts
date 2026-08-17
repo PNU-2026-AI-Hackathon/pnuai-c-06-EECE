@@ -4,6 +4,7 @@ import type { CheckCreated, CheckResult, RuleInfo } from "../types/api";
 // 계약 예시가 두 벌이 되는 순간 한쪽은 반드시 거짓이 된다.
 import spec from "../../../../docs/examples/check.target-with-firmware.json";
 import sample from "../mocks/check.json";
+import ruleCatalog from "../mocks/rules.json";
 
 /**
  * 백엔드가 없으면 목으로 돈다. 기다리지 않는다.
@@ -101,11 +102,15 @@ export async function getCheck(id: string): Promise<CheckResult> {
  * 규칙 카탈로그.
  *
  * 화면이 "규칙 몇 개가 못 돈다"를 말하려면 이 목록이 있어야 한다.
- * 목 모드에는 카탈로그가 없다 — 그래서 `null`을 준다.
- * **숫자를 지어내지 않기 위해서다.** 카탈로그가 없으면 화면은 개수를 말하지 않는다.
+ * 목 모드에서는 백엔드가 만들어 준 `mocks/rules.json` 을 읽는다 —
+ * 손으로 적은 목록이 아니라 `catalog.py` 에서 뽑은 것이다.
+ *
+ * ```bash
+ * cd apps/api && python -m prefab --rules-json > ../web/src/mocks/rules.json
+ * ```
  */
 export async function getRules(): Promise<RuleInfo[] | null> {
-  if (!BASE) return null;
+  if (!BASE) return (ruleCatalog as { rules: RuleInfo[] }).rules ?? null;
   const body = await unwrap(await fetch(`${BASE}/api/v1/rules`));
   return body?.rules ?? null;
 }
