@@ -142,14 +142,23 @@ export function UploadPage() {
   const [firmware, setFirmware] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /**
+   * 카탈로그를 못 받은 것과 애초에 없는 것은 다르다.
+   * 못 받았으면 그 사실을 말한다 — 조용히 기능을 잃으면 그게 숨기는 것이다 (CLAUDE.md 2-2).
+   */
   const [rules, setRules] = useState<RuleInfo[] | null>(null);
+  const [catalogFailed, setCatalogFailed] = useState(false);
 
-  // 카탈로그는 있으면 쓰고 없으면 없이 간다. 못 받아도 업로드는 막지 않는다
+  // 카탈로그를 못 받아도 업로드는 막지 않는다. 개수만 안 쓴다
   useEffect(() => {
     let alive = true;
     getRules()
-      .then((r) => alive && setRules(r))
-      .catch(() => alive && setRules(null));
+      .then((r) => {
+        if (!alive) return;
+        setRules(r);
+        setCatalogFailed(r === null);
+      })
+      .catch(() => alive && setCatalogFailed(true));
     return () => {
       alive = false;
     };
@@ -222,6 +231,14 @@ export function UploadPage() {
         <SourceMark state="unknown" />
         <span>없음 — 리포트에서 "모름"으로 남습니다</span>
       </p>
+
+      {catalogFailed && (
+        <p className="mb-6 rounded-block bg-warn-weak px-4 py-3.5 text-[13px] leading-relaxed text-warn">
+          규칙 카탈로그(<span className="data">GET /api/v1/rules</span>)를 가져오지 못했습니다.
+          그래서 <strong className="font-bold">"규칙 몇 개가 못 돈다"는 개수를 표시하지 않습니다.</strong>{" "}
+          검사 자체는 정상 동작합니다.
+        </p>
+      )}
 
       {error && (
         <p
