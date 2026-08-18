@@ -23,12 +23,24 @@ RIGHT = ["5V", "GND", "3V3", "D10_", "D9_M", "D8_S", "D7_R"]
 
 
 def _synth_board(left_nets: "list[str]", right_nets: "list[str] | None" = None) -> str:
+    """XIAO 헤더 + 이름 있는 네트마다 **상대편 패드 하나**.
+
+    배선은 양 끝이 있어야 배선이다. U1 쪽 패드만 놓으면 그 네트는 패드가 하나뿐이라
+    전기적으로는 미연결이고, 엔진도 그렇게 본다 (`Netlist.is_dangling`).
+    실제 보드를 흉내내려면 상대가 있어야 한다.
+    """
     right_nets = right_nets or ["N/C"] * 7
     lines = []
     for i, (pin, net) in enumerate(zip(LEFT, left_nets)):
         lines.append(rec(net, "U1", pin, x=-0.2635, y=0.7922 - 0.1 * i))
     for i, (pin, net) in enumerate(zip(RIGHT, right_nets)):
         lines.append(rec(net, "U1", pin, x=0.3365, y=0.7922 - 0.1 * i))
+
+    # 이름 있는 네트마다 상대편을 하나씩. 부품마다 패드 1개라 열을 이루지 않아
+    # 모듈 핀아웃 탐지(열 감지)를 방해하지 않는다.
+    for i, net in enumerate(sorted({n for n in list(left_nets) + list(right_nets)
+                                    if n and n != "N/C"})):
+        lines.append(rec(net, f"X{i + 1}", "1", x=2.0 + 0.3 * i, y=0.0))
     return board(*lines)
 
 
@@ -142,3 +154,41 @@ def test_check_is_a_pure_function():
     firmware = analyze_firmware(load_directory(FIRMWARE_DIR))
     ctx = Context(netlist=graph, firmware=firmware)
     assert [f.to_dict() for f in r07.check(ctx)] == [f.to_dict() for f in r07.check(ctx)]
+
+
+# --------------------------------------------------------------- KiCad 방언
+#
+# kicad-cli 는 미연결 패드를 `unconnected-(U3-SPICLK-Pad22)` 라는 유사 네트로 내보낸다.
+# IPC-D-356 네트명 필드가 14자라 **앞의 `unconnected-` 가 잘려 나가고** 뒤만 남는다.
+#
+#     원본   unconnected-(U3-SPICLK-Pad22)
+#     d356   -SPICLK-PAD22)          ← 진짜 네트처럼 보인다
+#
+# 실측(ESP32-C3 오픈소스 보드): `.kicad_pcb` 의 unconnected 32개 중 `N/C` 로 온 것은
+# 2개뿐이고 16개가 이 모양으로 왔다. 이름으로만 판단하면 R07 이 통째로 침묵한다.
+
+
+def _kicad_style_board() -> str:
+    """D2 만 진짜로 배선되고, D3 는 KiCad 식 유사 네트(패드 1개)."""
+    lines = []
+    for i, (pin, net) in enumerate(zip(LEFT, ["N/C", "N/C", "SENSE", "-SPICLK-PAD22)",
+                                              "N/C", "N/C", "N/C"])):
+        lines.append(rec(net, "U1", pin, x=-0.2635, y=0.7922 - 0.1 * i))
+    for i, pin in enumerate(RIGHT):
+        lines.append(rec("N/C", "U1", pin, x=0.3365, y=0.7922 - 0.1 * i))
+    lines.append(rec("SENSE", "X1", "1", x=2.0, y=0.0))  # D2 의 상대편
+    return board(*lines)
+
+
+def test_positive_kicad_pseudo_net_is_still_unconnected():
+    """유사 네트에 붙은 D3 를 코드가 쓰면 R07 이 떠야 한다. 이름은 진짜 네트처럼 생겼다."""
+    findings = _run(_kicad_style_board(), {"a.ino": "void setup(){ pinMode(D3, INPUT); }"})
+    assert len(findings) == 1, "이름만 보면 배선된 것처럼 보여 침묵한다 (미탐)"
+    assert "D3" in findings[0].claim
+    assert findings[0].severity is Severity.CRITICAL
+
+
+def test_negative_kicad_board_real_wire_is_silent():
+    """같은 보드에서 진짜로 배선된 D2 는 조용해야 한다. 고치면서 오탐이 늘면 안 된다."""
+    findings = _run(_kicad_style_board(), {"a.ino": "void setup(){ pinMode(D2, OUTPUT); }"})
+    assert findings == []
