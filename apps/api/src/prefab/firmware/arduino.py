@@ -74,7 +74,10 @@ _CONST = re.compile(
     rf"({_IDENT}){_H}*={_H}*([^;\n]+);",
     re.M,
 )
-_CALL = re.compile(rf"\b({_IDENT})\s*\(([^()]*)\)")
+#: 함수 호출의 **시작**만 찾는다. 인자는 괄호 균형을 세어서 잘라낸다.
+#: 정규식으로 `\(([^()]*)\)` 를 쓰면 `pinMode(lookup(), INPUT)` 처럼 인자 안에
+#: 괄호가 있는 호출을 **통째로 못 본다.** 조용히 버리는 자리가 되므로 스캐너로 바꿨다.
+_CALL_HEAD = re.compile(rf"\b({_IDENT})\s*\(")
 
 _SILK = re.compile(r"^(D\d{1,2}|A\d{1,2})$")
 _NUMBER = re.compile(r"^(\d{1,3})$")
@@ -82,6 +85,36 @@ _GPIO_NUM = re.compile(r"^GPIO_NUM_(\d{1,3})$")
 
 
 # --------------------------------------------------------------------- 타입
+
+#: 못 읽은 이유. 위치만 남기면 나중에 AI 를 어디에 붙일지 알 수 없다 (결정기록 D-1).
+REASON_ARRAY_INDEX = "배열 인덱스"
+REASON_EXPRESSION = "계산식"
+REASON_UNKNOWN_SYMBOL = "정의를 못 찾은 상수"
+REASON_FUNCTION_CALL = "함수 반환값"
+REASON_MEMBER = "구조체·객체 멤버"
+REASON_OTHER = "해석 불가"
+
+_ARRAY = re.compile(r"^\w+\s*\[")
+_CALLEXPR = re.compile(rf"^{_IDENT}\s*\(")
+_MEMBER = re.compile(r"^\w+\s*(\.|->)")
+_ARITH = re.compile(r"[+\-*/%<>|&^]")
+
+
+def classify_unreadable(expression: str, known_symbols: "set[str]") -> str:
+    """왜 못 읽었는지. AI 를 붙일 때 이 분류가 그대로 작업 목록이 된다."""
+    e = expression.strip()
+    if _ARRAY.match(e):
+        return REASON_ARRAY_INDEX
+    if _MEMBER.match(e):
+        return REASON_MEMBER
+    if _CALLEXPR.match(e):
+        return REASON_FUNCTION_CALL
+    if _ARITH.search(e):
+        return REASON_EXPRESSION
+    if re.fullmatch(_IDENT, e) and e not in known_symbols:
+        return REASON_UNKNOWN_SYMBOL
+    return REASON_OTHER
+
 
 @dataclass(frozen=True)
 class PinCall:
@@ -91,6 +124,26 @@ class PinCall:
     file: str
     line: int
     snippet: str
+
+
+@dataclass(frozen=True)
+class Unreadable:
+    """핀을 만지는 자리인데 **어느 핀인지 못 읽은** 곳.
+
+    조용히 버리지 않는다. 위치와 사유를 함께 들고 다니면
+    나중에 AI 추출을 붙일 때 **그 자리에만** 붙이면 된다 (결정기록 D-1).
+    """
+
+    expression: str
+    reason: str
+    call: PinCall
+
+    @property
+    def where(self) -> str:
+        return f"{self.call.file}:{self.call.line}"
+
+    def describe(self) -> str:
+        return f"{self.where} — {self.expression} ({self.reason})"
 
 
 @dataclass(frozen=True)
@@ -139,7 +192,17 @@ class Firmware:
     total_lines: int = 0
     pins: tuple[PinUse, ...] = ()
     #: 상수까지 따라갔는데도 값을 확정 못 한 자리. 숨기지 않고 들고 다닌다.
-    unresolved: tuple[PinCall, ...] = ()
+    unresolved: tuple[Unreadable, ...] = ()
+
+    @property
+    def unresolved_summary(self) -> str:
+        """못 읽은 자리를 사유별로 묶어서 한 줄로."""
+        if not self.unresolved:
+            return ""
+        counts: dict[str, int] = {}
+        for u in self.unresolved:
+            counts[u.reason] = counts.get(u.reason, 0) + 1
+        return " · ".join(f"{reason} {n}곳" for reason, n in sorted(counts.items()))
 
     @property
     def labels(self) -> tuple[str, ...]:
@@ -212,8 +275,37 @@ def _classify(token: str) -> tuple[str | None, int | None]:
     return None, None
 
 
+def iter_calls(text: str):
+    """(함수 이름, 인자 원문, 시작 위치). 중첩 호출도 안쪽까지 전부 나온다."""
+    for m in _CALL_HEAD.finditer(text):
+        depth, i, n = 1, m.end(), len(text)
+        while i < n and depth:
+            if text[i] == "(":
+                depth += 1
+            elif text[i] == ")":
+                depth -= 1
+            i += 1
+        if depth == 0:
+            yield m.group(1), text[m.end() : i - 1], m.start()
+
+
 def _split_args(argtext: str) -> list[str]:
-    return [a.strip() for a in argtext.split(",")] if argtext.strip() else []
+    """최상위 쉼표로만 자른다. `f(a, b), c` 를 세 조각으로 자르면 안 된다."""
+    args, depth, current = [], 0, []
+    for ch in argtext:
+        if ch in "([{":
+            depth += 1
+        elif ch in ")]}":
+            depth -= 1
+        if ch == "," and depth == 0:
+            args.append("".join(current).strip())
+            current = []
+        else:
+            current.append(ch)
+    tail = "".join(current).strip()
+    if tail:
+        args.append(tail)
+    return args
 
 
 def _scan_constants(
@@ -267,17 +359,16 @@ def analyze(sources: "dict[str, str]") -> Firmware:
 
     #: (silk, gpio) → 누적 정보
     buckets: dict[tuple[str | None, int | None], dict] = {}
-    unresolved: list[PinCall] = []
+    unresolved: list[Unreadable] = []
 
     for path in sorted(cleaned):
         text = cleaned[path]
         original = sources[path].splitlines()
 
-        for m in _CALL.finditer(text):
-            function = m.group(1)
+        for function, argtext, start in iter_calls(text):
             if function not in PIN_ARGUMENT:
                 continue
-            args = _split_args(m.group(2))
+            args = _split_args(argtext)
             index = PIN_ARGUMENT[function]
             if len(args) <= index:
                 continue
@@ -286,12 +377,18 @@ def analyze(sources: "dict[str, str]") -> Firmware:
             token = constants.get(expression, expression)
             silk, gpio = _classify(token)
 
-            line = text.count("\n", 0, m.start()) + 1
+            line = text.count("\n", 0, start) + 1
             snippet = original[line - 1].strip() if line <= len(original) else ""
             call = PinCall(function=function, file=path, line=line, snippet=snippet)
 
             if silk is None and gpio is None:
-                unresolved.append(call)
+                unresolved.append(
+                    Unreadable(
+                        expression=expression,
+                        reason=classify_unreadable(expression, set(constants)),
+                        call=call,
+                    )
+                )
                 continue
 
             bucket = buckets.setdefault(

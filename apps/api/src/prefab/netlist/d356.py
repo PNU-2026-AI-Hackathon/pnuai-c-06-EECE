@@ -182,7 +182,7 @@ class Netlist:
             key=lambda n: (-len(self.connections(n)), n),
         )
 
-    def to_dict(self, pinmap=None) -> dict:
+    def to_dict(self, pinmap=None, bom=None) -> dict:
         """API_CONTRACT.md 의 `netlist` 블록.
 
         `pinmap` 이 있으면 패드마다 `silk` · `gpio` 를 **선택 필드로 덧붙인다.**
@@ -199,7 +199,8 @@ class Netlist:
             return out
 
         def part(ref: str) -> dict:
-            out = {"ref": ref, "pins": sorted(self.parts[ref]), "mpn": None}
+            mpn = bom.mpn_of(ref) if bom else None
+            out = {"ref": ref, "pins": sorted(self.parts[ref]), "mpn": mpn}
             if not pinmap:
                 return out
             pads = [

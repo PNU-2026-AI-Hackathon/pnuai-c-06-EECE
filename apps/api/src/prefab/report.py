@@ -38,8 +38,16 @@ def build_summary(netlist: Netlist, engine: EngineResult, parts_identified: int 
     }
 
 
-def _identify_step(has_bom: bool, pinmap) -> tuple[str, str]:
+def _identify_step(has_bom: bool, pinmap, bom=None, refs=None) -> tuple[str, str]:
     """2단계 — 부품 식별. 무엇까지 알아냈는지 정확히 적는다."""
+    if bom is not None:
+        known, unknown = bom.coverage(refs or set())
+        detail = f"BOM {len(bom)}행 · 부품번호 확인 {len(known)}/{len(known) + len(unknown)}"
+        if unknown:
+            detail += f" · 미식별 {', '.join(unknown[:5])}"
+        for note in bom.notes():
+            detail += f" · {note}"
+        return ("done" if not unknown else "partial"), detail
     if has_bom:
         return "done", "BOM 으로 부품번호 확인"
     if pinmap:
@@ -67,7 +75,7 @@ def _firmware_step(firmware, pinmap) -> tuple[str, str]:
     if unmapped:
         detail += f" · 회로도에서 못 짚은 핀 {unmapped}개"
     if firmware.unresolved:
-        detail += f" · 상수를 못 따라간 자리 {len(firmware.unresolved)}곳"
+        detail += f" · 못 읽은 자리 {len(firmware.unresolved)}곳 ({firmware.unresolved_summary})"
 
     status = "done" if firmware.pins and not unmapped and not firmware.unresolved else "partial"
     return status, detail
@@ -79,13 +87,17 @@ def build_pipeline(
     has_bom: bool,
     firmware,
     pinmap,
+    bom=None,
 ) -> list[dict[str, Any]]:
     step = dict(PIPELINE_NAMES)
 
-    identify = _identify_step(has_bom, pinmap)
+    identify = _identify_step(has_bom, pinmap, bom, set(netlist.parts))
     firmware_step = _firmware_step(firmware, pinmap)
 
-    if has_bom:
+    if bom is not None and bom.identified:
+        mpns = " · ".join(sorted({e.mpn for e in bom.identified})[:3])
+        datasheet = ("skipped", f"데이터시트 파이프라인 미구현 — 조회 대상 {mpns}")
+    elif has_bom:
         datasheet = ("skipped", "데이터시트 파이프라인 미구현")
     else:
         datasheet = ("skipped", "BOM 없음 · 부품번호를 알 수 없음")
@@ -127,7 +139,8 @@ def build_result(
     engine = analysis.engine
     pinmap = analysis.graph.pinmap
     firmware = analysis.firmware
-    has_bom = bom_filename is not None
+    bom = analysis.bom
+    has_bom = bom_filename is not None or bom is not None
 
     firmware_input: dict[str, Any] | None = None
     if firmware_filename is not None:
@@ -145,11 +158,15 @@ def build_result(
                 "nets": netlist.net_count,
                 "parts": netlist.part_count,
             },
-            "bom": {"filename": bom_filename} if has_bom else None,
+            "bom": (
+                {"filename": bom_filename or (bom.filename if bom else ""), "parts": len(bom) if bom else 0}
+                if has_bom
+                else None
+            ),
             "firmware": firmware_input,
         },
-        "summary": build_summary(netlist, engine, parts_identified),
-        "pipeline": build_pipeline(netlist, engine, has_bom, firmware, pinmap),
+        "summary": build_summary(netlist, engine, parts_identified or analysis.parts_identified),
+        "pipeline": build_pipeline(netlist, engine, has_bom, firmware, pinmap, analysis.bom),
         "findings": [f.to_dict() for f in engine.findings],
         "netlist": analysis.to_netlist_dict(),
     }

@@ -18,6 +18,8 @@ from .arduino import (
     Firmware,
     PinCall,
     PinUse,
+    Unreadable,
+    classify_unreadable,
     analyze,
     strip_noise,
 )
@@ -26,6 +28,8 @@ __all__ = [
     "Firmware",
     "PinUse",
     "PinCall",
+    "Unreadable",
+    "classify_unreadable",
     "analyze",
     "strip_noise",
     "load_directory",

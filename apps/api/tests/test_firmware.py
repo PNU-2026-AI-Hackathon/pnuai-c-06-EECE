@@ -105,7 +105,8 @@ def test_expression_that_cannot_be_resolved_is_recorded_not_guessed():
     fw = analyze(src)
     assert fw.pins == ()
     assert len(fw.unresolved) == 1
-    assert fw.unresolved[0].function == "digitalWrite"
+    assert fw.unresolved[0].call.function == "digitalWrite"
+    assert fw.unresolved[0].reason == "배열 인덱스"  # 사유까지 남긴다 (결정기록 D-1)
 
 
 def test_read_functions_imply_input():
@@ -144,3 +145,34 @@ def test_analysis_is_a_pure_function():
     assert [(p.label, p.direction, len(p.calls)) for p in first.pins] == [
         (p.label, p.direction, len(p.calls)) for p in second.pins
     ]
+
+
+def test_unreadable_places_are_classified_not_just_counted():
+    """AI 를 붙일 때 이 분류가 그대로 작업 목록이 된다 (결정기록 D-1)."""
+    src = {
+        "a.ino": (
+            "const int pins[] = {2, 3, 10};\n"
+            "int lookup();\n"
+            "struct Cfg { int led; } cfg;\n"
+            "void setup(){\n"
+            "  pinMode(pins[0], OUTPUT);\n"
+            "  pinMode(lookup(), INPUT);\n"
+            "  pinMode(cfg.led, OUTPUT);\n"
+            "  pinMode(BASE + 2, OUTPUT);\n"
+            "  pinMode(MYSTERY_PIN, OUTPUT);\n"
+            "}\n"
+        )
+    }
+    fw = analyze(src)
+    assert fw.pins == ()
+    reasons = {u.reason for u in fw.unresolved}
+    assert reasons == {"배열 인덱스", "함수 반환값", "구조체·객체 멤버", "계산식", "정의를 못 찾은 상수"}
+    for u in fw.unresolved:
+        assert u.call.line > 0
+        assert u.where.startswith("a.ino:")
+    assert "곳" in fw.unresolved_summary
+
+
+def test_total_lines_counts_what_was_read():
+    fw = _fw()
+    assert fw.total_lines == 106

@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 from .firmware import load_directory, load_zip
+from .datasheet.bom import BomParseError
 from .netlist.d356 import NetlistParseError
 from .report import build_result, build_rules_catalog
 from .runner import analyze
@@ -71,6 +72,7 @@ def _human(analysis, path: Path) -> str:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="prefab", description="회로도와 펌웨어의 어긋남을 찾습니다.")
     ap.add_argument("netlist", nargs="?", help="IPC-D-356 파일")
+    ap.add_argument("--bom", help="부품 목록 CSV")
     ap.add_argument("--firmware", help="펌웨어 소스 디렉터리 또는 zip")
     ap.add_argument("--json", action="store_true", help="API 계약과 같은 JSON 으로 출력")
     ap.add_argument("--rules-json", action="store_true", help="규칙 카탈로그 JSON 만 출력")
@@ -101,13 +103,25 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         firmware_name = fw.name
 
+    bom_text = None
+    bom_name = None
+    if args.bom:
+        bom_path = Path(args.bom)
+        if not bom_path.exists():
+            print(f"BOM 을 찾지 못했습니다: {bom_path}", file=sys.stderr)
+            return 2
+        bom_text = bom_path.read_text(encoding="utf-8-sig", errors="replace")
+        bom_name = bom_path.name
+
     try:
         analysis = analyze(
             path.read_text(encoding="utf-8", errors="replace"),
             filename=path.name,
+            bom_text=bom_text,
+            bom_filename=bom_name or "",
             firmware_sources=sources,
         )
-    except NetlistParseError as exc:
+    except (NetlistParseError, BomParseError) as exc:
         print(str(exc), file=sys.stderr)
         return 2
 
@@ -117,6 +131,7 @@ def main(argv: list[str] | None = None) -> int:
             created_at=FIXED_CREATED_AT,
             analysis=analysis,
             netlist_filename=path.name,
+            bom_filename=bom_name,
             firmware_filename=firmware_name,
         )
         print(json.dumps(result, ensure_ascii=False, indent=2))
