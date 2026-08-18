@@ -124,7 +124,7 @@ def test_real_board_with_bom_identifies_parts(tmp_path):
 
     result = build_result(
         check_id="chk_test", created_at="2026-08-19T00:00:00Z",
-        netlist=a.netlist, engine=a.engine, netlist_filename=fixture.name,
+        analysis=a, netlist_filename=fixture.name,
         bom_filename="bom.csv", bom=a.bom,
     )
     s = result["summary"]
@@ -132,8 +132,9 @@ def test_real_board_with_bom_identifies_parts(tmp_path):
     assert s["parts_identified"] == 7
     assert s["parts_total"] == 10
 
+    # 문구가 아니라 사실을 검사한다. 문구는 바뀔 수 있고 실제로 바뀌었다
     detail = result["pipeline"][1]["detail"]
-    assert "7/10 식별" in detail
+    assert "7/10" in detail        # 몇 개를 알아냈는지
     assert "U2" in detail          # 번호 빈 칸으로 보고
     assert "J1" in detail          # BOM 에 행이 없다고 보고
 
@@ -148,7 +149,7 @@ def test_bom_without_bom_keeps_zero():
     fixture = Path(__file__).parent / "fixtures" / "esp32-c6-presence-smart-light.d356"
     a = analyze(fixture.read_text(), filename=fixture.name)
     result = build_result(
-        check_id="c", created_at="t", netlist=a.netlist, engine=a.engine,
+        check_id="c", created_at="t", analysis=a,
         netlist_filename=fixture.name, bom=a.bom,
     )
     assert result["summary"]["parts_identified"] == 0

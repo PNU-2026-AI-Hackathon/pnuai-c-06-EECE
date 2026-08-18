@@ -20,12 +20,9 @@ import os
 import sys
 from pathlib import Path
 
-<<<<<<< HEAD
-from .firmware import load_directory, load_zip
-from .datasheet.bom import BomParseError
-=======
+from .bom import BomParseError
 from .datasheet.store import FactStore
->>>>>>> origin/main
+from .firmware import load_directory, load_zip
 from .netlist.d356 import NetlistParseError
 from .report import build_result, build_rules_catalog
 from .runner import analyze
@@ -165,23 +162,24 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         firmware_name = fw.name
 
-    bom_text = None
+    bom_bytes = None
     bom_name = None
     if args.bom:
         bom_path = Path(args.bom)
         if not bom_path.exists():
             print(f"BOM 을 찾지 못했습니다: {bom_path}", file=sys.stderr)
             return 2
-        bom_text = bom_path.read_text(encoding="utf-8-sig", errors="replace")
+        # 인코딩 판별은 파서가 한다 (BOM 마커·cp949). 여기서 미리 디코드하지 않는다
+        bom_bytes = bom_path.read_bytes()
         bom_name = bom_path.name
 
     try:
         analysis = analyze(
             path.read_text(encoding="utf-8", errors="replace"),
             filename=path.name,
-            bom_text=bom_text,
-            bom_filename=bom_name or "",
+            bom_bytes=bom_bytes,
             firmware_sources=sources,
+            fact_store=FactStore(os.getenv("PREFAB_DB", "prefab.db")),
         )
     except (NetlistParseError, BomParseError) as exc:
         print(str(exc), file=sys.stderr)
