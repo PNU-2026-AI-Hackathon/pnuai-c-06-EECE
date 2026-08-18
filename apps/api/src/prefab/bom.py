@@ -88,6 +88,14 @@ class Bom:
     def __len__(self) -> int:
         return len(self.rows)
 
+    @property
+    def mpns(self) -> list[str]:
+        """이 BOM 이 아는 부품번호. 중복을 없애고 정렬한다.
+
+        같은 부품번호를 두 번 조회하지 않는 것이 사실 DB 의 단위경제다.
+        """
+        return sorted({r.mpn for r in self.rows.values() if r.mpn})
+
     def mpn_of(self, refdes: str) -> str | None:
         row = self.rows.get(refdes.upper())
         return row.mpn if row and row.mpn else None

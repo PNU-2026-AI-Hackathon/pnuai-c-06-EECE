@@ -18,6 +18,7 @@ from typing import Any, Iterator
 from prefab.bom import BomParseError
 from prefab.netlist.d356 import NetlistParseError
 from prefab.report import build_result, build_rules_catalog
+from prefab.datasheet.store import FactStore
 from prefab.runner import analyze
 
 # --------------------------------------------------------------------- 상수
@@ -127,11 +128,15 @@ def run_check(
     firmware_filename: str | None = None,
     check_id: str | None = None,
     created_at: str | None = None,
+    fact_store: "FactStore | None" = None,
 ) -> dict[str, Any]:
     """업로드된 넷리스트로 검사를 끝내고 계약 응답을 만든다.
 
     지금 규모(네트 8 · 부품 10 · 규칙 2개)에서는 밀리초 단위로 끝난다.
     큐를 쓰지 않는다. 5초를 넘기기 시작하면 그때 BackgroundTasks 로 바꾼다.
+
+    `fact_store` 를 주면 BOM 의 부품번호로 사실 DB 를 조회해 규칙에 넘긴다.
+    없으면 데이터시트 축 없이 넷리스트만으로 돈다 — 지금까지와 똑같이 동작한다.
     """
     text = netlist_bytes.decode("utf-8", errors="replace")
     try:
@@ -140,6 +145,7 @@ def run_check(
             filename=netlist_filename,
             bom_bytes=bom_bytes,
             firmware=firmware_filename,
+            fact_store=fact_store,
         )
     except NetlistParseError as exc:
         raise netlist_parse_failed(str(exc)) from exc

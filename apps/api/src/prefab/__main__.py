@@ -4,15 +4,23 @@
 
     python -m prefab tests/fixtures/esp32-c6-presence-smart-light.d356 --json > check.json
     python -m prefab --rules-json > rules.json
+
+부품 사실 DB 는 **LLM 없이도** 손으로 채울 수 있다. 사람이 데이터시트를 읽고
+`prefab-datasheet` 5단계 스키마로 적어서 넣으면 된다:
+
+    python -m prefab --facts-load parts/hlk-ld2410c.json
+    python -m prefab --facts
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
+from .datasheet.store import FactStore
 from .netlist.d356 import NetlistParseError
 from .report import build_result, build_rules_catalog
 from .runner import analyze
@@ -60,12 +68,63 @@ def _human(analysis, path: Path) -> str:
     return "\n".join(out)
 
 
+def _facts_load(paths: list[str], db: str) -> int:
+    """사람이 적은 사실 파일을 DB 에 넣는다. **거절된 것을 전부 보여준다.**
+
+    조용히 넣거나 조용히 버리면 무엇이 DB 에 있는지 아무도 모르게 된다 (CLAUDE.md 2-4).
+    """
+    store = FactStore(db)
+    before = store.size()
+    bad = 0
+
+    for raw in paths:
+        path = Path(raw)
+        if not path.exists():
+            print(f"파일을 찾지 못했습니다: {path}", file=sys.stderr)
+            bad += 1
+            continue
+        try:
+            report = store.save_json(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, ValueError) as exc:
+            print(f"{path.name}: JSON 을 읽지 못했습니다 — {exc}", file=sys.stderr)
+            bad += 1
+            continue
+
+        print(f"{path.name}: 저장 {report.stored} · 값없음 기록 {report.negative} "
+              f"· 거절 {len(report.rejected)}")
+        for r in report.rejected:
+            print(f"    거절  {r.mpn} {r.field} — {r.why}", file=sys.stderr)
+            bad += 1
+
+    parts, facts = store.size()
+    print(f"부품 DB: {before[0]} → {parts} (사실 {before[1]} → {facts})")
+    return 1 if bad else 0
+
+
+def _facts_list(db: str) -> int:
+    store = FactStore(db)
+    parts, total = store.size()
+    print(f"부품 {parts} · 사실 {total}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="prefab", description="회로도와 펌웨어의 어긋남을 찾습니다.")
     ap.add_argument("netlist", nargs="?", help="IPC-D-356 파일")
     ap.add_argument("--json", action="store_true", help="API 계약과 같은 JSON 으로 출력")
     ap.add_argument("--rules-json", action="store_true", help="규칙 카탈로그 JSON 만 출력")
+    ap.add_argument("--facts-load", nargs="+", metavar="JSON",
+                    help="데이터시트 사실 파일을 부품 DB 에 넣는다")
+    ap.add_argument("--facts", action="store_true", help="부품 DB 크기를 본다")
+    ap.add_argument("--db", default=os.getenv("PREFAB_DB", "prefab.db"),
+                    help="SQLite 파일 (기본: PREFAB_DB 또는 prefab.db)")
     args = ap.parse_args(argv)
+
+    if args.facts_load:
+        return _facts_load(args.facts_load, args.db)
+
+    if args.facts:
+        return _facts_list(args.db)
 
     if args.rules_json:
         print(json.dumps(build_rules_catalog(), ensure_ascii=False, indent=2))
