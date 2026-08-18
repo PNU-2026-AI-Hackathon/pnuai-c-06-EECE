@@ -54,7 +54,13 @@ python -m prefab --extract ld2410c.pdf --mpn HLK-LD2410C \
 | `voh_max` · `vol_max` | 출력 High/Low 전압 | Electrical Characteristics |
 | `vih_min` · `vil_max` | 입력 문턱 | Electrical Characteristics |
 | `output_type` | `push-pull` / `open-drain` | Electrical Characteristics |
+| `io_level` | 모듈 IO 가 도는 로직 레벨 | Interface / 사양 표 |
 | `input_pullup_to` | 입력 핀이 내부에서 어디로 풀업되는가 | Application Circuit |
+
+**`voh_max` 와 `io_level` 을 섞지 않는다.** `voh_max` 는 min/max 열이 있는 출력 규격이고,
+`io_level` 은 "IO level 3.3V" 같은 로직 레벨 표기다. 모듈 데이터시트는 Voh 규격을 잘 안 준다.
+없는 규격을 `voh_max` 에 적으면 그건 지어낸 값이다 — 실제로 한 번 그렇게 적었다가
+LLM 추출이 반박해서 항목을 나눴다. 규칙은 둘 다 본다 (`voh_max` 를 먼저).
 
 **Absolute Maximum 과 Recommended Operating 을 섞지 않는다.** 전자는 "넘으면 파손",
 후자는 "이 범위에서 정상 동작"이다. 판정 기준이 다르므로 어느 표에서 읽었는지 반드시 적는다.

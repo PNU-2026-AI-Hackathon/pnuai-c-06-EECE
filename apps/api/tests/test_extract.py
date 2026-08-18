@@ -258,3 +258,48 @@ def test_검증에서_떨어진_것은_저장기까지_가지_않는다(tmp_path
     store = FactStore(tmp_path / "t.db")
     store.save(r.payload)
     assert store.size() == (0, 0)
+
+
+# ── .env 읽기 — 파이썬은 자동으로 안 읽는다 ──────────────────────────
+
+
+def test_env_파일을_찾아_올린다(tmp_path, monkeypatch):
+    """Vite 는 `.env` 를 읽고 파이썬은 안 읽는다. 그 차이가 사람을 헷갈리게 한다."""
+    from prefab.__main__ import _load_env
+
+    (tmp_path / ".env").write_text("ANTHROPIC_API_KEY=가짜\n# 주석\n빈줄무시\n")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    assert _load_env(tmp_path) is not None
+    import os
+    assert os.environ["ANTHROPIC_API_KEY"] == "가짜"
+
+
+def test_이미_있는_환경변수는_덮어쓰지_않는다(tmp_path, monkeypatch):
+    """배포 환경변수가 파일보다 세야 한다. 안 그러면 배포가 조용히 개발 키를 쓴다."""
+    from prefab.__main__ import _load_env
+    import os
+
+    (tmp_path / ".env").write_text("ANTHROPIC_API_KEY=파일값\n")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "환경값")
+    _load_env(tmp_path)
+    assert os.environ["ANTHROPIC_API_KEY"] == "환경값"
+
+
+def test_상위_폴더까지_올라가며_찾는다(tmp_path, monkeypatch):
+    """apps/api 에서 돌리든 저장소 루트에서 돌리든 같게 동작해야 한다."""
+    from prefab.__main__ import _load_env
+    import os
+
+    (tmp_path / ".env").write_text("PREFAB_TEST_ONLY=1\n")
+    deep = tmp_path / "apps" / "api"
+    deep.mkdir(parents=True)
+    monkeypatch.delenv("PREFAB_TEST_ONLY", raising=False)
+    assert _load_env(deep) == str(tmp_path / ".env")
+    assert os.environ["PREFAB_TEST_ONLY"] == "1"
+
+
+def test_env가_없어도_죽지_않는다(tmp_path):
+    from prefab.__main__ import _load_env
+
+    assert _load_env(tmp_path) is None

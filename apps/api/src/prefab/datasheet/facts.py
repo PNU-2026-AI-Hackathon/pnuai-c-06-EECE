@@ -19,6 +19,7 @@ VIL_MAX = "vil_max"                    #: 입력 Low 문턱 최대
 VCC_NOMINAL = "vcc_nominal"            #: 정격 공급 전압
 VIN_ABSOLUTE_MAX = "vin_absolute_max"  #: 입력 절대 최대 (넘으면 파손)
 OUTPUT_TYPE = "output_type"            #: push-pull / open-drain
+IO_LEVEL = "io_level"                  #: 모듈 IO 가 도는 로직 레벨
 INPUT_PULLUP_TO = "input_pullup_to"    #: 입력 핀이 내부에서 어디로 풀업되는가
 
 #: 사용자에게 보여줄 이름. "voh_max 를 못 읽었습니다"는 비전공자가 못 읽는다.
@@ -30,6 +31,7 @@ FIELD_LABELS: dict[str, str] = {
     VCC_NOMINAL: "정격 공급 전압",
     VIN_ABSOLUTE_MAX: "입력 절대 최대 전압",
     OUTPUT_TYPE: "출력 단 형식",
+    IO_LEVEL: "IO 로직 레벨",
     INPUT_PULLUP_TO: "입력 내부 풀업",
 }
 

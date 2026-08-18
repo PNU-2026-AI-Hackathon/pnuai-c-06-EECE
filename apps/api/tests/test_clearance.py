@@ -240,3 +240,51 @@ def test_BOM이_없을_때는_BOM을_달라고_한다():
     ctx = Context(netlist=_relay_ctx().netlist, bom=None, datasheet=None)
     f = [x for x in r12.check(ctx) if x.net == "_IN_ACTIVE_LOW"][0]
     assert "BOM으로 제출하면" in f.suggestion
+
+
+# ── io_level — 모듈 데이터시트는 Voh 규격을 잘 안 준다 ────────────────
+
+
+def _io_fact(value=3.3, **kw):
+    from prefab.datasheet.facts import IO_LEVEL
+
+    base = dict(
+        mpn=LEVEL_SHIFTED, field=IO_LEVEL, value=value, unit="V",
+        table="Table 2 (Interface)", page=17,
+        quote="A GPIO, IO level 3.3V", confidence=CONF_HIGH,
+    )
+    return Fact(**{**base, **kw})
+
+
+@pytest.mark.parametrize("module", [r11, r12], ids=["R11", "R12"])
+def test_Voh가_없어도_IO_레벨로_해제된다(module):
+    """실측에서 나온 문제다. `HLK-LD2410C` 매뉴얼에는 Voh 규격 표가 없고
+    "IO level 3.3V" 만 있다. IO 레일이 3.3V 면 그 핀 출력이 5V 로 올라갈 수 없다."""
+    f = _one(module, _ctx(facts=FactSet([_io_fact()])))
+    assert f.verdict is Verdict.PASS
+    assert f.unresolved_reason is None
+
+
+def test_IO_레벨로_해제하면_Voh라고_말하지_않는다():
+    """없는 규격을 있다고 말하면 안 된다. 사람이 그걸 해서 이 항목이 생겼다."""
+    f = _one(r12, _ctx(facts=FactSet([_io_fact()])))
+    assert "IO 로직 레벨" in f.claim
+    assert "출력 하이 전압" not in f.claim
+
+
+def test_Voh가_있으면_그쪽을_먼저_쓴다():
+    """`voh_max` 가 더 직접적인 규격이다. 둘 다 있으면 그걸 쓴다."""
+    f = _one(r12, _ctx(facts=FactSet([_fact(3.3), _io_fact(3.3)])))
+    assert "출력 하이 전압" in f.claim
+
+
+def test_아무것도_없으면_Voh를_달라고_한다():
+    """'IO 레벨을 주세요' 보다 'Voh 를 주세요' 가 쓸모 있는 안내다."""
+    f = _one(r12, _ctx())
+    assert "출력 하이 전압(Voh)" in f.unresolved_reason
+
+
+@pytest.mark.parametrize("module", [r11, r12], ids=["R11", "R12"])
+def test_IO_레벨도_출처가_없으면_안_쓴다(module):
+    f = _one(module, _ctx(facts=FactSet([_io_fact(page=None, quote=None)])))
+    assert f.verdict is not Verdict.PASS

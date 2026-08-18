@@ -90,6 +90,31 @@ def _human(analysis, path: Path) -> str:
     return "\n".join(out)
 
 
+def _load_env(start: Path | None = None) -> str | None:
+    """`.env` 를 찾아 환경변수로 올린다.
+
+    파이썬은 `.env` 를 자동으로 읽지 않는다 (Vite 는 읽는다 — 그래서 헷갈린다).
+    키를 파일에 넣어 두고 "왜 안 되지" 하는 자리를 없앤다.
+
+    **이미 환경에 있는 값은 덮어쓰지 않는다.** 배포 환경변수가 파일보다 세다.
+    """
+    here = start or Path.cwd()
+    for folder in (here, *here.parents):
+        env = folder / ".env"
+        if not env.is_file():
+            continue
+        for raw in env.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            name, _, value = line.partition("=")
+            name, value = name.strip(), value.strip().strip("'\"")
+            if name and name not in os.environ:
+                os.environ[name] = value
+        return str(env)
+    return None
+
+
 def _extract(args) -> int:
     """PDF → LLM → 사실 JSON. **DB 에 바로 넣지 않는다.**
 
@@ -98,6 +123,10 @@ def _extract(args) -> int:
     """
     from .datasheet.extract import ExtractionError, extract
     from .datasheet.pdf import PdfError, notes, read_pages
+
+    found = _load_env()
+    if found:
+        print(f"환경 파일: {found}", file=sys.stderr)
 
     try:
         import anthropic
@@ -137,10 +166,22 @@ def _extract(args) -> int:
     except Exception as exc:  # 네트워크·인증·속도제한 전부
         # SDK 는 자격증명이 없으면 요청을 만들 때 TypeError 를 던진다.
         # 트레이스백 대신 무엇이 없는지 말한다.
-        if isinstance(exc, TypeError) and "authentication" in str(exc):
+        text = str(exc)
+        if "credit balance is too low" in text:
+            # 코드 문제가 아니다. 키는 멀쩡하고 잔액만 없다.
             print(
-                "ANTHROPIC_API_KEY 가 없습니다. 키를 넣거나, LLM 없이 사람이 "
-                "직접 채우려면 parts/README.md 를 보세요.",
+                "크레딧 잔액이 0입니다. 키는 정상이고 서버까지 닿았습니다.\n"
+                "  console.anthropic.com → Plans & Billing 에서 크레딧을 구매하세요.\n"
+                "  이 PDF 5쪽 기준 부품당 약 $0.03 입니다.",
+                file=sys.stderr,
+            )
+        elif isinstance(exc, TypeError) and "authentication" in text:
+            where = found or "apps/api/.env (또는 저장소 루트)"
+            print(
+                f"ANTHROPIC_API_KEY 를 찾지 못했습니다.\n"
+                f"  {where} 에 ANTHROPIC_API_KEY=... 한 줄을 넣거나\n"
+                f"  export ANTHROPIC_API_KEY=... 로 환경변수를 설정하세요.\n"
+                f"  LLM 없이 사람이 직접 채우려면 parts/README.md 를 보세요.",
                 file=sys.stderr,
             )
         else:

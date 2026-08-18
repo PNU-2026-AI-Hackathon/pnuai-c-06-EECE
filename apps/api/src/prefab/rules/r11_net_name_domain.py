@@ -9,10 +9,9 @@
 
 from __future__ import annotations
 
-from ..datasheet.facts import VOH_MAX
 from ..netlist.graph import DOMAIN_EPSILON_V, Graph, format_volts, volts
 from ..types import Context, Evidence, Finding, Severity, Verdict
-from ._clearance import ask, number
+from ._clearance import ask_output_bound, number
 
 RULE_ID = "R11"
 TITLE = "네트명이 주장하는 전압과 소스 부품의 전원 도메인이 다름"
@@ -65,7 +64,7 @@ def check(ctx: Context) -> list[Finding]:
             verdict = Verdict.FAIL
 
             # --- 전원 전압과 출력 전압은 다르다. 데이터시트가 있으면 그걸로 판정한다
-            answer = ask(ctx, ref, VOH_MAX)
+            answer = ask_output_bound(ctx, ref)
             unresolved = answer.missing
             voh = number(answer)
             if voh is not None:

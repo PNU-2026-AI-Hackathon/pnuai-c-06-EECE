@@ -56,7 +56,7 @@
       "step": 5,
       "name": "전기적 사실 추출",
       "status": "done",
-      "detail": "사실 3건 확보 · 판정 2건에 근거로 사용"
+      "detail": "사실 5건 확보 · 판정 2건에 근거로 사용"
     },
     {
       "step": 6,
@@ -157,7 +157,7 @@
       "severity": "CRITICAL",
       "verdict": "PASS",
       "net": "PRESENCE_3V3",
-      "claim": "5V로 동작하는 U2의 출력(U2.OUT)이 3.3V로 동작하는 U1.D2에 직결되어 있습니다. 다만 U2(HLK-LD2410C)의 출력 하이 전압은 3.3V로 확인되어 U1의 3.3V 입력이 견딥니다. 전원이 5V일 뿐 출력은 그렇지 않습니다.",
+      "claim": "5V로 동작하는 U2의 출력(U2.OUT)이 3.3V로 동작하는 U1.D2에 직결되어 있습니다. 다만 U2(HLK-LD2410C)의 IO 로직 레벨이 3.3V로 확인되어 U1의 3.3V 입력이 견딥니다. 전원이 5V일 뿐 출력은 그렇지 않습니다.",
       "evidence": [
         {
           "kind": "netlist",
@@ -171,12 +171,12 @@
         {
           "kind": "datasheet",
           "mpn": "HLK-LD2410C",
-          "table": "Table 2 Performance and electrical parameters table",
+          "table": "Table 2 Performance and electrical parameters table (Interface)",
           "page": 17,
           "quote": "A GPIO, IO level 3.3V"
         }
       ],
-      "suggestion": "조치할 것이 없습니다. 데이터시트에서 확인했습니다 — Table 2 Performance and electrical parameters table · p.17. U2의 부품번호가 바뀌면 이 판정도 다시 해야 합니다.",
+      "suggestion": "조치할 것이 없습니다. 데이터시트에서 확인했습니다 — Table 2 Performance and electrical parameters table (Interface) · p.17. U2의 부품번호가 바뀌면 이 판정도 다시 해야 합니다.",
       "unresolved_reason": null
     },
     {
@@ -251,12 +251,12 @@
         {
           "kind": "datasheet",
           "mpn": "HLK-LD2410C",
-          "table": "Table 2 Performance and electrical parameters table",
+          "table": "Table 2 Performance and electrical parameters table (Interface)",
           "page": 17,
           "quote": "A GPIO, IO level 3.3V"
         }
       ],
-      "suggestion": "조치할 것이 없습니다. 데이터시트에서 확인했습니다 — Table 2 Performance and electrical parameters table · p.17.",
+      "suggestion": "조치할 것이 없습니다. 데이터시트에서 확인했습니다 — Table 2 Performance and electrical parameters table (Interface) · p.17.",
       "unresolved_reason": null
     }
   ],
