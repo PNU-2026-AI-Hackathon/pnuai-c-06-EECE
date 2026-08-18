@@ -50,7 +50,7 @@ def check(ctx: Context) -> list[Finding]:
             continue
 
         net = netlist.net_at(pad.ref, pad.pin, pad.x, pad.y)
-        if not Netlist.is_unconnected(net):
+        if not netlist.is_dangling(net):
             continue
 
         findings.append(_finding(use, pad, netlist, pinmap))
@@ -80,7 +80,7 @@ def _finding(use, pad, netlist: Netlist, pinmap) -> Finding:
         for p in pinmap.gpio_pads()
         if p.ref == pad.ref
         for n in [netlist.net_at(p.ref, p.pin, p.x, p.y)]
-        if not Netlist.is_unconnected(n)
+        if not netlist.is_dangling(n)
     ]
     if wired:
         context.append(f"같은 헤더에서 배선된 핀: {', '.join(wired)}")

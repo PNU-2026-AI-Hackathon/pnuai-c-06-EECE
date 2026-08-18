@@ -12,7 +12,7 @@ from prefab.rules import r08_connected_but_unused as r08
 from prefab.types import Context, Severity, Verdict
 
 from _builder import board, rec
-from test_r07 import LEFT, RIGHT, _synth_board
+from test_r07 import LEFT, RIGHT, _kicad_style_board, _synth_board
 
 FIXTURES = Path(__file__).parent / "fixtures"
 FIXTURE = FIXTURES / "esp32-c6-presence-smart-light.d356"
@@ -104,3 +104,14 @@ def test_check_is_a_pure_function():
     graph = Graph(parse(FIXTURE))
     ctx = Context(netlist=graph, firmware=analyze_firmware(load_directory(FIRMWARE_DIR)))
     assert [f.to_dict() for f in r08.check(ctx)] == [f.to_dict() for f in r08.check(ctx)]
+
+
+def test_negative_kicad_pseudo_net_is_not_a_wire():
+    """KiCad 유사 네트는 배선이 아니다. 코드가 안 써도 R08 이 뜨면 오탐이다.
+
+    `-SPICLK-PAD22)` 는 `unconnected-(U3-SPICLK-Pad22)` 가 14자에서 잘린 것이고
+    패드가 하나뿐이다. 이름만 보면 배선처럼 보여 "배선됐는데 코드가 안 쓴다"고 말하게 된다.
+    """
+    findings = _run(_kicad_style_board(), {"a.ino": "void setup(){ pinMode(D2, OUTPUT); }"})
+    nets = [f.net for f in findings]
+    assert "-SPICLK-PAD22)" not in nets, f"미연결 패드에 R08 오탐: {nets}"

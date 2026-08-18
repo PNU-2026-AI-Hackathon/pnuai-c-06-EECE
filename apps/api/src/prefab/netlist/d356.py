@@ -159,8 +159,31 @@ class Netlist:
 
     @staticmethod
     def is_unconnected(net: str | None) -> bool:
-        """이 패드에 배선이 없는가. 빈 이름과 N/C 를 같게 본다."""
+        """이름만 보고 판단한다. 빈 이름과 N/C 를 같게 본다.
+
+        **이름만으로는 부족하다.** 토폴로지까지 보려면 `is_dangling()` 을 쓴다.
+        """
         return not net or net == NO_CONNECT
+
+    def is_dangling(self, net: str | None) -> bool:
+        """이 패드에 **전기적으로** 상대가 없는가.
+
+        이름만 보면 도구가 바뀌는 순간 틀린다. kicad-cli 는 미연결 패드를
+        `unconnected-(U3-SPICLK-Pad22)` 라는 유사 네트로 내보내는데,
+        IPC-D-356 네트명 필드가 14자라 **앞의 `unconnected-` 가 잘려 나간다.**
+
+            원본   unconnected-(U3-SPICLK-Pad22)
+            d356   -SPICLK-PAD22)        ← 진짜 네트처럼 보인다
+
+        실측(ESP32-C3 오픈소스 보드): `.kicad_pcb` 의 unconnected 32개 중
+        `N/C` 로 온 것은 2개뿐이고 16개가 이런 유사 네트로 왔다.
+        그대로 두면 R07 은 침묵하고(미탐) R08 은 오탐을 낸다.
+
+        **상대가 없으면 연결이 아니다.** 패드 수로 본다 — 도구와 이름에 무관하다.
+        """
+        if Netlist.is_unconnected(net):
+            return True
+        return len(self.connection_pads(net or "")) <= 1
 
     @property
     def net_count(self) -> int:

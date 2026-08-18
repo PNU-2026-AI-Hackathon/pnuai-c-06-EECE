@@ -38,7 +38,7 @@ def check(ctx: Context) -> list[Finding]:
 
     for pad in pinmap.gpio_pads():
         net = netlist.net_at(pad.ref, pad.pin, pad.x, pad.y)
-        if Netlist.is_unconnected(net):
+        if netlist.is_dangling(net):
             continue  # 배선이 없으면 이 규칙의 대상이 아니다 (R07 이 본다)
         if net not in signal_nets:
             continue  # 전원·접지에 물린 핀은 코드가 만질 것이 아니다
