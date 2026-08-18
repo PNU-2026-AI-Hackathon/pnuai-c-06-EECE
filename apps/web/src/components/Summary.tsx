@@ -46,7 +46,12 @@ export function InputsTable({ inputs, summary }: { inputs: CheckInputs; summary:
     {
       label: "펌웨어",
       file: inputs.firmware,
-      note: inputs.firmware ? "정적 분석 대상" : null,
+      // 서버가 파일 수를 주면 그걸 쓴다. 안 주면 개수를 말하지 않는다
+      note: inputs.firmware
+        ? inputs.firmware.files != null
+          ? `파일 ${inputs.firmware.files}개`
+          : "정적 분석 대상"
+        : null,
       missing: "없어서 코드 대조 규칙을 실행하지 못했습니다.",
     },
   ];

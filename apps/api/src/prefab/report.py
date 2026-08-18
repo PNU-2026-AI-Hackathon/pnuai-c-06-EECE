@@ -26,9 +26,13 @@ PIPELINE_NAMES = (
 
 def build_summary(netlist: Netlist, engine: EngineResult, parts_identified: int = 0) -> dict[str, Any]:
     findings = engine.findings
+    # 해제된 발견은 심각도로 세지 않는다. 데이터시트로 풀린 항목이 화면에
+    # "심각 1건" 으로도 남으면 해제가 일어난 것처럼 보이지 않는다.
+    # 이렇게 해야 critical + warning + cleared 가 발견 개수와 항상 같다.
+    open_findings = [f for f in findings if f.verdict is not Verdict.PASS]
     return {
-        "critical": sum(1 for f in findings if f.severity is Severity.CRITICAL),
-        "warning": sum(1 for f in findings if f.severity is Severity.WARNING),
+        "critical": sum(1 for f in open_findings if f.severity is Severity.CRITICAL),
+        "warning": sum(1 for f in open_findings if f.severity is Severity.WARNING),
         "cleared": sum(1 for f in findings if f.verdict is Verdict.PASS),
         "rules_run": len(engine.ran),
         "rules_skipped": len(engine.skipped),

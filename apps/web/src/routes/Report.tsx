@@ -28,7 +28,8 @@ function toKstDate(iso: string): string {
 export function ReportPage() {
   const { id = "" } = useParams();
   const [check, setCheck] = useState<CheckResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  /** 문구와 함께 코드도 들고 있는다 — 왜 실패했는지에 따라 다음 안내가 달라진다 */
+  const [error, setError] = useState<{ message: string; code: string } | null>(null);
 
   useEffect(() => {
     getCheck(id)
@@ -36,7 +37,9 @@ export function ReportPage() {
       // 서버가 내려준 문구를 그대로 쓴다. 프론트가 다시 지어내지 않는다
       .catch((e) =>
         setError(
-          e instanceof ApiFailure ? e.message : "검사 결과를 불러오지 못했습니다. 연결을 확인해 주세요."
+          e instanceof ApiFailure
+            ? { message: e.message, code: e.code }
+            : { message: "검사 결과를 불러오지 못했습니다.", code: "UNKNOWN" }
         )
       );
   }, [id]);
@@ -46,11 +49,17 @@ export function ReportPage() {
       <Page>
         <div className="card mx-auto max-w-md px-6 py-8 text-center">
           <p role="alert" className="text-[17px] font-bold">
-            {error}
+            {error.message}
           </p>
-          <p className="mt-2 text-[14px] leading-relaxed text-sub">
-            링크가 오래됐거나 검사 결과가 사라졌을 수 있습니다.
-          </p>
+          {/*
+            원인을 단정하지 않는다. 서버가 죽어서 못 불러온 것을 "링크가 오래됐다"고 말하면
+            사용자는 멀쩡한 링크를 버린다. 검사를 못 찾은 경우에만 그렇게 안내한다.
+          */}
+          {error.code === "CHECK_NOT_FOUND" && (
+            <p className="mt-2 text-[14px] leading-relaxed text-sub">
+              링크가 오래됐거나 검사 결과가 사라졌을 수 있습니다.
+            </p>
+          )}
           <Link to="/" className="btn-primary mt-6">
             처음으로
           </Link>
@@ -125,8 +134,12 @@ export function ReportPage() {
 
         {!(nothingFound && couldNotLook) && check.summary.rules_skipped > 0 && (
           <p className="mt-3 rounded-block bg-warn-weak px-4 py-3.5 text-[14px] leading-relaxed text-warn">
-            규칙 {check.summary.rules_skipped}개는 입력이 부족해 실행하지 못했습니다. 아래 진행
-            단계에서 사유를 확인하세요.{" "}
+            {/*
+              사유를 단정하지 않는다. 못 돈 이유는 "입력 부족"만이 아니라 "미구현"도 있고,
+              요약이 가진 숫자로는 둘을 가를 수 없다. 사유는 아래 진행 단계가 그대로 말한다.
+            */}
+            규칙 {check.summary.rules_skipped}개는 실행하지 못했습니다. 아래 진행 단계에서 사유를
+            확인하세요.{" "}
             <strong className="font-bold">돌리지 못한 규칙은 "이상 없음"이 아닙니다.</strong>
           </p>
         )}

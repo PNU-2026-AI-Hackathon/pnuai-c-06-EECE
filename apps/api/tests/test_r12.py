@@ -76,7 +76,8 @@ def test_unresolved_when_the_driver_cannot_be_identified():
     )
     f = _run(text)[0]
     assert f.verdict is Verdict.FAIL
-    assert f.unresolved_reason == "U2 미식별 — BOM 필요"
+    # 무엇을 하면 풀리는지까지 말한다. "BOM 필요" 만으로는 다음에 뭘 할지 모른다.
+    assert f.unresolved_reason == "U2 미식별 — BOM 을 제출하면 출력 하이 전압(Voh)을 확인합니다"
     assert "Voh" in f.suggestion
     assert "3.6V" in f.suggestion
 

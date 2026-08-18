@@ -90,6 +90,8 @@ export interface InputFile {
   filename: string;
   nets?: number;
   parts?: number;
+  /** 펌웨어 zip 안에서 읽은 파일 수 */
+  files?: number;
 }
 
 export interface CheckInputs {
@@ -98,8 +100,27 @@ export interface CheckInputs {
   firmware: InputFile | null;
 }
 
-export interface NetConnection {
+/**
+ * 확정된 패드 하나.
+ *
+ * `pin` 은 넷리스트에 **적힌** 이름이고 4자에서 잘려 있다 (`SDIO`).
+ * `silk` · `gpio` 는 좌표로 **추론한** 신원이다 (`D5` · 23).
+ * 모듈을 못 알아본 패드에는 둘 다 없다 — 그때는 `pin` 만 쓴다. 지어내지 않는다.
+ */
+export interface PadIdentity {
+  /** 보드 실크 라벨 */
+  silk?: string;
+  /** 칩 GPIO 번호. 전원·접지 헤더 핀에는 없다 */
+  gpio?: number;
+}
+
+export interface NetConnection extends PadIdentity {
   ref: string;
+  pin: string;
+}
+
+/** `parts[].pads` — 이름이 뭉치기 전의 패드. 확정된 것만 실린다 */
+export interface PartPad extends PadIdentity {
   pin: string;
 }
 
@@ -111,9 +132,12 @@ export interface Net {
 
 export interface Part {
   ref: string;
+  /** 넷리스트에 적힌 핀 이름. 4자에서 잘려 서로 뭉쳐 있다 */
   pins: string[];
   /** 제조사 부품번호. BOM이 없으면 null */
   mpn: string | null;
+  /** 실크·GPIO 가 확정된 패드. 모듈을 못 알아봤으면 아예 없다 (빈 배열이 아니다) */
+  pads?: PartPad[];
 }
 
 export interface CheckResult {

@@ -72,7 +72,7 @@ def test_finding_carries_the_reason_it_is_not_final():
     )
     f = _run(text)[0]
     assert f.verdict is Verdict.FAIL
-    assert f.unresolved_reason == "U2 미식별 — BOM 필요"
+    assert f.unresolved_reason == "U2 미식별 — BOM 을 제출하면 출력 하이 전압(Voh)을 확인합니다"
     assert f.suggestion
 
 
