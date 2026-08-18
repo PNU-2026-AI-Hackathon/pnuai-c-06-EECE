@@ -58,7 +58,8 @@
 | CLI (`python -m prefab`) | ✅ 동작 |
 | 펌웨어 정적 분석 | ✅ 동작 (핀 사용·방향·상수 추적) |
 | 모듈 핀아웃 DB | **1 모듈** (XIAO ESP32-C6 · 실물 대조 대기) |
-| 데이터시트 파이프라인 | ⬜ 미구현 |
+| BOM CSV 파서 | ✅ 동작 |
+| 데이터시트 파이프라인 | ⬜ 미구현 (LLM 호출 0회) |
 | 부품 사실 DB | **0 부품** |
 | GitHub Action (CI) | ✅ pytest + 골든 검사 |
 
@@ -80,6 +81,11 @@ python -m prefab tests/fixtures/esp32-c6-presence-smart-light.d356
 
 # 실제 보드 — 펌웨어까지 (차별 규칙 R07·R08 · 치명 4 · 경고 2)
 python -m prefab tests/fixtures/esp32-c6-presence-smart-light.d356 \
+  --firmware tests/fixtures/esp32-c6-presence-smart-light.firmware
+
+# BOM 까지 넣기 (부품번호 식별 → 데이터시트 축의 입구)
+python -m prefab tests/fixtures/esp32-c6-presence-smart-light.d356 \
+  --bom tests/fixtures/esp32-c6-presence-smart-light.bom.csv \
   --firmware tests/fixtures/esp32-c6-presence-smart-light.firmware
 
 # 프론트 목 데이터 재생성 (요청서 3번)
@@ -181,15 +187,21 @@ def check(ctx) -> list[Finding]:
 
 ```
 src/prefab/
-  types.py          Finding, Severity, Verdict, Evidence, Context
-  netlist/d356.py   IPC-D-356 파서
-  netlist/graph.py  부품·네트 그래프, X좌표 패드 클러스터링
-  firmware/         펌웨어 정적 분석 (예정)
-  datasheet/        데이터시트 사실 추출 (예정)
-  rules/            규칙 모듈 + 레지스트리
-  engine.py         규칙 실행 → Finding 수집
-web/app.py          FastAPI
-tests/              규칙당 3개 + 실제 보드 골든 테스트
+  types.py            Finding, Severity, Verdict, Evidence, Context
+  text.py             한국어 조사 처리 (발견 문구가 그대로 노출된다)
+  catalog.py          규칙 카탈로그 — 규칙 개수의 유일한 진실
+  chips/              칩 제약 · 모듈 핀아웃 (docs/CHIPS.md 의 코드 사본)
+  netlist/d356.py     IPC-D-356 파서
+  netlist/graph.py    부품·네트 그래프, 전원 도메인, 수동 소자 판별
+  netlist/pinmap.py   패드 → 실크 라벨 · GPIO 확정
+  firmware/arduino.py 핀 사용 추출 (상수 추적 · 방향 · 못 읽은 자리 분류)
+  datasheet/bom.py    BOM CSV 파서
+  rules/              규칙 모듈 + 레지스트리
+  engine.py           규칙 실행 → Finding 수집
+  report.py           계약 응답 조립
+web/service.py        검증 · 오류 · SQLite (FastAPI 를 모른다)
+web/app.py            FastAPI 어댑터
+tests/                규칙당 3개 + 실제 보드 골든 + 카탈로그 정합성 + 도구 중립성
 ```
 
 ---

@@ -62,7 +62,8 @@ GET    /healthz                헬스체크
     "netlist": { "filename": "board.d356", "nets": 8, "parts": 10 },
     "bom": null,
     "firmware": null
-    /* 펌웨어를 냈으면 { "filename": "src.zip", "files": 1 } */
+    /* BOM 을 냈으면      { "filename": "bom.csv", "parts": 10 } */
+    /* 펌웨어를 냈으면    { "filename": "src.zip", "files": 1 } */
   },
   "summary": {
     "critical": 1,
@@ -110,6 +111,9 @@ GET    /healthz                헬스체크
   세 값 모두 규칙 레지스트리에서 계산된다. 문서에 손으로 적은 숫자를 쓰지 않는다.
   현재 `rules_total` 은 11 이다 (R6 은 폐기). 구현된 것은 **R07 · R08 · R11 · R12** 네 개다.
 - `pipeline[].detail` 문구는 **계약이 아니다.** 화면에 그대로 찍기만 하고 파싱하지 않는다.
+- `summary.parts_identified` 는 **BOM 에서 부품번호까지 확인된 부품 수**다.
+  BOM 을 안 내면 0 이다. 부품번호가 빈 행(수동 소자 등)은 세지 않는다.
+- `parts[].mpn` 은 BOM 이 있을 때만 채워진다. 없으면 `null` 이다.
 
 > ### `skipped`를 숨기지 않는다
 > 무엇을 못 했는지 보이는 것이 이 제품의 신뢰다.
@@ -256,6 +260,7 @@ IPC-D-356 은 핀 이름을 **4자에서 자른다.** 그래서 물리적으로 
 | 파일 크기 초과 (10MB) | `FILE_TOO_LARGE` | 413 |
 | 확장자 불일치 | `UNSUPPORTED_FILE_TYPE` | 415 |
 | 펌웨어 zip 을 못 읽음 | `FIRMWARE_UNREADABLE` | 422 |
+| BOM CSV 를 못 읽음 | `BOM_PARSE_FAILED` | 422 |
 | check_id 없음 | `CHECK_NOT_FOUND` | 404 |
 | 서버가 처리 못 한 오류 | `INTERNAL_ERROR` | 500 |
 
