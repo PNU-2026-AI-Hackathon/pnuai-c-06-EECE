@@ -21,6 +21,23 @@ VIN_ABSOLUTE_MAX = "vin_absolute_max"  #: 입력 절대 최대 (넘으면 파손
 OUTPUT_TYPE = "output_type"            #: push-pull / open-drain
 INPUT_PULLUP_TO = "input_pullup_to"    #: 입력 핀이 내부에서 어디로 풀업되는가
 
+#: 사용자에게 보여줄 이름. "voh_max 를 못 읽었습니다"는 비전공자가 못 읽는다.
+FIELD_LABELS: dict[str, str] = {
+    VOH_MAX: "출력 하이 전압(Voh)",
+    VOL_MAX: "출력 로우 전압(Vol)",
+    VIH_MIN: "입력 하이 문턱(Vih)",
+    VIL_MAX: "입력 로우 문턱(Vil)",
+    VCC_NOMINAL: "정격 공급 전압",
+    VIN_ABSOLUTE_MAX: "입력 절대 최대 전압",
+    OUTPUT_TYPE: "출력 단 형식",
+    INPUT_PULLUP_TO: "입력 내부 풀업",
+}
+
+
+def label(field: str) -> str:
+    return FIELD_LABELS.get(field, field)
+
+
 #: 확신도. `none` 은 "값을 못 찾았다"이고 실패가 아니라 정상적인 결과다.
 CONF_HIGH = "high"
 CONF_MEDIUM = "medium"
