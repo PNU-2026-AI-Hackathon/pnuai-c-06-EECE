@@ -108,29 +108,59 @@ class Netlist:
         """이름이 있고 N/C 가 아닌 네트. 화면과 요약이 세는 기준이다."""
         return OrderedDict((n, p) for n, p in self.nets.items() if n and n != NO_CONNECT)
 
-    def connections(self, net: str) -> list[tuple[str, str]]:
-        """(ref, pin) 목록. VIA 는 빼고 중복은 첫 등장만 남긴다."""
+    def connection_pads(self, net: str) -> list[Pad]:
+        """이 네트에 붙은 패드. VIA 는 빼고 같은 (ref, pin) 은 첫 등장만 남긴다."""
         seen: set[tuple[str, str]] = set()
-        out: list[tuple[str, str]] = []
+        out: list[Pad] = []
         for pad in self.nets.get(net, []):
             if pad.is_via:
                 continue
             key = (pad.ref, pad.pin)
             if key not in seen:
                 seen.add(key)
-                out.append(key)
+                out.append(pad)
         return out
+
+    def connections(self, net: str) -> list[tuple[str, str]]:
+        """(ref, pin) 목록."""
+        return [(p.ref, p.pin) for p in self.connection_pads(net)]
+
+    def pads_of(self, ref: str) -> list[Pad]:
+        """부품 하나의 모든 패드. 이름이 같아도 좌표가 다르면 다른 패드다."""
+        return [
+            pad
+            for pads in self.nets.values()
+            for pad in pads
+            if pad.ref == ref and not pad.is_via
+        ]
 
     def via_count(self, net: str) -> int:
         return sum(1 for pad in self.nets.get(net, []) if pad.is_via)
 
     def net_of(self, ref: str, pin: str) -> str | None:
-        """부품 핀 하나가 어느 네트에 붙어 있는지."""
+        """부품 핀 하나가 어느 네트에 붙어 있는지.
+
+        같은 이름의 패드가 여럿이면 첫 번째만 나온다 — 그게 IPC-D-356 의 한계다.
+        패드를 정확히 지목하려면 `net_at()` 을 쓴다.
+        """
         for net, pads in self.nets.items():
             for pad in pads:
                 if pad.ref == ref and pad.pin == pin:
                     return net
         return None
+
+    def net_at(self, ref: str, pin: str, x: float | None, y: float | None) -> str | None:
+        """좌표까지 지정해 패드 하나를 정확히 짚는다. D3 와 D4 와 D5 를 구분하는 유일한 방법."""
+        for net, pads in self.nets.items():
+            for pad in pads:
+                if pad.ref == ref and pad.pin == pin and pad.x == x and pad.y == y:
+                    return net
+        return None
+
+    @staticmethod
+    def is_unconnected(net: str | None) -> bool:
+        """이 패드에 배선이 없는가. 빈 이름과 N/C 를 같게 본다."""
+        return not net or net == NO_CONNECT
 
     @property
     def net_count(self) -> int:
@@ -152,21 +182,50 @@ class Netlist:
             key=lambda n: (-len(self.connections(n)), n),
         )
 
-    def to_dict(self) -> dict:
-        """API_CONTRACT.md 의 `netlist` 블록."""
+    def to_dict(self, pinmap=None) -> dict:
+        """API_CONTRACT.md 의 `netlist` 블록.
+
+        `pinmap` 이 있으면 패드마다 `silk` · `gpio` 를 **선택 필드로 덧붙인다.**
+        기존 필드는 하나도 바뀌지 않는다 — 없어도 화면은 지금처럼 동작한다.
+        """
+
+        def decorate(pad: Pad) -> dict:
+            out = {"ref": pad.ref, "pin": pad.pin}
+            identity = pinmap.of(pad) if pinmap else None
+            if identity is not None:
+                out["silk"] = identity.silk
+                if identity.gpio is not None:
+                    out["gpio"] = identity.gpio
+            return out
+
+        def part(ref: str) -> dict:
+            out = {"ref": ref, "pins": sorted(self.parts[ref]), "mpn": None}
+            if not pinmap:
+                return out
+            pads = [
+                {"pin": p.pin, "silk": i.silk, "gpio": i.gpio}
+                for p in self.pads_of(ref)
+                for i in [pinmap.of(p)]
+                if i is not None
+            ]
+            if pads:
+                # 이름이 4자로 뭉쳐 잃어버린 구분을 여기서 되돌려 준다.
+                # 25개 패드가 18개 이름으로 보이던 문제.
+                out["pads"] = sorted(
+                    pads, key=lambda d: (d["gpio"] is None, d["gpio"] or 0, d["silk"])
+                )
+            return out
+
         return {
             "nets": [
                 {
                     "name": name,
                     "vias": self.via_count(name),
-                    "connections": [{"ref": r, "pin": p} for r, p in self.connections(name)],
+                    "connections": [decorate(p) for p in self.connection_pads(name)],
                 }
                 for name in self.ordered_net_names()
             ],
-            "parts": [
-                {"ref": ref, "pins": sorted(self.parts[ref]), "mpn": None}
-                for ref in sorted(self.parts)
-            ],
+            "parts": [part(ref) for ref in sorted(self.parts)],
         }
 
 

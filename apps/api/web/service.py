@@ -9,12 +9,14 @@ from __future__ import annotations
 import json
 import secrets
 import sqlite3
+import zipfile
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
+from prefab.firmware import load_zip
 from prefab.netlist.d356 import NetlistParseError
 from prefab.report import build_result, build_rules_catalog
 from prefab.runner import analyze
@@ -113,27 +115,45 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def firmware_unreadable() -> ApiError:
+    return ApiError(
+        "FIRMWARE_UNREADABLE",
+        "펌웨어 zip 을 열지 못했습니다. 소스 파일(.ino / .cpp / .h)이 들어 있는 zip 인지 확인해 주세요.",
+        422,
+    )
+
+
 def run_check(
     *,
     netlist_bytes: bytes,
     netlist_filename: str,
     bom_filename: str | None = None,
     firmware_filename: str | None = None,
+    firmware_bytes: bytes | None = None,
     check_id: str | None = None,
     created_at: str | None = None,
 ) -> dict[str, Any]:
-    """업로드된 넷리스트로 검사를 끝내고 계약 응답을 만든다.
+    """업로드된 입력으로 검사를 끝내고 계약 응답을 만든다.
 
-    지금 규모(네트 8 · 부품 10 · 규칙 2개)에서는 밀리초 단위로 끝난다.
+    지금 규모(네트 8 · 부품 10 · 소스 1개 · 규칙 4개)에서는 밀리초 단위로 끝난다.
     큐를 쓰지 않는다. 5초를 넘기기 시작하면 그때 BackgroundTasks 로 바꾼다.
     """
+    sources: "dict[str, str] | None" = None
+    if firmware_bytes:
+        try:
+            sources = load_zip(firmware_bytes)
+        except zipfile.BadZipFile as exc:
+            raise firmware_unreadable() from exc
+        if not sources:
+            raise firmware_unreadable()
+
     text = netlist_bytes.decode("utf-8", errors="replace")
     try:
         analysis = analyze(
             text,
             filename=netlist_filename,
             bom=bom_filename,
-            firmware=firmware_filename,
+            firmware_sources=sources,
         )
     except NetlistParseError as exc:
         raise netlist_parse_failed(str(exc)) from exc
@@ -141,8 +161,7 @@ def run_check(
     return build_result(
         check_id=check_id or new_check_id(),
         created_at=created_at or utc_now(),
-        netlist=analysis.netlist,
-        engine=analysis.engine,
+        analysis=analysis,
         netlist_filename=netlist_filename,
         bom_filename=bom_filename,
         firmware_filename=firmware_filename,

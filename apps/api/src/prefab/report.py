@@ -38,36 +38,57 @@ def build_summary(netlist: Netlist, engine: EngineResult, parts_identified: int 
     }
 
 
+def _identify_step(has_bom: bool, pinmap) -> tuple[str, str]:
+    """2단계 — 부품 식별. 무엇까지 알아냈는지 정확히 적는다."""
+    if has_bom:
+        return "done", "BOM 으로 부품번호 확인"
+    if pinmap:
+        modules = " · ".join(f"{ref}={mid}" for ref, mid in sorted(pinmap.modules_matched.items()))
+        return (
+            "partial",
+            f"BOM 없음 · 좌표로 모듈 핀아웃만 확정 ({modules} · 패드 {len(pinmap)}개)",
+        )
+    return "partial", "BOM 없음 · 좌표 클러스터링으로 전원 도메인만 추정"
+
+
+def _firmware_step(firmware, pinmap) -> tuple[str, str]:
+    """3단계 — 펌웨어 정적 분석. 못 짚은 핀이 있으면 숨기지 않는다."""
+    if firmware is None:
+        return "skipped", "펌웨어 미제출"
+
+    mapped = [p for p in firmware.pins if pinmap.find(silk=p.silk, gpio=p.gpio) is not None]
+    unmapped = len(firmware.pins) - len(mapped)
+
+    detail = (
+        f"소스 {len(firmware.files)}개 · {firmware.total_lines}줄 · "
+        f"코드가 쓰는 핀 {len(firmware.pins)}개 "
+        f"({' · '.join(firmware.labels) or '없음'})"
+    )
+    if unmapped:
+        detail += f" · 회로도에서 못 짚은 핀 {unmapped}개"
+    if firmware.unresolved:
+        detail += f" · 상수를 못 따라간 자리 {len(firmware.unresolved)}곳"
+
+    status = "done" if firmware.pins and not unmapped and not firmware.unresolved else "partial"
+    return status, detail
+
+
 def build_pipeline(
     netlist: Netlist,
     engine: EngineResult,
     has_bom: bool,
-    has_firmware: bool,
+    firmware,
+    pinmap,
 ) -> list[dict[str, Any]]:
     step = dict(PIPELINE_NAMES)
 
-    parse_detail = f"네트 {netlist.net_count} · 부품 {netlist.part_count}"
-    # 읽으며 뺀 줄이 있으면 그대로 붙인다. 조용히 버리지 않는다 (CLAUDE.md 2-4).
-    notes = netlist.parse_notes()
-    if notes:
-        parse_detail += " · " + " · ".join(notes)
-
-    if has_bom:
-        identify = ("done", "BOM 으로 부품번호 확인")
-    else:
-        identify = ("partial", "BOM 없음 · 좌표 클러스터링으로 전원 도메인만 추정")
-
-    if has_firmware:
-        firmware = ("skipped", "펌웨어 정적 분석기 미구현 — 파일은 받았습니다")
-    else:
-        firmware = ("skipped", "펌웨어 미제출")
+    identify = _identify_step(has_bom, pinmap)
+    firmware_step = _firmware_step(firmware, pinmap)
 
     if has_bom:
         datasheet = ("skipped", "데이터시트 파이프라인 미구현")
     else:
         datasheet = ("skipped", "BOM 없음 · 부품번호를 알 수 없음")
-
-    facts = ("skipped", "데이터시트 없음")
 
     engine_detail = (
         f"{catalog.TOTAL}개 중 {len(engine.ran)}개 실행 · "
@@ -75,12 +96,18 @@ def build_pipeline(
         f"입력 부족 {len(engine.skipped_missing_input)}"
     )
 
+    parse_detail = f"네트 {netlist.net_count} · 부품 {netlist.part_count}"
+    # 읽으며 뺀 줄이 있으면 그대로 붙인다. 조용히 버리지 않는다 (CLAUDE.md 2-4).
+    notes = netlist.parse_notes()
+    if notes:
+        parse_detail += " · " + " · ".join(notes)
+
     return [
         {"step": 1, "name": step[1], "status": "done", "detail": parse_detail},
         {"step": 2, "name": step[2], "status": identify[0], "detail": identify[1]},
-        {"step": 3, "name": step[3], "status": firmware[0], "detail": firmware[1]},
+        {"step": 3, "name": step[3], "status": firmware_step[0], "detail": firmware_step[1]},
         {"step": 4, "name": step[4], "status": datasheet[0], "detail": datasheet[1]},
-        {"step": 5, "name": step[5], "status": facts[0], "detail": facts[1]},
+        {"step": 5, "name": step[5], "status": "skipped", "detail": "데이터시트 없음"},
         {"step": 6, "name": step[6], "status": "done", "detail": engine_detail},
         {"step": 7, "name": step[7], "status": "done", "detail": None},
     ]
@@ -90,15 +117,23 @@ def build_result(
     *,
     check_id: str,
     created_at: str,
-    netlist: Netlist,
-    engine: EngineResult,
+    analysis,
     netlist_filename: str,
     bom_filename: str | None = None,
     firmware_filename: str | None = None,
     parts_identified: int = 0,
 ) -> dict[str, Any]:
+    netlist = analysis.netlist
+    engine = analysis.engine
+    pinmap = analysis.graph.pinmap
+    firmware = analysis.firmware
     has_bom = bom_filename is not None
-    has_firmware = firmware_filename is not None
+
+    firmware_input: dict[str, Any] | None = None
+    if firmware_filename is not None:
+        firmware_input = {"filename": firmware_filename}
+        if firmware is not None:
+            firmware_input["files"] = len(firmware.files)
 
     return {
         "check_id": check_id,
@@ -111,12 +146,12 @@ def build_result(
                 "parts": netlist.part_count,
             },
             "bom": {"filename": bom_filename} if has_bom else None,
-            "firmware": {"filename": firmware_filename} if has_firmware else None,
+            "firmware": firmware_input,
         },
         "summary": build_summary(netlist, engine, parts_identified),
-        "pipeline": build_pipeline(netlist, engine, has_bom, has_firmware),
+        "pipeline": build_pipeline(netlist, engine, has_bom, firmware, pinmap),
         "findings": [f.to_dict() for f in engine.findings],
-        "netlist": netlist.to_dict(),
+        "netlist": analysis.to_netlist_dict(),
     }
 
 

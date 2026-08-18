@@ -62,6 +62,7 @@ GET    /healthz                헬스체크
     "netlist": { "filename": "board.d356", "nets": 8, "parts": 10 },
     "bom": null,
     "firmware": null
+    /* 펌웨어를 냈으면 { "filename": "src.zip", "files": 1 } */
   },
   "summary": {
     "critical": 1,
@@ -86,10 +87,16 @@ GET    /healthz                헬스체크
   "netlist": {
     "nets": [
       { "name": "PRESENCE_3V3", "vias": 2,
-        "connections": [ { "ref": "U1", "pin": "LP-G" }, { "ref": "U2", "pin": "OUT" } ] }
+        "connections": [
+          { "ref": "U1", "pin": "LP-G", "silk": "D2", "gpio": 2 },
+          { "ref": "U2", "pin": "OUT" }
+        ] }
     ],
     "parts": [
-      { "ref": "U2", "pins": ["GND", "OUT", "UART", "VCC"], "mpn": null }
+      { "ref": "U2", "pins": ["GND", "OUT", "UART", "VCC"], "mpn": null },
+      { "ref": "U1", "pins": ["3V3", "5V", "LP-G", "SDIO", "..."], "mpn": null,
+        "pads": [ { "pin": "LP-G", "silk": "D2", "gpio": 2 },
+                  { "pin": "SDIO", "silk": "D5", "gpio": 23 } ] }
     ]
   }
 }
@@ -101,7 +108,8 @@ GET    /healthz                헬스체크
   한국 시간 표시는 화면이 변환한다.
 - `summary.rules_run + summary.rules_skipped == summary.rules_total` 이 **항상 성립한다.**
   세 값 모두 규칙 레지스트리에서 계산된다. 문서에 손으로 적은 숫자를 쓰지 않는다.
-  현재 `rules_total` 은 11 이다 (R6 은 폐기).
+  현재 `rules_total` 은 11 이다 (R6 은 폐기). 구현된 것은 **R07 · R08 · R11 · R12** 네 개다.
+- `pipeline[].detail` 문구는 **계약이 아니다.** 화면에 그대로 찍기만 하고 파싱하지 않는다.
 
 > ### `skipped`를 숨기지 않는다
 > 무엇을 못 했는지 보이는 것이 이 제품의 신뢰다.
@@ -187,7 +195,10 @@ GET    /healthz                헬스체크
       "needs": ["netlist"], "implemented": true },
     { "id": "R07", "title": "코드가 쓰는 핀이 회로도에 미연결",
       "tier": "차별", "severity": "CRITICAL",
-      "needs": ["netlist", "firmware"], "implemented": false }
+      "needs": ["netlist", "firmware"], "implemented": true },
+    { "id": "R04", "title": "외부 부품 출력이 GPIO 입력 최대 정격 초과",
+      "tier": "기본", "severity": "CRITICAL",
+      "needs": ["netlist", "bom"], "implemented": false }
   ]
 }
 ```
@@ -205,6 +216,33 @@ cd apps/api && python -m prefab --rules-json > ../web/src/mocks/rules.json
 
 ---
 
+## 핀 신원 — `silk` · `gpio` (선택 필드)
+
+IPC-D-356 은 핀 이름을 **4자에서 자른다.** 그래서 물리적으로 다른 핀이 같은 이름으로 뭉친다.
+우리 보드 U1 은 레코드 25개인데 이름 종류는 18개다 (`LP-G` ×3 · `SDIO` ×3).
+`pin` 만 봐서는 `_IN_ACTIVE_LOW` 에 붙은 `U1.SDIO` 가 D3 인지 D4 인지 D5 인지 알 수 없다.
+
+**좌표로 푼다.** 헤더 열을 X 로 묶고 Y 내림차순으로 읽은 이름 나열이 모듈 표의 서명과
+전부 일치할 때만 라벨을 붙인다. 한 열만 맞고 나머지가 어긋나면 다른 보드이므로
+**아무것도 붙이지 않는다.** 절반만 믿으면 그 위에 세운 R07·R08 이 통째로 거짓말이 된다.
+
+| 필드 | 위치 | 값 |
+|---|---|---|
+| `silk` | `connections[]` · `parts[].pads[]` | 보드 실크 라벨 (`D5`) |
+| `gpio` | 같음 | 칩 GPIO 번호 (`23`). 전원·접지 헤더 핀에는 없다 |
+| `pads` | `parts[]` | 이름이 뭉치기 전의 패드 목록. 확정된 패드만 실린다 |
+
+- **전부 선택 필드다.** 없으면 화면은 지금처럼 `pin` 만 쓰면 된다. 깨지지 않는다.
+- `pins` 는 그대로 둔다. 기존 필드를 바꾸지 않는다.
+- 모듈을 못 알아본 부품에는 `pads` 가 아예 없다. 빈 배열을 넣지 않는다.
+- 발견의 `evidence.text` 도 확정된 패드는 **실크 라벨로 적는다** (`U1.SDIO` → `U1.D5`).
+  잘린 원본 이름은 괄호로 함께 남긴다.
+
+표의 진실은 [`CHIPS.md`](./CHIPS.md) 「모듈 핀아웃」 절이고, 코드 사본은
+`apps/api/src/prefab/chips/__init__.py` 다. 하드웨어 담당 실물 대조 대기 중이다.
+
+---
+
 ## 오류 응답
 
 ```json
@@ -217,6 +255,7 @@ cd apps/api && python -m prefab --rules-json > ../web/src/mocks/rules.json
 | 파싱 실패 | `NETLIST_PARSE_FAILED` | 422 |
 | 파일 크기 초과 (10MB) | `FILE_TOO_LARGE` | 413 |
 | 확장자 불일치 | `UNSUPPORTED_FILE_TYPE` | 415 |
+| 펌웨어 zip 을 못 읽음 | `FIRMWARE_UNREADABLE` | 422 |
 | check_id 없음 | `CHECK_NOT_FOUND` | 404 |
 | 서버가 처리 못 한 오류 | `INTERNAL_ERROR` | 500 |
 

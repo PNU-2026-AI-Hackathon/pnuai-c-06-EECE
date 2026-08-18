@@ -74,7 +74,6 @@ CATALOG: tuple[RuleSpec, ...] = (
         "차별",
         Severity.CRITICAL,
         ("netlist", "firmware"),
-        "펌웨어 정적 분석기 미구현",
     ),
     RuleSpec(
         "R08",
@@ -82,7 +81,6 @@ CATALOG: tuple[RuleSpec, ...] = (
         "차별",
         Severity.WARNING,
         ("netlist", "firmware"),
-        "펌웨어 정적 분석기 미구현",
     ),
     RuleSpec(
         "R09",
@@ -113,6 +111,20 @@ CATALOG: tuple[RuleSpec, ...] = (
         "기본",
         Severity.CRITICAL,
         ("netlist",),
+    ),
+)
+
+#: 채택 대기 중인 제안. **카탈로그가 아니다** — rules_total 에 들어가지 않는다.
+#: 하드웨어 담당이 채택 판정을 내리면 그때 CATALOG 로 옮긴다.
+#: 근거: tests/fixtures/esp32-c6-presence-smart-light.EXPECTED.md 「R13(신규 제안)」
+PROPOSED: tuple[RuleSpec, ...] = (
+    RuleSpec(
+        "R13",
+        "코드가 출력으로 구동하는 핀에 다른 부품 출력이 연결됨",
+        "차별",
+        Severity.CRITICAL,
+        ("netlist", "firmware"),
+        "하드웨어 담당 채택 판정 대기 — 출력 충돌이 실제 위험인지 검수 필요",
     ),
 )
 

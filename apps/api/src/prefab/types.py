@@ -67,10 +67,16 @@ class Evidence:
     def firmware(
         cls,
         file: str,
-        line: int,
         snippet: str,
+        line: int | None = None,
         highlight: tuple[str, ...] | list[str] = (),
     ) -> "Evidence":
+        """코드에서 읽은 근거.
+
+        `line` 은 **가리킬 줄이 없으면 None** 이다 — R08 처럼 '코드에 그 핀이 없다'가
+        판정인 경우다. 없는 줄 번호를 지어내지 않는다. 사용자가 그 줄을 열어본다.
+        (계약 「부재도 근거다」 절)
+        """
         return cls(kind="firmware", file=file, line=line, snippet=snippet, highlight=tuple(highlight))
 
     @classmethod
@@ -89,6 +95,7 @@ class Evidence:
         if self.kind == "netlist":
             out: dict[str, Any] = {"kind": "netlist", "text": self.text}
         elif self.kind == "firmware":
+            # line 은 null 로 나갈 수 있다. 계약이 number | null 이다.
             out = {"kind": "firmware", "file": self.file, "line": self.line, "snippet": self.snippet}
         elif self.kind == "datasheet":
             out = {
@@ -162,5 +169,11 @@ class Context:
 
 
 def sort_findings(findings: "list[Finding] | tuple[Finding, ...]") -> list[Finding]:
-    """심각도 → 규칙 ID → 네트명. 같은 입력이면 항상 같은 순서가 나온다."""
-    return sorted(findings, key=lambda f: (SEVERITY_RANK[f.severity], f.rule, f.net or ""))
+    """심각도 → 규칙 ID → 네트명 → 문장. 같은 입력이면 항상 같은 순서가 나온다.
+
+    네트가 없는 발견(핀 단위 발견)끼리도 순서가 흔들리지 않도록 claim 까지 본다.
+    """
+    return sorted(
+        findings,
+        key=lambda f: (SEVERITY_RANK[f.severity], f.rule, f.net or "", f.claim),
+    )

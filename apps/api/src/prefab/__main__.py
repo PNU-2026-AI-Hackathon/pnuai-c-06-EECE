@@ -13,6 +13,7 @@ import json
 import sys
 from pathlib import Path
 
+from .firmware import load_directory, load_zip
 from .netlist.d356 import NetlistParseError
 from .report import build_result, build_rules_catalog
 from .runner import analyze
@@ -35,6 +36,13 @@ def _human(analysis, path: Path) -> str:
         volts = f"{dom.volts}V" if dom.known else "모름"
         out.append(f"  {ref:<5} {volts:<7} [{dom.confidence:<8}] {dom.basis}")
     out.append("")
+    if analysis.firmware:
+        out.append("코드가 쓰는 핀")
+        for u in analysis.firmware.pins:
+            pad = analysis.graph.pinmap.find(silk=u.silk, gpio=u.gpio)
+            where = f"{pad.silk} (GPIO{pad.gpio})" if pad else "회로도에서 못 찾음"
+            out.append(f"  {u.label:<5} {u.direction:<8} {', '.join(u.symbols) or '—':<12} → {where}")
+        out.append("")
     out.append(bar)
     out.append("발견")
     out.append(bar)
@@ -63,6 +71,7 @@ def _human(analysis, path: Path) -> str:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="prefab", description="회로도와 펌웨어의 어긋남을 찾습니다.")
     ap.add_argument("netlist", nargs="?", help="IPC-D-356 파일")
+    ap.add_argument("--firmware", help="펌웨어 소스 디렉터리 또는 zip")
     ap.add_argument("--json", action="store_true", help="API 계약과 같은 JSON 으로 출력")
     ap.add_argument("--rules-json", action="store_true", help="규칙 카탈로그 JSON 만 출력")
     args = ap.parse_args(argv)
@@ -79,8 +88,25 @@ def main(argv: list[str] | None = None) -> int:
         print(f"파일을 찾지 못했습니다: {path}", file=sys.stderr)
         return 2
 
+    sources = None
+    firmware_name = None
+    if args.firmware:
+        fw = Path(args.firmware)
+        if not fw.exists():
+            print(f"펌웨어 경로를 찾지 못했습니다: {fw}", file=sys.stderr)
+            return 2
+        sources = load_zip(fw.read_bytes()) if fw.is_file() else load_directory(fw)
+        if not sources:
+            print(f"펌웨어에서 소스 파일을 찾지 못했습니다: {fw}", file=sys.stderr)
+            return 2
+        firmware_name = fw.name
+
     try:
-        analysis = analyze(path.read_text(encoding="utf-8", errors="replace"), filename=path.name)
+        analysis = analyze(
+            path.read_text(encoding="utf-8", errors="replace"),
+            filename=path.name,
+            firmware_sources=sources,
+        )
     except NetlistParseError as exc:
         print(str(exc), file=sys.stderr)
         return 2
@@ -89,9 +115,9 @@ def main(argv: list[str] | None = None) -> int:
         result = build_result(
             check_id=FIXED_CHECK_ID,
             created_at=FIXED_CREATED_AT,
-            netlist=analysis.netlist,
-            engine=analysis.engine,
+            analysis=analysis,
             netlist_filename=path.name,
+            firmware_filename=firmware_name,
         )
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:

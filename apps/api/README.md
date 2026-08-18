@@ -53,11 +53,11 @@
 |---|---|
 | IPC-D-356 넷리스트 파서 | ✅ 동작 (실제 보드 검증) |
 | 규칙 엔진 | ✅ 동작 |
-| 구현된 규칙 | **2 / 11** (R11, R12 — 둘 다 "기본" 등급) |
+| 구현된 규칙 | **4 / 11** (R07·R08 차별 · R11·R12 기본) |
 | REST API (4개 엔드포인트 + CORS) | ✅ 동작 |
 | CLI (`python -m prefab`) | ✅ 동작 |
-| 펌웨어 정적 분석 | ⬜ 미구현 |
-| 모듈 핀아웃 DB | **0 모듈** |
+| 펌웨어 정적 분석 | ✅ 동작 (핀 사용·방향·상수 추적) |
+| 모듈 핀아웃 DB | **1 모듈** (XIAO ESP32-C6 · 실물 대조 대기) |
 | 데이터시트 파이프라인 | ⬜ 미구현 |
 | 부품 사실 DB | **0 부품** |
 | GitHub Action (CI) | ✅ pytest + 골든 검사 |
@@ -75,8 +75,12 @@ cd apps/api
 uv sync                     # 또는 pip install -e ".[dev]"
 pytest -q                   # 중복 검출 1건은 xfail
 
-# 실제 보드로 돌려보기
+# 실제 보드 — 넷리스트만 (치명 2 · 경고 1)
 python -m prefab tests/fixtures/esp32-c6-presence-smart-light.d356
+
+# 실제 보드 — 펌웨어까지 (차별 규칙 R07·R08 · 치명 4 · 경고 2)
+python -m prefab tests/fixtures/esp32-c6-presence-smart-light.d356 \
+  --firmware tests/fixtures/esp32-c6-presence-smart-light.firmware
 
 # 프론트 목 데이터 재생성 (요청서 3번)
 python -m prefab tests/fixtures/esp32-c6-presence-smart-light.d356 --json \
@@ -139,8 +143,8 @@ curl -F "netlist=@board.d356" https://<host>/api/v1/checks
 | R03 | strapping 핀 부팅 상태 오류 | 기본 | netlist | ⬜ |
 | R04 | 외부 부품 출력이 GPIO 입력 최대 정격 초과 | 기본 | netlist, bom | ⬜ |
 | R05 | 이 칩이 지원하지 않는 주변장치 조합 | 차별 | firmware | ⬜ |
-| R07 | 코드가 쓰는 핀이 회로도에 미연결 | 차별 | netlist, firmware | ⬜ |
-| R08 | 회로도에 연결됐는데 코드가 초기화 안 함 | 차별 | netlist, firmware | ⬜ |
+| R07 | 코드가 쓰는 핀이 회로도에 미연결 | 차별 | netlist, firmware | ✅ |
+| R08 | 회로도에 연결됐는데 코드가 초기화 안 함 | 차별 | netlist, firmware | ✅ |
 | R09 | 부팅 시 출력 나오는 핀에 부하 | 기본 | netlist | ⬜ |
 | R10 | 회로도 변경 후 코드 미추종 (드리프트) | 차별 | netlist, firmware | ⬜ |
 | R11 | 네트명이 주장하는 전압 ≠ 소스 부품 전원 도메인 | 기본 | netlist | ✅ |

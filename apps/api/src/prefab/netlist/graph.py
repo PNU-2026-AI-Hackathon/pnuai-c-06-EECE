@@ -11,6 +11,7 @@ from collections import OrderedDict, defaultdict
 from dataclasses import dataclass
 
 from .d356 import NO_CONNECT, Netlist, Pad
+from .pinmap import PinMap, resolve as resolve_pinmap
 
 # --------------------------------------------------------------------- 상수
 
@@ -46,6 +47,15 @@ CONFIDENCE_HIGH = "high"
 CONFIDENCE_INFERRED = "inferred"
 CONFIDENCE_NONE = "none"
 
+#: 네트에 붙은 수동 소자의 정체. 반대쪽 터미널이 어디로 가느냐로 갈린다.
+ROLE_PULLUP = "풀업"
+ROLE_PULLDOWN = "풀다운"
+ROLE_BRANCH = "분기"
+ROLE_UNKNOWN = "미상"
+
+#: 출력이라고 이름이 말해 주는 핀. 이것 말고는 방향을 단정하지 않는다.
+OUTPUT_PIN_PATTERN = re.compile(r"^(OUT|DOUT|TXD|TX|MISO|MOSI)", re.I)
+
 
 def volts(name: str | None) -> float | None:
     """이름이 주장하는 전압. 없으면 None."""
@@ -61,6 +71,20 @@ def format_volts(value: float | None) -> str:
     if value is None:
         return "?"
     return f"{value:g}"
+
+
+@dataclass(frozen=True)
+class PassiveRole:
+    """네트에 붙은 저항·다이오드가 무엇을 하고 있는가."""
+
+    role: str
+    other_net: str | None
+    phrase: str
+
+    @property
+    def protects(self) -> bool:
+        """직렬 보호가 되는가. 풀업도 풀다운도 분기도 보호가 아니다."""
+        return False
 
 
 @dataclass(frozen=True)
@@ -84,6 +108,8 @@ class Graph:
 
     def __init__(self, netlist: Netlist) -> None:
         self.netlist = netlist
+        #: 패드마다 확정된 실크·GPIO. 모듈을 못 알아보면 비어 있다.
+        self.pinmap: PinMap = resolve_pinmap(netlist)
         self.part_pins: "dict[str, dict[PinKey, str]]" = self._build(netlist)
         self._domains: "OrderedDict[str, Domain]" = OrderedDict()
         for ref in sorted(self.part_pins):
@@ -120,11 +146,39 @@ class Graph:
         return named
 
     def pin_on_net(self, ref: str, net: str) -> str | None:
-        """부품 ref 가 네트 net 에 붙어 있는 핀 이름."""
+        """부품 ref 가 네트 net 에 붙어 있는 핀 이름 (넷리스트 원본, 4자로 잘린 것)."""
         for (_r, pin, _coord), n in self.part_pins.get(ref, {}).items():
             if n == net:
                 return pin
         return None
+
+    def display_pin(self, ref: str, net: str) -> str | None:
+        """근거에 찍을 핀 이름. 핀맵이 풀렸으면 **실크 라벨**을 쓴다.
+
+        `U1.SDIO` 는 D3·D4·D5 중 무엇인지 말해 주지 않는다. `U1.D5` 라고 써야
+        사람이 보드에서 그 핀을 찾을 수 있다.
+        """
+        for (_r, pin, coord), n in self.part_pins.get(ref, {}).items():
+            if n != net:
+                continue
+            for identity in self.pinmap.all():
+                if identity.ref == ref and identity.pin == pin and (identity.x, identity.y) == coord:
+                    return identity.silk
+            return pin
+        return None
+
+    def ref_pin(self, ref: str, net: str) -> str:
+        """`U1.D5` 형태의 표시용 토큰."""
+        return f"{ref}.{self.display_pin(ref, net) or '?'}"
+
+    def drives(self, ref: str, net: str) -> bool:
+        """이 부품이 이 네트를 구동한다고 **넷리스트가 말해 주는가.**
+
+        핀 이름이 출력이라고 말할 때만 True 다. 이름 없는 패드(`pad-`)에서는
+        방향을 알 수 없으므로 단정하지 않는다 (요청서 A-2).
+        """
+        pin = self.pin_on_net(ref, net)
+        return bool(pin and OUTPUT_PIN_PATTERN.match(pin))
 
     def supply_pin_of(self, ref: str) -> tuple[str, str] | None:
         """(전원 핀 이름, 그 핀이 물린 레일 네트). 이름 없는 패드뿐이면 None."""
@@ -216,3 +270,31 @@ class Graph:
 
     def series_candidates(self, net: str) -> list[str]:
         return [r for r in self.refs_on(net) if SERIES_CANDIDATE_PATTERN.match(r)]
+
+    # ------------------------------------------------------------------ 수동 소자
+
+    def other_nets(self, ref: str, net: str) -> list[str]:
+        """부품 ref 의 나머지 터미널이 물린 네트들."""
+        return sorted({n for n in self.part_pins.get(ref, {}).values() if n != net})
+
+    def passive_role(self, ref: str, net: str) -> "PassiveRole":
+        """이 네트에 붙은 수동 소자가 무엇인지 **반대쪽 터미널을 보고** 판정한다.
+
+        반대쪽을 안 보고 전부 "풀업"이라고 쓰던 버그가 있었다 (요청서 2-6).
+        판정(FAIL)은 어느 쪽이든 같지만, 근거 문구가 틀리면 판정이 맞아도 신뢰를 잃는다.
+        """
+        others = self.other_nets(ref, net)
+        if not others:
+            return PassiveRole(ROLE_UNKNOWN, None, "반대쪽 터미널을 찾지 못했습니다")
+
+        for other in others:
+            if GND_PATTERN.match(other):
+                return PassiveRole(ROLE_PULLDOWN, other, f"{other} 로 끌어내리는 풀다운")
+
+        for other in others:
+            v = volts(other)
+            if v is not None:
+                return PassiveRole(ROLE_PULLUP, other, f"{other} 로 끌어올리는 풀업")
+
+        other = others[0]
+        return PassiveRole(ROLE_BRANCH, other, f"{other} 로 이어지는 분기")
