@@ -61,7 +61,7 @@
         "netlist",
         "firmware"
       ],
-      "implemented": false
+      "implemented": true
     },
     {
       "id": "R08",
@@ -72,7 +72,7 @@
         "netlist",
         "firmware"
       ],
-      "implemented": false
+      "implemented": true
     },
     {
       "id": "R09",

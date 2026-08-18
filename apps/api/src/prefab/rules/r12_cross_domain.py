@@ -1,11 +1,15 @@
 """R12 — 상위 전원 도메인이 하위를 직결.
 
-높은 전원으로 도는 부품의 출력이 낮은 전원으로 도는 부품 핀에
-직렬 저항·분압·레벨 시프터 없이 바로 물려 있는 경우를 찾는다.
+높은 전원으로 도는 부품과 낮은 전원으로 도는 부품이 같은 네트에
+직렬 저항·분압·레벨 시프터 없이 물려 있는 경우를 찾는다.
 
 토폴로지가 질문을 던진다. 데이터시트가 답한다 —
 구동부의 Voh 가 VOH_SAFE_MAX_V 이하로 확인되면 이 발견은 해제된다.
 그 확인은 BOM 이 들어온 뒤에 한다. 지금은 추측하지 않고 unresolved_reason 을 남긴다.
+
+**단정하지 않는 두 가지** (요청서 A-1 · A-2)
+- 누가 누구를 구동하는지: 핀 이름이 출력이라고 말할 때만 쓴다. `pad-` 는 모른다.
+- 네트에 붙은 저항의 정체: 반대쪽 터미널을 보고 풀업/풀다운/분기를 가른다.
 """
 
 from __future__ import annotations
@@ -16,6 +20,7 @@ from ..netlist.graph import (
     Graph,
     format_volts,
 )
+from ..text import eun, gwa, i_ga
 from ..types import Context, Evidence, Finding, Severity, Verdict
 
 RULE_ID = "R12"
@@ -48,33 +53,37 @@ def check(ctx: Context) -> list[Finding]:
         if hi_v - lo_v <= DOMAIN_EPSILON_V:
             continue
 
-        series = graph.series_candidates(net)
-        findings.append(_finding(graph, net, hi, lo, hi_v, lo_v, series))
+        findings.append(_finding(graph, net, hi, lo, hi_v, lo_v))
 
     return findings
 
 
-def _finding(graph: Graph, net, hi, lo, hi_v, lo_v, series) -> Finding:
+def _finding(graph: Graph, net, hi, lo, hi_v, lo_v) -> Finding:
     hi_conf = graph.domain(hi).confidence
-    hi_pin = graph.pin_on_net(hi, net)
-    lo_pin = graph.pin_on_net(lo, net)
+    hi_token = graph.ref_pin(hi, net)
+    lo_token = graph.ref_pin(lo, net)
     hi_supply = graph.supply_pin_of(hi)
     lo_supply = graph.supply_pin_of(lo)
 
+    passives = [(ref, graph.passive_role(ref, net)) for ref in graph.series_candidates(net)]
+
     # ---------------------------------------------------------------- claim
-    if hi_conf == CONFIDENCE_HIGH:
+    hi_desc = f"{format_volts(hi_v)}V로 " + ("동작하는" if hi_conf == CONFIDENCE_HIGH else "추정되는")
+    if graph.drives(hi, net):
         head = (
-            f"{format_volts(hi_v)}V로 동작하는 {hi}의 출력이 "
-            f"{format_volts(lo_v)}V로 동작하는 {lo} 핀에 직결되어 있습니다."
+            f"{hi_desc} {hi}의 출력({hi_token})이 "
+            f"{format_volts(lo_v)}V로 동작하는 {lo_token}에 직결되어 있습니다."
         )
     else:
+        # 어느 쪽이 구동하는지는 넷리스트만으로 알 수 없다. 단정하지 않는다.
         head = (
-            f"{format_volts(hi_v)}V로 추정되는 {hi}이 "
-            f"{format_volts(lo_v)}V로 동작하는 {lo}을 직접 구동합니다."
+            f"{hi_desc} {gwa(hi)} {format_volts(lo_v)}V로 동작하는 {i_ga(lo)} "
+            f"같은 네트에 직결되어 있습니다 ({hi_token} · {lo_token})."
         )
 
-    if series:
-        tail = f"이 네트의 {', '.join(series)}는 풀업이라 직렬 보호 역할을 하지 못합니다."
+    if passives:
+        parts = ", ".join(f"{eun(ref)} {role.phrase}" for ref, role in passives)
+        tail = f"이 네트의 {parts}이라 직렬 보호가 되지 않습니다."
     else:
         tail = "사이에 직렬 저항도 분압도 레벨 시프터도 없습니다."
 
@@ -86,34 +95,31 @@ def _finding(graph: Graph, net, hi, lo, hi_v, lo_v, series) -> Finding:
         pin, rail = hi_supply
         lines.append(f"{hi}.{pin} → {rail}")
         shown_rails.add(rail)
-    if hi_pin is not None:
-        lines.append(f"{hi}.{hi_pin} → {net}")
+    lines.append(f"{hi_token} → {net}")
 
     passive_marks: list[str] = []
-    for ref in series:
-        for pin, nets in graph.pins_of(ref).items():
-            for n in sorted(nets):
-                lines.append(f"{ref}.{pin} → {n}")
-                shown_rails.add(n)
-                if n != net:
-                    passive_marks.append(f"{ref}.{pin}")
+    for ref, role in passives:
+        lines.append(f"{ref}.{graph.pin_on_net(ref, net)} → {net}")
+        if role.other_net:
+            lines.append(f"{ref} 반대쪽 → {role.other_net}   ({role.role})")
+            shown_rails.add(role.other_net)
+            passive_marks.append(role.other_net)
 
-    if lo_pin is not None:
-        lines.append(f"{lo}.{lo_pin} → {net}")
+    lines.append(f"{lo_token} → {net}")
     if lo_supply and lo_supply[1] not in shown_rails:
-        # 이미 화면에 나온 레일을 두 번 적지 않는다
         lines.append(f"{lo}.{lo_supply[0]} → {lo_supply[1]}")
 
     if hi_supply:
-        highlight = [hi_supply[1], f"{hi}.{hi_pin}", f"{lo}.{lo_pin}"]
+        highlight = [hi_supply[1], hi_token, lo_token]
     else:
-        highlight = [f"{hi}.{hi_pin}", *passive_marks, f"{lo}.{lo_pin}"]
+        highlight = [hi_token, *passive_marks, lo_token]
 
     # ----------------------------------------------------------- suggestion
-    if series:
+    if passives:
+        roles = " · ".join(sorted({role.role for _ref, role in passives}))
         suggestion = (
-            f"{hi}의 부품번호를 제출하면 접점/입력 전압 규격으로 판정합니다. "
-            f"{', '.join(series)}를 직렬로 옮기는 것만으로는 해결되지 않을 수 있습니다."
+            f"{hi}의 부품번호를 제출하면 출력 규격으로 판정합니다. "
+            f"이 네트의 저항은 {roles}이라 직렬로 옮기지 않는 한 보호가 되지 않습니다."
         )
     else:
         suggestion = (

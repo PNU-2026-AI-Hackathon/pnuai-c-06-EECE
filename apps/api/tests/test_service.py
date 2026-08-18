@@ -5,7 +5,9 @@ FastAPI 없이 도는 테스트다. HTTP 어댑터가 바뀌어도 이 계약은
 
 from __future__ import annotations
 
+import io
 import tempfile
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -13,6 +15,15 @@ import pytest
 from web import service
 
 FIXTURE = Path(__file__).parent / "fixtures" / "esp32-c6-presence-smart-light.d356"
+FIRMWARE_DIR = Path(__file__).parent / "fixtures" / "esp32-c6-presence-smart-light.firmware"
+
+
+def _firmware_zip() -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        for path in sorted(FIRMWARE_DIR.iterdir()):
+            zf.writestr(path.name, path.read_text(encoding="utf-8"))
+    return buf.getvalue()
 
 
 def _raises(fn) -> service.ApiError:
@@ -82,17 +93,54 @@ def test_created_at_is_utc_with_a_trailing_z():
     assert len(service.utc_now()) == len("2026-08-18T11:20:00Z")
 
 
-def test_firmware_upload_does_not_pretend_the_analyzer_exists():
-    """펌웨어를 받아도 정적 분석기는 아직 없다. 있는 척하지 않는다."""
+def test_firmware_zip_runs_the_differentiating_rules():
+    """펌웨어를 받으면 R07 · R08 이 실제로 돈다."""
     result = service.run_check(
         netlist_bytes=FIXTURE.read_bytes(),
         netlist_filename=FIXTURE.name,
         firmware_filename="src.zip",
+        firmware_bytes=_firmware_zip(),
     )
-    step3 = result["pipeline"][2]
-    assert step3["status"] == "skipped"
-    assert "미구현" in step3["detail"]
-    assert result["inputs"]["firmware"] == {"filename": "src.zip"}
+    assert result["summary"]["rules_run"] == 4
+    assert (result["summary"]["critical"], result["summary"]["warning"]) == (4, 2)
+    assert result["pipeline"][2]["status"] == "done"
+    assert result["inputs"]["firmware"]["filename"] == "src.zip"
+    assert result["inputs"]["firmware"]["files"] == 1
+
+
+def test_firmware_absent_is_reported_not_hidden():
+    result = service.run_check(netlist_bytes=FIXTURE.read_bytes(), netlist_filename=FIXTURE.name)
+    assert result["pipeline"][2] == {
+        "step": 3, "name": "펌웨어 정적 분석", "status": "skipped", "detail": "펌웨어 미제출",
+    }
+    assert result["inputs"]["firmware"] is None
+
+
+def test_zip_without_sources_is_422():
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("readme.txt", "소스가 아니다")
+    err = _raises(
+        lambda: service.run_check(
+            netlist_bytes=FIXTURE.read_bytes(),
+            netlist_filename=FIXTURE.name,
+            firmware_filename="src.zip",
+            firmware_bytes=buf.getvalue(),
+        )
+    )
+    assert (err.code, err.status) == ("FIRMWARE_UNREADABLE", 422)
+
+
+def test_broken_zip_is_422_not_a_crash():
+    err = _raises(
+        lambda: service.run_check(
+            netlist_bytes=FIXTURE.read_bytes(),
+            netlist_filename=FIXTURE.name,
+            firmware_filename="src.zip",
+            firmware_bytes=b"PK\x03\x04 not really a zip",
+        )
+    )
+    assert err.code == "FIRMWARE_UNREADABLE"
 
 
 def test_store_round_trip_and_404():

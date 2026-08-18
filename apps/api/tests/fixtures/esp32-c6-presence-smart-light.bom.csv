@@ -1,0 +1,11 @@
+Reference,Value,MPN,Manufacturer,Footprint
+U1,XIAO ESP32C6,XIAO-ESP32C6,Seeed Studio,SMD-14P
+U2,mmWave sensor,HLK-LD2410C,Hi-Link,MODULE
+K1,5V relay module,JQC-3FF-S-Z,TONGLING,MODULE
+J1,USB-C,,,USB-C-16P
+J2,LED header,,,HDR-2P
+R1,5.1k,,,0402
+R2,5.1k,,,0402
+R3,10k,,,0402
+C1,10uF,,,0603
+C2,100nF,,,0402

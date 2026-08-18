@@ -51,3 +51,25 @@ def test_unimplemented_rules_are_exposed_not_hidden():
 
 def test_catalog_total_is_eleven():
     assert catalog.TOTAL == 11
+
+
+def test_proposed_rules_are_not_counted_in_the_catalog():
+    """R13 은 하드웨어 담당 채택 판정 대기 중이다. rules_total 을 부풀리지 않는다."""
+    proposed = {s.id for s in catalog.PROPOSED}
+    assert proposed == {"R13"}
+    assert not proposed & set(catalog.BY_ID)
+    assert all(s.blocked_by for s in catalog.PROPOSED)
+
+
+def test_differentiating_rules_are_now_implemented():
+    """R07 · R08 이 돌기 시작했다. 차별 등급의 중심이다."""
+    assert rules.is_implemented("R07")
+    assert rules.is_implemented("R08")
+    assert catalog.BY_ID["R07"].tier == "차별"
+    assert catalog.BY_ID["R08"].tier == "차별"
+
+
+def test_implemented_rules_declare_no_blocker():
+    for spec in catalog.CATALOG:
+        if rules.is_implemented(spec.id):
+            assert spec.blocked_by is None, f"{spec.id} 는 구현됐는데 차단 사유가 남아 있다"
