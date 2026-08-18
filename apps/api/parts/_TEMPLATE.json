@@ -1,0 +1,22 @@
+{
+  "mpn": "",
+  "source_url": "데이터시트 PDF 를 실제로 받은 주소",
+  "source_tier": "official",
+  "facts": [
+    {
+      "field": "voh_max",
+      "value": 0.0,
+      "unit": "V",
+      "table": "Electrical Characteristics",
+      "page": 0,
+      "quote": "PDF 원문 그대로. 번역하거나 요약하지 않는다.",
+      "confidence": "high"
+    },
+    {
+      "field": "output_type",
+      "value": null,
+      "confidence": "none",
+      "reason": "데이터시트에 명시되지 않음"
+    }
+  ]
+}

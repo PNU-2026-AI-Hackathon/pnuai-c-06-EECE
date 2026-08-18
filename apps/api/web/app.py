@@ -12,6 +12,8 @@ from fastapi import FastAPI, File, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from prefab.datasheet.store import FactStore
+
 from . import service
 from .service import ApiError
 
@@ -43,6 +45,8 @@ app.add_middleware(
 )
 
 store = service.Store(DB_PATH)
+#: 부품 사실 DB. **checks 와 같은 파일**을 쓴다 — SQLite 한 개 (CLAUDE.md 9절).
+facts = FactStore(DB_PATH)
 
 
 # --------------------------------------------------------------------- 오류
@@ -113,6 +117,7 @@ async def create_check(
         bom_bytes=bom_bytes,
         bom_filename=bom_name,
         firmware_filename=firmware_name,
+        fact_store=facts,
     )
     store.save(result)
 
