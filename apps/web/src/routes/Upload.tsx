@@ -175,7 +175,12 @@ export function UploadPage() {
       const created = await createCheck({ netlist, bom, firmware });
       navigate(`/c/${created.check_id}`);
     } catch (e) {
-      setError(e instanceof ApiFailure ? e.message : "검사를 시작하지 못했습니다.");
+      // 서버가 이유를 말해줬으면 그대로 쓴다. 못 닿은 경우도 api.ts 가 문구를 채워 준다
+      setError(
+        e instanceof ApiFailure
+          ? e.message
+          : "검사를 시작하지 못했습니다. 잠시 후 다시 시도해 주세요."
+      );
     } finally {
       setBusy(false);
     }
@@ -234,8 +239,8 @@ export function UploadPage() {
 
       {catalogFailed && (
         <p className="mb-6 rounded-block bg-warn-weak px-4 py-3.5 text-[13px] leading-relaxed text-warn">
-          규칙 카탈로그(<span className="data">GET /api/v1/rules</span>)를 가져오지 못했습니다.
-          그래서 <strong className="font-bold">"규칙 몇 개가 못 돈다"는 개수를 표시하지 않습니다.</strong>{" "}
+          규칙 목록을 불러오지 못했습니다. 그래서{" "}
+          <strong className="font-bold">"규칙 몇 개가 못 돈다"는 개수를 표시하지 않습니다.</strong>{" "}
           검사 자체는 정상 동작합니다.
         </p>
       )}
@@ -253,20 +258,27 @@ export function UploadPage() {
         <button type="button" onClick={run} disabled={busy} className="btn-primary">
           {busy ? "시작하는 중" : "검사 실행"}
         </button>
-        <button
-          type="button"
-          onClick={() => navigate(`/r/${sampleCheck.check_id}`)}
-          className="btn-ghost"
-        >
-          샘플 보드로 실행
-        </button>
+        {/*
+          샘플은 목이 아는 검사다. 서버가 붙으면 서버는 이 id 를 모르므로 404 가 난다.
+          누른 적도 없는 "주소를 확인해 주세요"를 사용자에게 보이느니 버튼을 내린다.
+          서버가 샘플 검사를 직접 만들어 주면 그때 되살린다 (백엔드_요청서 F-4).
+        */}
+        {usingMock && (
+          <button
+            type="button"
+            onClick={() => navigate(`/r/${sampleCheck.check_id}`)}
+            className="btn-ghost"
+          >
+            샘플 보드로 실행
+          </button>
+        )}
       </div>
 
       {usingMock && (
         <p className="mt-8 rounded-block bg-surface-2 px-4 py-3.5 text-[13px] leading-relaxed text-sub">
-          지금은 백엔드 없이 목 데이터로 동작합니다. 샘플 결과는 실제 보드
+          지금은 검사 서버 없이 샘플 데이터로 동작합니다. 결과는 실제 보드
           <span className="data"> esp32c6presencesmartlight.d356 </span>
-          를 파서와 규칙 엔진에 돌려 얻은 값이고, 위 규칙 개수는 백엔드가 카탈로그에서 뽑아 준{" "}
+          를 파서와 규칙 엔진에 돌려 얻은 값이고, 위 규칙 개수는 규칙 목록에서 뽑아 준{" "}
           <span className="data">mocks/rules.json</span> 을 세어서 표시합니다.{" "}
           <strong className="font-bold text-ink">둘 다 손으로 적은 값이 아닙니다.</strong>
         </p>

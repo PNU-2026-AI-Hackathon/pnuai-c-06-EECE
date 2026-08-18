@@ -34,6 +34,17 @@ const MOCKS = new Map<string, { result: CheckResult; notice: string | null }>([
 export const usingMock = !BASE;
 
 /**
+ * 로컬 개발인지 배포된 화면인지.
+ * 서버에 못 닿았을 때 **사용자가 할 수 있는 일이 다르다** — 로컬이면 서버를 띄우면 되고,
+ * 배포판이면 사용자가 할 수 있는 게 없다. 문구도 달라야 한다.
+ */
+const IS_LOCAL = !!BASE && /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(BASE);
+
+const UNREACHABLE = IS_LOCAL
+  ? "검사 서버에 연결하지 못했습니다. 서버가 실행 중인지 확인해 주세요."
+  : "검사 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+
+/**
  * 이 검사 결과가 실제 검사가 아니면 그 사실. 실제면 `null`.
  *
  * 계약(`CheckResult`)에 필드를 추가하지 않기 위해 따로 둔다 —
@@ -63,6 +74,22 @@ async function unwrap(res: Response) {
   );
 }
 
+/**
+ * **서버가 거절한 것과 서버에 닿지도 못한 것은 다르다.**
+ *
+ * `fetch` 는 전자를 응답으로, 후자를 예외로 알린다. 둘을 한 문구로 합치면
+ * 사용자는 자기 파일이 잘못된 건지 서버가 죽은 건지 구분할 수 없다.
+ */
+async function request(path: string, init?: RequestInit) {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, init);
+  } catch {
+    throw new ApiFailure(UNREACHABLE, "NETWORK_UNREACHABLE");
+  }
+  return unwrap(res);
+}
+
 /** 검사 생성 */
 export async function createCheck(files: {
   netlist: File;
@@ -79,7 +106,7 @@ export async function createCheck(files: {
   if (files.bom) form.append("bom", files.bom);
   if (files.firmware) form.append("firmware", files.firmware);
 
-  return unwrap(await fetch(`${BASE}/api/v1/checks`, { method: "POST", body: form }));
+  return request("/api/v1/checks", { method: "POST", body: form });
 }
 
 /** 결과 조회 */
@@ -95,7 +122,7 @@ export async function getCheck(id: string): Promise<CheckResult> {
     }
     return hit.result;
   }
-  return unwrap(await fetch(`${BASE}/api/v1/checks/${id}`));
+  return request(`/api/v1/checks/${id}`);
 }
 
 /**
@@ -111,6 +138,12 @@ export async function getCheck(id: string): Promise<CheckResult> {
  */
 export async function getRules(): Promise<RuleInfo[] | null> {
   if (!BASE) return (ruleCatalog as { rules: RuleInfo[] }).rules ?? null;
-  const body = await unwrap(await fetch(`${BASE}/api/v1/rules`));
-  return body?.rules ?? null;
+  try {
+    const body = await request("/api/v1/rules");
+    return body?.rules ?? null;
+  } catch (e) {
+    // 경로와 메서드는 개발자만 쓸 수 있는 정보다. 화면이 아니라 콘솔로 보낸다
+    console.warn(`[prefab] GET ${BASE}/api/v1/rules 실패`, e);
+    throw e;
+  }
 }
