@@ -42,11 +42,14 @@ def build_summary(netlist: Netlist, engine: EngineResult, parts_identified: int 
 def _identify_step(has_bom: bool, pinmap, bom=None, refs=None) -> tuple[str, str]:
     """2단계 — 부품 식별. 무엇까지 알아냈는지 정확히 적는다."""
     if bom is not None:
-        known, unknown = bom.coverage(refs or set())
-        detail = f"BOM {len(bom)}행 · 부품번호 확인 {len(known)}/{len(known) + len(unknown)}"
+        m = bom.match(refs or set())
+        # 넷리스트에 있는데 BOM 에 없거나, 있어도 부품번호가 빈 행 — 둘 다 "모르는 것"이다
+        unknown = list(m.missing_in_bom) + list(m.blank_mpn)
+        total = len(m.identified) + len(unknown)
+        detail = f"BOM {len(bom)}행 · 부품번호 확인 {len(m.identified)}/{total}"
         if unknown:
-            detail += f" · 미식별 {', '.join(unknown[:5])}"
-        for note in bom.notes():
+            detail += f" · 미식별 {', '.join(sorted(unknown)[:5])}"
+        for note in bom.parse_notes():
             detail += f" · {note}"
         return ("done" if not unknown else "partial"), detail
     if has_bom:
@@ -86,40 +89,20 @@ def build_pipeline(
     netlist: Netlist,
     engine: EngineResult,
     has_bom: bool,
-<<<<<<< HEAD
     firmware,
     pinmap,
     bom=None,
-=======
-    has_firmware: bool,
-    bom_detail: str | None = None,
->>>>>>> origin/main
 ) -> list[dict[str, Any]]:
     step = dict(PIPELINE_NAMES)
 
     identify = _identify_step(has_bom, pinmap, bom, set(netlist.parts))
     firmware_step = _firmware_step(firmware, pinmap)
 
-<<<<<<< HEAD
-    if bom is not None and bom.identified:
-        mpns = " · ".join(sorted({e.mpn for e in bom.identified})[:3])
+    # 부품번호를 알면 무엇을 조회할 대상인지까지 말한다. 아직 조회는 못 한다
+    if bom is not None and bom.mpns:
+        mpns = " · ".join(sorted(bom.mpns)[:3])
         datasheet = ("skipped", f"데이터시트 파이프라인 미구현 — 조회 대상 {mpns}")
     elif has_bom:
-=======
-    if has_bom:
-        # 부분 식별을 'done' 이라고 하지 않는다. 몇 개를 못 읽었는지 그대로 적는다.
-        identify = ("done" if bom_detail and "미식별 0" in bom_detail else "partial",
-                    bom_detail or "BOM 을 읽었습니다")
-    else:
-        identify = ("partial", "BOM 없음 · 좌표 클러스터링으로 전원 도메인만 추정")
-
-    if has_firmware:
-        firmware = ("skipped", "펌웨어 정적 분석기 미구현 — 파일은 받았습니다")
-    else:
-        firmware = ("skipped", "펌웨어 미제출")
-
-    if has_bom:
->>>>>>> origin/main
         datasheet = ("skipped", "데이터시트 파이프라인 미구현")
     else:
         datasheet = ("skipped", "BOM 없음 · 부품번호를 알 수 없음")
@@ -204,13 +187,8 @@ def build_result(
             ),
             "firmware": firmware_input,
         },
-<<<<<<< HEAD
         "summary": build_summary(netlist, engine, parts_identified or analysis.parts_identified),
         "pipeline": build_pipeline(netlist, engine, has_bom, firmware, pinmap, analysis.bom),
-=======
-        "summary": build_summary(netlist, engine, parts_identified),
-        "pipeline": build_pipeline(netlist, engine, has_bom, has_firmware, bom_detail),
->>>>>>> origin/main
         "findings": [f.to_dict() for f in engine.findings],
         "netlist": analysis.to_netlist_dict(),
     }

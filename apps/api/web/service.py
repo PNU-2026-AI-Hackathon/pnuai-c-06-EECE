@@ -16,12 +16,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-<<<<<<< HEAD
-from prefab.datasheet.bom import BomParseError
-from prefab.firmware import load_zip
-=======
 from prefab.bom import BomParseError
->>>>>>> origin/main
+from prefab.firmware import load_zip
 from prefab.netlist.d356 import NetlistParseError
 from prefab.report import build_result, build_rules_catalog
 from prefab.datasheet.store import FactStore
@@ -125,10 +121,6 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def bom_unreadable(detail: str) -> ApiError:
-    return ApiError("BOM_PARSE_FAILED", detail, 422)
-
-
 def firmware_unreadable() -> ApiError:
     return ApiError(
         "FIRMWARE_UNREADABLE",
@@ -143,7 +135,6 @@ def run_check(
     netlist_filename: str,
     bom_bytes: bytes | None = None,
     bom_filename: str | None = None,
-    bom_bytes: bytes | None = None,
     firmware_filename: str | None = None,
     firmware_bytes: bytes | None = None,
     check_id: str | None = None,
@@ -167,31 +158,20 @@ def run_check(
         if not sources:
             raise firmware_unreadable()
 
-    bom_text = bom_bytes.decode("utf-8-sig", errors="replace") if bom_bytes else None
 
     text = netlist_bytes.decode("utf-8", errors="replace")
     try:
         analysis = analyze(
             text,
             filename=netlist_filename,
-<<<<<<< HEAD
-            bom_text=bom_text,
-            bom_filename=bom_filename or "",
-            firmware_sources=sources,
-=======
             bom_bytes=bom_bytes,
-            firmware=firmware_filename,
+            firmware_sources=sources,
             fact_store=fact_store,
->>>>>>> origin/main
         )
     except NetlistParseError as exc:
         raise netlist_parse_failed(str(exc)) from exc
     except BomParseError as exc:
-<<<<<<< HEAD
-        raise bom_unreadable(str(exc)) from exc
-=======
         raise bom_parse_failed(str(exc)) from exc
->>>>>>> origin/main
 
     return build_result(
         check_id=check_id or new_check_id(),

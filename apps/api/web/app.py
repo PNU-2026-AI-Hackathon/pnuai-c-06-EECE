@@ -124,13 +124,9 @@ async def create_check(
         netlist_filename=netlist.filename,
         bom_bytes=bom_bytes,
         bom_filename=bom_name,
-        bom_bytes=bom_bytes,
         firmware_filename=firmware_name,
-<<<<<<< HEAD
         firmware_bytes=firmware_bytes,
-=======
         fact_store=facts,
->>>>>>> origin/main
     )
     store.save(result)
 

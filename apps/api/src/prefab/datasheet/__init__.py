@@ -1,11 +1,10 @@
-"""데이터시트 축 — BOM 으로 부품을 식별하고, 그 부품의 사실을 읽어 온다.
+"""데이터시트 축 — 부품의 전기적 사실을 읽어 와서 판정에 넘긴다.
 
-지금 있는 것: BOM CSV 파서 (B-1).
-아직 없는 것: 데이터시트 PDF 확보(B-2) · LLM 사실 추출(B-3) · 부품 사실 DB(B-4).
+BOM CSV 파서는 여기가 아니라 [`prefab.bom`](../bom.py) 에 있다.
+BOM 은 데이터시트를 찾기 위한 **입구**이지 데이터시트가 아니다.
+
+지금 있는 것: 사실 스키마(`facts`) · 사실 DB(`store`).
+아직 없는 것: 데이터시트 PDF 확보(B-2) · LLM 사실 추출(B-3).
 
 LLM 은 **비정형 문서를 읽는 데만** 쓴다. 판정은 코드가 한다 (CLAUDE.md 2-1).
 """
-
-from .bom import Bom, BomEntry, BomParseError, SkippedRow, parse, parse_text
-
-__all__ = ["Bom", "BomEntry", "BomParseError", "SkippedRow", "parse", "parse_text"]
