@@ -10,6 +10,13 @@
 
     python -m prefab --facts-load parts/hlk-ld2410c.json
     python -m prefab --facts
+
+LLM 으로 PDF 에서 뽑을 수도 있다. 결과는 DB 가 아니라 **파일로 나온다** —
+사람이 보고 커밋할지 정한 다음에 들어간다:
+
+    python -m prefab --extract ld2410c.pdf --mpn HLK-LD2410C \
+        --source-url https://... --source-tier official --pages 15-19 \
+        > parts/hlk-ld2410c.json
 """
 
 from __future__ import annotations
@@ -83,6 +90,75 @@ def _human(analysis, path: Path) -> str:
     return "\n".join(out)
 
 
+def _extract(args) -> int:
+    """PDF → LLM → 사실 JSON. **DB 에 바로 넣지 않는다.**
+
+    사람이 파일을 보고 커밋할지 정하는 단계를 남긴다. 자동으로 DB 에 들어가면
+    틀린 값이 언제 들어갔는지 아무도 모르게 된다.
+    """
+    from .datasheet.extract import ExtractionError, extract
+    from .datasheet.pdf import PdfError, notes, read_pages
+
+    try:
+        import anthropic
+    except ImportError:
+        print("anthropic SDK 가 없습니다. `pip install anthropic` 하세요.", file=sys.stderr)
+        return 2
+
+    span = None
+    if args.pages:
+        try:
+            lo, _, hi = args.pages.partition("-")
+            span = range(int(lo), int(hi or lo) + 1)
+        except ValueError:
+            print(f"--pages 는 '15-19' 모양입니다: {args.pages}", file=sys.stderr)
+            return 2
+
+    try:
+        pages = read_pages(args.extract, pages=span)
+    except PdfError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+
+    for note in notes(pages):
+        print(note, file=sys.stderr)
+
+    try:
+        result = extract(
+            anthropic.Anthropic(),
+            mpn=args.mpn,
+            pages=pages,
+            source_url=args.source_url,
+            source_tier=args.source_tier,
+        )
+    except ExtractionError as exc:
+        print(f"추출하지 못했습니다 — {exc}", file=sys.stderr)
+        return 2
+    except Exception as exc:  # 네트워크·인증·속도제한 전부
+        # SDK 는 자격증명이 없으면 요청을 만들 때 TypeError 를 던진다.
+        # 트레이스백 대신 무엇이 없는지 말한다.
+        if isinstance(exc, TypeError) and "authentication" in str(exc):
+            print(
+                "ANTHROPIC_API_KEY 가 없습니다. 키를 넣거나, LLM 없이 사람이 "
+                "직접 채우려면 parts/README.md 를 보세요.",
+                file=sys.stderr,
+            )
+        else:
+            print(f"모델을 부르지 못했습니다 — {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 2
+
+    # 떨어뜨린 것은 화면에 남긴다. 조용히 버리지 않는다 (CLAUDE.md 2-4).
+    for d in result.dropped:
+        print(f"  버림  {d.field} — {d.why}", file=sys.stderr)
+    print(
+        f"사실 {len(result.facts)}건 · 버림 {len(result.dropped)}건 "
+        f"(원문 대조 실패)", file=sys.stderr,
+    )
+
+    print(json.dumps(result.payload, ensure_ascii=False, indent=2))
+    return 0
+
+
 def _facts_load(paths: list[str], db: str) -> int:
     """사람이 적은 사실 파일을 DB 에 넣는다. **거절된 것을 전부 보여준다.**
 
@@ -133,9 +209,20 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--facts-load", nargs="+", metavar="JSON",
                     help="데이터시트 사실 파일을 부품 DB 에 넣는다")
     ap.add_argument("--facts", action="store_true", help="부품 DB 크기를 본다")
+    ap.add_argument("--extract", metavar="PDF", help="데이터시트 PDF 에서 사실을 뽑는다 (LLM)")
+    ap.add_argument("--mpn", help="--extract 대상 부품번호")
+    ap.add_argument("--source-url", help="--extract 한 PDF 를 받은 주소")
+    ap.add_argument("--source-tier", default="unofficial",
+                    choices=["official", "distributor", "unofficial"])
+    ap.add_argument("--pages", metavar="N-M", help="읽을 쪽 범위 (예: 15-19)")
     ap.add_argument("--db", default=os.getenv("PREFAB_DB", "prefab.db"),
                     help="SQLite 파일 (기본: PREFAB_DB 또는 prefab.db)")
     args = ap.parse_args(argv)
+
+    if args.extract:
+        if not (args.mpn and args.source_url):
+            ap.error("--extract 에는 --mpn 과 --source-url 이 필요합니다")
+        return _extract(args)
 
     if args.facts_load:
         return _facts_load(args.facts_load, args.db)

@@ -8,6 +8,18 @@ python -m prefab --facts
 ```
 
 `_TEMPLATE.json` 을 복사해서 쓴다. 파일 이름은 부품번호를 소문자로.
+
+LLM 으로 초안을 뽑을 수도 있다 (`ANTHROPIC_API_KEY` 필요):
+
+```bash
+python -m prefab --extract ld2410c.pdf --mpn HLK-LD2410C \
+    --source-url https://... --source-tier official --pages 15-19 \
+    > parts/hlk-ld2410c.json
+```
+
+**결과가 DB 로 바로 안 들어간다.** 파일로 나오고, 사람이 보고 커밋할지 정한다.
+그리고 **모델이 댄 인용문이 그 쪽 원문에 없으면 그 항목은 자동으로 빠진다** —
+지어낸 출처는 여기서 걸린다.
 서식 자체는 `mpn` 이 비어 있어서 그대로 넣으면 통째로 거절된다 — 실수로 DB 를 더럽히지 않는다.
 
 ## 절대 원칙

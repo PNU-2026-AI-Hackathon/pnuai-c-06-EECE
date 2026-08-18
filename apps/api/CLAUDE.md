@@ -136,6 +136,13 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
   `confidence: low` 는 저장은 되지만 `usable` 이 아니라 **판정에 못 쓴다**
 - **사실 파일 CLI** — `python -m prefab --facts-load parts/*.json`.
   **LLM 없이 사람이 데이터시트를 읽고 채울 수 있다.** 서식과 규칙은 `parts/README.md`
+- **데이터시트 LLM 추출** (`datasheet/extract.py` · `datasheet/pdf.py`) —
+  PDF 를 쪽별로 읽어 LLM 에 넘기고, 스키마를 강제해 사실을 받는다.
+  **그 다음이 핵심이다: 모델이 댄 인용문이 그 쪽 원문에 정말 있는지 코드가 대조한다.**
+  없으면 버린다. 지어낸 출처가 DB 에 들어가는 걸 막을 수 있는 자리는 여기뿐이다
+  (저장기는 출처가 "있어" 보이면 받는다).
+  `python -m prefab --extract <pdf> --mpn X --source-url ... > parts/x.json`
+  결과는 DB 가 아니라 **파일로 나온다** — 사람이 보고 커밋할지 정한 뒤에 들어간다
 - **`parts/hlk-ld2410c.json`** — 제조사 공식 PDF 17쪽 Table 2 에서 읽은 실제 값.
   이것 하나로 실측 보드의 `PRESENCE_3V3` 경고 **2건이 해제된다** (치명 4·경고 2 → 치명 3·경고 1·해제 2).
   `prefab.db` 는 `.gitignore` 라서 **커밋되는 진실은 이 JSON 뿐이고**,
@@ -155,8 +162,10 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
 - 데이터시트 파이프라인 — **PDF 파서 없음, LLM 호출 없음.**
   BOM 은 읽고, 사실 DB 도 있고, 조회도 규칙까지 연결됐다. **비어 있는 것은 내용물뿐이다.**
   남은 단계는 MPN → PDF → 사실 추출 (`.claude/skills/prefab-datasheet` 3~5단계)
-- **LLM 호출 — 0건.** 사실은 사람이 PDF 를 읽어 손으로 넣었다.
-  `parts/*.json` 을 **만드는 자리**가 LLM 이 붙을 곳이고, 거기가 비어 있다
+- **실제 LLM 호출 — 0건.** 경로는 `datasheet/extract.py` 로 **구현됐지만**
+  이 개발 환경에 `ANTHROPIC_API_KEY` 가 없어서 **한 번도 실제로 불러본 적이 없다.**
+  키를 넣고 한 번 돌려보기 전까지는 "된다"고 말하지 않는다.
+  가짜 클라이언트로 스키마·검증·저장 연결은 전부 테스트했다 (`tests/test_extract.py`)
 - 부품 사실이 든 부품 — **1개** (`HLK-LD2410C`). `JQC-3FF-S-Z` · `XIAO-ESP32C6` 은 아직 없다
 - R04 는 아직 없다. `needs` 에 `datasheet` 를 쓰려면 계약(`API_CONTRACT.md`)의 어휘를
   먼저 넓혀야 한다. R11 · R12 는 `datasheet` 를 **선택적으로** 보므로 `needs` 가 그대로다
@@ -227,7 +236,10 @@ src/prefab/
   netlist/graph.py  부품·네트 그래프, X좌표 패드 클러스터링, 전원 도메인 추론
   firmware/         (스텁) 펌웨어 정적 분석
   datasheet/facts.py  Fact · FactSet — 순수 자료형. IO 없음. 규칙이 보는 것
-  datasheet/store.py  part_facts SQLite. 러너만 부른다 (추출기는 아직 없다)
+  datasheet/store.py  part_facts SQLite. 러너만 부른다
+  datasheet/pdf.py    PDF → 쪽별 글자. 쪽 번호를 지키는 것이 일이다
+  datasheet/extract.py  LLM 추출 + **원문 대조 검증**. 네트워크를 부르는 유일한 자리.
+                        규칙은 이 파일을 import 하지 않는다
   rules/            규칙 모듈 + 레지스트리 (여기 등록되면 '구현됨')
   engine.py         규칙 실행 → Finding 수집 → 정렬
   report.py         계약 응답 dict 조립 (summary · pipeline)
