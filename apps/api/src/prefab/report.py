@@ -96,20 +96,14 @@ def build_pipeline(
     firmware,
     pinmap,
     bom=None,
+    facts=None,
 ) -> list[dict[str, Any]]:
     step = dict(PIPELINE_NAMES)
 
     identify = _identify_step(has_bom, pinmap, bom, set(netlist.parts))
     firmware_step = _firmware_step(firmware, pinmap)
 
-    # 부품번호를 알면 무엇을 조회할 대상인지까지 말한다. 아직 조회는 못 한다
-    if bom is not None and bom.mpns:
-        mpns = " · ".join(sorted(bom.mpns)[:3])
-        datasheet = ("skipped", f"데이터시트 파이프라인 미구현 — 조회 대상 {mpns}")
-    elif has_bom:
-        datasheet = ("skipped", "데이터시트 파이프라인 미구현")
-    else:
-        datasheet = ("skipped", "BOM 없음 · 부품번호를 알 수 없음")
+    datasheet, extract = _datasheet_steps(has_bom, bom, facts, engine)
 
     engine_detail = (
         f"{catalog.TOTAL}개 중 {len(engine.ran)}개 실행 · "
@@ -128,10 +122,47 @@ def build_pipeline(
         {"step": 2, "name": step[2], "status": identify[0], "detail": identify[1]},
         {"step": 3, "name": step[3], "status": firmware_step[0], "detail": firmware_step[1]},
         {"step": 4, "name": step[4], "status": datasheet[0], "detail": datasheet[1]},
-        {"step": 5, "name": step[5], "status": "skipped", "detail": "데이터시트 없음"},
+        {"step": 5, "name": step[5], "status": extract[0], "detail": extract[1]},
         {"step": 6, "name": step[6], "status": "done", "detail": engine_detail},
         {"step": 7, "name": step[7], "status": "done", "detail": None},
     ]
+
+
+def _datasheet_steps(has_bom, bom, facts, engine) -> tuple[tuple[str, str], tuple[str, str]]:
+    """4·5 단계 — 데이터시트를 얼마나 읽었나.
+
+    **한 일을 안 했다고 적지 않는다.** 사실을 실제로 읽어서 판정에 썼는데도
+    "미구현" 이라고 적으면 4-2 와 똑같은 종류의 거짓말이다 (CLAUDE.md 2-4).
+    반대로 하나 읽었다고 `done` 이라고 하지도 않는다. 못 읽은 부품을 그대로 센다.
+    """
+    if not has_bom or bom is None or not bom.mpns:
+        return (
+            ("skipped", "BOM 없음 · 부품번호를 알 수 없음"),
+            ("skipped", "조회할 부품번호가 없음"),
+        )
+
+    total = len(bom.mpns)
+    if facts is None or not facts.hits:
+        missing = " · ".join(sorted(bom.mpns)[:3])
+        return (
+            ("skipped", f"부품 {total}개 중 0개 수집 — 조회 대상 {missing}"),
+            ("skipped", "읽어 둔 사실 없음"),
+        )
+
+    hits = len(facts.hits)
+    collect = [f"부품 {total}개 중 {hits}개 수집"]
+    if facts.misses:
+        collect.append("미수집: " + " · ".join(sorted(facts.misses)[:6]))
+    # 전부 모으기 전에는 done 이 아니다. 부분 수집을 완료라고 적지 않는다.
+    collect_status = "done" if not facts.misses else "partial"
+
+    used = sum(1 for f in engine.findings if any(e.kind == "datasheet" for e in f.evidence))
+    bits = [f"사실 {len(facts.facts)}건 확보"]
+    if used:
+        bits.append(f"판정 {used}건에 근거로 사용")
+    else:
+        bits.append("아직 어떤 판정에도 쓰이지 않음")
+    return ((collect_status, " · ".join(collect)), ("done", " · ".join(bits)))
 
 
 def build_result(
@@ -192,7 +223,9 @@ def build_result(
             "firmware": firmware_input,
         },
         "summary": build_summary(netlist, engine, parts_identified or analysis.parts_identified),
-        "pipeline": build_pipeline(netlist, engine, has_bom, firmware, pinmap, analysis.bom),
+        "pipeline": build_pipeline(
+            netlist, engine, has_bom, firmware, pinmap, analysis.bom, analysis.facts
+        ),
         "findings": [f.to_dict() for f in engine.findings],
         "netlist": analysis.to_netlist_dict(),
     }

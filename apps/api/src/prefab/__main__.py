@@ -25,6 +25,7 @@ from .datasheet.store import FactStore
 from .firmware import load_directory, load_zip
 from .netlist.d356 import NetlistParseError
 from .report import build_result, build_rules_catalog
+from .types import Verdict
 from .runner import analyze
 
 #: 목 데이터를 재생성해도 diff 가 나지 않도록 CLI 는 시각을 고정한다.
@@ -59,7 +60,9 @@ def _human(analysis, path: Path) -> str:
         out.append("  없음")
     for f in analysis.engine.findings:
         out.append("")
-        out.append(f"[{f.severity.value}] {f.rule}  net: {f.net}")
+        # 판정이 PASS 인데 [CRITICAL] 로 찍으면 해제가 일어난 게 화면에 안 보인다.
+        tag = "해제" if f.verdict is Verdict.PASS else f.severity.value
+        out.append(f"[{tag}] {f.rule}  net: {f.net}")
         out.append(f"       {f.claim}")
         for ev in f.evidence:
             for line in (ev.text or "").splitlines():
@@ -69,6 +72,9 @@ def _human(analysis, path: Path) -> str:
     out.append("")
     out.append(bar)
     e = analysis.engine
+    cleared = sum(1 for f in e.findings if f.verdict is Verdict.PASS)
+    if cleared:
+        out.append(f"{len(e.findings)}건 중 {cleared}건은 데이터시트로 해제됐습니다.")
     out.append(
         f"{len(e.findings)}건 · 규칙 {e.total}개 중 {len(e.ran)}개 실행 "
         f"(미구현 {len(e.skipped_not_implemented)} · 입력 부족 {len(e.skipped_missing_input)})"

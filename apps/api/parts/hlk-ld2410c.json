@@ -1,0 +1,33 @@
+{
+  "mpn": "HLK-LD2410C",
+  "source_url": "https://d.hlktech.net/download/HLK-LD2410C/1/HLK%20LD2410C%20Human%20%20Presence%20Sensor%20Module%20Data%20Sheet%20V1.00.pdf",
+  "source_tier": "official",
+  "facts": [
+    {
+      "field": "voh_max",
+      "value": 3.3,
+      "unit": "V",
+      "table": "Table 2 Performance and electrical parameters table",
+      "page": 17,
+      "quote": "A GPIO, IO level 3.3V",
+      "confidence": "high",
+      "reason": "min/max 열이 없는 표라 정격 상한이 아니라 IO 기준 레벨로 적혀 있다. 8쪽 5.1 절의 'The module IO output level is 3.3V.' 와 같은 값이다."
+    },
+    {
+      "field": "vcc_nominal",
+      "value": 5.0,
+      "unit": "V",
+      "table": "Table 2 Performance and electrical parameters table",
+      "page": 17,
+      "quote": "DC 5V, power supply capacity>200mA",
+      "confidence": "high",
+      "reason": "7쪽 Table 1 의 VCC 핀은 'Power input 5~12V（advise 5V）' 로 범위를 준다. 표 2 의 5V 는 권장 동작 전압이다."
+    },
+    {
+      "field": "output_type",
+      "value": null,
+      "confidence": "none",
+      "reason": "push-pull 인지 open-drain 인지 매뉴얼 어디에도 명시되지 않음 (7쪽 핀 정의표·8쪽 5.1·17쪽 표 2 확인)"
+    }
+  ]
+}

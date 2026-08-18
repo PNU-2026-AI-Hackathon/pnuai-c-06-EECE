@@ -226,3 +226,17 @@ def test_방향을_모르면_Voh가_있어도_해제하지_않는다():
     f = _relay_finding(facts)
     assert f.verdict is not Verdict.PASS
     assert not any(e.kind == "datasheet" for e in f.evidence)
+
+
+def test_이미_낸_BOM을_또_내라고_하지_않는다():
+    """부품번호를 아는데 '부품번호를 제출하면' 이라고 쓰면,
+    사용자는 자기가 뭘 빠뜨렸는지 찾다가 시간을 버린다."""
+    f = _relay_finding()
+    assert "JQC-3FF-S-Z" in f.suggestion
+    assert "제출하면" not in f.suggestion
+
+
+def test_BOM이_없을_때는_BOM을_달라고_한다():
+    ctx = Context(netlist=_relay_ctx().netlist, bom=None, datasheet=None)
+    f = [x for x in r12.check(ctx) if x.net == "_IN_ACTIVE_LOW"][0]
+    assert "BOM으로 제출하면" in f.suggestion

@@ -136,6 +136,10 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
   `confidence: low` 는 저장은 되지만 `usable` 이 아니라 **판정에 못 쓴다**
 - **사실 파일 CLI** — `python -m prefab --facts-load parts/*.json`.
   **LLM 없이 사람이 데이터시트를 읽고 채울 수 있다.** 서식과 규칙은 `parts/README.md`
+- **`parts/hlk-ld2410c.json`** — 제조사 공식 PDF 17쪽 Table 2 에서 읽은 실제 값.
+  이것 하나로 실측 보드의 `PRESENCE_3V3` 경고 **2건이 해제된다** (치명 4·경고 2 → 치명 3·경고 1·해제 2).
+  `prefab.db` 는 `.gitignore` 라서 **커밋되는 진실은 이 JSON 뿐이고**,
+  `tests/test_parts_files.py` 가 이 파일만으로 실제 해제가 나는지 검증한다
 - 실측 픽스처: `tests/fixtures/esp32-c6-presence-smart-light.d356`
 - 골든 테스트 — 3건·10부품·8네트·K1 2그룹
 - **펌웨어 소스 — 받았다.** `tests/fixtures/esp32-c6-presence-smart-light.firmware/`
@@ -151,8 +155,9 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
 - 데이터시트 파이프라인 — **PDF 파서 없음, LLM 호출 없음.**
   BOM 은 읽고, 사실 DB 도 있고, 조회도 규칙까지 연결됐다. **비어 있는 것은 내용물뿐이다.**
   남은 단계는 MPN → PDF → 사실 추출 (`.claude/skills/prefab-datasheet` 3~5단계)
-- **부품 사실을 실제로 채워 넣은 부품 — 0개.** 배관과 규칙은 다 됐고 값이 없다.
-  `parts/*.json` 이 하나라도 생기면 그 순간 화면에서 해제가 일어난다
+- **LLM 호출 — 0건.** 사실은 사람이 PDF 를 읽어 손으로 넣었다.
+  `parts/*.json` 을 **만드는 자리**가 LLM 이 붙을 곳이고, 거기가 비어 있다
+- 부품 사실이 든 부품 — **1개** (`HLK-LD2410C`). `JQC-3FF-S-Z` · `XIAO-ESP32C6` 은 아직 없다
 - R04 는 아직 없다. `needs` 에 `datasheet` 를 쓰려면 계약(`API_CONTRACT.md`)의 어휘를
   먼저 넓혀야 한다. R11 · R12 는 `datasheet` 를 **선택적으로** 보므로 `needs` 가 그대로다
 
