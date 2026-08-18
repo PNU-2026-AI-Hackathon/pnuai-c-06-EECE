@@ -16,10 +16,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
+<<<<<<< HEAD
 from prefab.datasheet.bom import BomParseError
 from prefab.firmware import load_zip
+=======
+from prefab.bom import BomParseError
+>>>>>>> origin/main
 from prefab.netlist.d356 import NetlistParseError
 from prefab.report import build_result, build_rules_catalog
+from prefab.datasheet.store import FactStore
 from prefab.runner import analyze
 
 # --------------------------------------------------------------------- 상수
@@ -63,6 +68,10 @@ def netlist_required() -> ApiError:
 
 def netlist_parse_failed(detail: str) -> ApiError:
     return ApiError("NETLIST_PARSE_FAILED", detail, 422)
+
+
+def bom_parse_failed(detail: str) -> ApiError:
+    return ApiError("BOM_PARSE_FAILED", detail, 422)
 
 
 def file_too_large(field: str) -> ApiError:
@@ -132,17 +141,22 @@ def run_check(
     *,
     netlist_bytes: bytes,
     netlist_filename: str,
+    bom_bytes: bytes | None = None,
     bom_filename: str | None = None,
     bom_bytes: bytes | None = None,
     firmware_filename: str | None = None,
     firmware_bytes: bytes | None = None,
     check_id: str | None = None,
     created_at: str | None = None,
+    fact_store: "FactStore | None" = None,
 ) -> dict[str, Any]:
     """업로드된 입력으로 검사를 끝내고 계약 응답을 만든다.
 
     지금 규모(네트 8 · 부품 10 · 소스 1개 · 규칙 4개)에서는 밀리초 단위로 끝난다.
     큐를 쓰지 않는다. 5초를 넘기기 시작하면 그때 BackgroundTasks 로 바꾼다.
+
+    `fact_store` 를 주면 BOM 의 부품번호로 사실 DB 를 조회해 규칙에 넘긴다.
+    없으면 데이터시트 축 없이 넷리스트만으로 돈다 — 지금까지와 똑같이 동작한다.
     """
     sources: "dict[str, str] | None" = None
     if firmware_bytes:
@@ -160,14 +174,24 @@ def run_check(
         analysis = analyze(
             text,
             filename=netlist_filename,
+<<<<<<< HEAD
             bom_text=bom_text,
             bom_filename=bom_filename or "",
             firmware_sources=sources,
+=======
+            bom_bytes=bom_bytes,
+            firmware=firmware_filename,
+            fact_store=fact_store,
+>>>>>>> origin/main
         )
     except NetlistParseError as exc:
         raise netlist_parse_failed(str(exc)) from exc
     except BomParseError as exc:
+<<<<<<< HEAD
         raise bom_unreadable(str(exc)) from exc
+=======
+        raise bom_parse_failed(str(exc)) from exc
+>>>>>>> origin/main
 
     return build_result(
         check_id=check_id or new_check_id(),
@@ -176,6 +200,7 @@ def run_check(
         netlist_filename=netlist_filename,
         bom_filename=bom_filename,
         firmware_filename=firmware_filename,
+        bom=analysis.bom,
     )
 
 

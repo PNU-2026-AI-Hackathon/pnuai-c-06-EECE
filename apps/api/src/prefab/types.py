@@ -34,7 +34,15 @@ SEVERITY_RANK: dict[Severity, int] = {
 }
 
 #: 규칙이 NEEDS 로 선언할 수 있는 입력 이름. 계약의 RuleInfo.needs 와 같은 어휘다.
-INPUT_NAMES = ("netlist", "bom", "firmware")
+#: 엔진이 아는 입력 이름. `Context` 필드명과 1:1 이다.
+#:
+#: **계약(`docs/API_CONTRACT.md`)의 `RuleInfo.needs` 는 아직 앞의 세 개만 노출한다.**
+#: `datasheet` 는 엔진이 사실 DB 조회 결과를 실어 나르기 위해 먼저 뚫어 둔 자리라서,
+#: 카탈로그의 `needs` 에 쓰면 프론트가 모르는 값이 나간다. 계약을 먼저 고치고 쓴다.
+INPUT_NAMES = ("netlist", "bom", "firmware", "datasheet")
+
+#: 계약이 프론트에 약속한 `needs` 어휘. 카탈로그는 이 밖으로 나가면 안 된다.
+CONTRACT_NEEDS = ("netlist", "bom", "firmware")
 
 
 @dataclass(frozen=True)

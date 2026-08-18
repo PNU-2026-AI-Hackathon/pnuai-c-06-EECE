@@ -257,6 +257,7 @@ IPC-D-356 은 핀 이름을 **4자에서 자른다.** 그래서 물리적으로 
 |---|---|---|
 | 넷리스트 없음 | `NETLIST_REQUIRED` | 422 |
 | 파싱 실패 | `NETLIST_PARSE_FAILED` | 422 |
+| BOM 을 읽지 못함 | `BOM_PARSE_FAILED` | 422 |
 | 파일 크기 초과 (10MB) | `FILE_TOO_LARGE` | 413 |
 | 확장자 불일치 | `UNSUPPORTED_FILE_TYPE` | 415 |
 | 펌웨어 zip 을 못 읽음 | `FIRMWARE_UNREADABLE` | 422 |

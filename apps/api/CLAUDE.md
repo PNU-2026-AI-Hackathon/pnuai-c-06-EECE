@@ -117,7 +117,19 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
 - 규칙 카탈로그 (`catalog.py`) — 규칙 개수의 **유일한 진실**.
   `GET /rules` 와 `summary.rules_*` 가 전부 여기서 계산된다
 - FastAPI (`web/app.py`) — 엔드포인트 4개 + CORS. 로직은 `web/service.py` 에 있다
-- CLI — `python -m prefab <파일> [--json|--rules-json]`
+- CLI — `python -m prefab <파일> [--json|--rules-json]` · `--facts-load` · `--facts`
+- **BOM CSV 파서** (`bom.py`) — 부품기호·부품번호를 읽어 넷리스트와 맞춘다.
+  도구별 열 이름 별칭 · 한 행에 여러 부품(`"C1,C2,C3"`) · 엑셀 CP949/BOM 인코딩을 처리한다.
+  **양쪽 방향을 다 본다** — BOM 에 없는 부품, 번호가 빈 부품,
+  그리고 **회로도에 없는 BOM 부품**(BOM↔회로도 어긋남)까지 보고한다
+- **부품 사실 DB** (`datasheet/facts.py` · `datasheet/store.py`) — `checks` 와 **같은**
+  SQLite 파일의 `part_facts` 표. 러너가 BOM 의 부품번호로 조회해 `Context.datasheet` 에 넣는다.
+  **조회는 러너에서 끝난다** — 규칙 함수는 DB 를 모른다 (2-1).
+  저장기가 두 가지를 거절한다: **값이 있는데 출처(page·quote)가 없는 것**,
+  **값이 없는데 이유가 없는 것**. `value: null` + `reason` 은 정상적인 사실로 저장한다.
+  `confidence: low` 는 저장은 되지만 `usable` 이 아니라 **판정에 못 쓴다**
+- **사실 파일 CLI** — `python -m prefab --facts-load parts/*.json`.
+  **LLM 없이 사람이 데이터시트를 읽고 채울 수 있다.** 서식과 규칙은 `parts/README.md`
 - 실측 픽스처: `tests/fixtures/esp32-c6-presence-smart-light.d356`
 - 골든 테스트 — 3건·10부품·8네트·K1 2그룹
 - **펌웨어 소스 — 받았다.** `tests/fixtures/esp32-c6-presence-smart-light.firmware/`
@@ -130,8 +142,12 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
 - 펌웨어 파서 — **소스는 있고 파서가 없다**
 - 모듈 핀아웃 DB — **R7 · R8 의 선행 조건.** 실크→GPIO 표는 `docs/CHIPS.md` 에 채워져 있고
   하드웨어 담당 확정까지 끝났다. 파서가 패드마다 실크·GPIO 를 실어 주면 된다 (알려진 버그 2번)
-- 데이터시트 파이프라인 — BOM 없음, PDF 파서 없음, LLM 호출 없음
-- 부품 사실 DB — **0개**
+- 데이터시트 파이프라인 — **PDF 파서 없음, LLM 호출 없음.**
+  BOM 은 읽고, 사실 DB 도 있고, 조회도 규칙까지 연결됐다. **비어 있는 것은 내용물뿐이다.**
+  남은 단계는 MPN → PDF → 사실 추출 (`.claude/skills/prefab-datasheet` 3~5단계)
+- 부품 사실 DB **내용물 — 0개**. 그릇은 아래에 있다
+- 사실을 **소비하는 규칙 — 없다.** R04 가 첫 후보인데 `needs` 에 `datasheet` 를 쓰려면
+  계약(`API_CONTRACT.md`)의 어휘를 먼저 넓혀야 한다. 그래서 카탈로그는 아직 안 건드렸다
 
 ### 알려진 버그
 1. R11과 R12가 같은 네트(`PRESENCE_3V3`)에 중복으로 뜬다. dedup 필요.
@@ -178,6 +194,10 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
 
 카탈로그 전체 **11개**. `NEEDS` 어휘는 계약과 같은 `netlist` / `bom` / `firmware` 세 개뿐이다.
 
+> 엔진 내부(`INPUT_NAMES`)는 `datasheet` 까지 안다. 사실 DB 조회 결과를 규칙에 넘겨야 해서다.
+> 하지만 **카탈로그의 `needs` 에 쓰면 프론트가 모르는 값이 나간다.**
+> `CONTRACT_NEEDS` 와 `test_catalog.py` 가 그 선을 지킨다. 쓰려면 계약을 먼저 고친다.
+
 **차별 등급 5개가 전부 펌웨어를 필요로 한다. 펌웨어 소스 확보가 생존 조건이다.**
 
 ---
@@ -191,12 +211,14 @@ src/prefab/
   netlist/d356.py   IPC-D-356 파서
   netlist/graph.py  부품·네트 그래프, X좌표 패드 클러스터링, 전원 도메인 추론
   firmware/         (스텁) 펌웨어 정적 분석
-  datasheet/        (스텁) 데이터시트 사실 추출
+  datasheet/facts.py  Fact · FactSet — 순수 자료형. IO 없음. 규칙이 보는 것
+  datasheet/store.py  part_facts SQLite. 러너만 부른다 (추출기는 아직 없다)
   rules/            규칙 모듈 + 레지스트리 (여기 등록되면 '구현됨')
   engine.py         규칙 실행 → Finding 수집 → 정렬
   report.py         계약 응답 dict 조립 (summary · pipeline)
   runner.py         파싱 → 그래프 → 엔진. CLI 와 web 이 같이 쓴다
-  __main__.py       python -m prefab <파일> [--json|--rules-json]
+  __main__.py       python -m prefab <파일> [--json|--rules-json|--facts-load]
+parts/            사람이 손으로 적는 부품 사실 파일 (서식·규칙은 여기 README)
 web/service.py      검증 · 오류 · SQLite. HTTP 프레임워크를 모른다
 web/app.py          FastAPI 어댑터. 판정도 검증도 여기 없다
 scripts/smoke.sh    배포한 URL 이 진짜 도는지 확인

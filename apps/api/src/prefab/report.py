@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 from . import catalog
+from .bom import Bom
 from .engine import EngineResult
 from .netlist.d356 import Netlist
 from .types import Severity, Verdict
@@ -85,19 +86,40 @@ def build_pipeline(
     netlist: Netlist,
     engine: EngineResult,
     has_bom: bool,
+<<<<<<< HEAD
     firmware,
     pinmap,
     bom=None,
+=======
+    has_firmware: bool,
+    bom_detail: str | None = None,
+>>>>>>> origin/main
 ) -> list[dict[str, Any]]:
     step = dict(PIPELINE_NAMES)
 
     identify = _identify_step(has_bom, pinmap, bom, set(netlist.parts))
     firmware_step = _firmware_step(firmware, pinmap)
 
+<<<<<<< HEAD
     if bom is not None and bom.identified:
         mpns = " · ".join(sorted({e.mpn for e in bom.identified})[:3])
         datasheet = ("skipped", f"데이터시트 파이프라인 미구현 — 조회 대상 {mpns}")
     elif has_bom:
+=======
+    if has_bom:
+        # 부분 식별을 'done' 이라고 하지 않는다. 몇 개를 못 읽었는지 그대로 적는다.
+        identify = ("done" if bom_detail and "미식별 0" in bom_detail else "partial",
+                    bom_detail or "BOM 을 읽었습니다")
+    else:
+        identify = ("partial", "BOM 없음 · 좌표 클러스터링으로 전원 도메인만 추정")
+
+    if has_firmware:
+        firmware = ("skipped", "펌웨어 정적 분석기 미구현 — 파일은 받았습니다")
+    else:
+        firmware = ("skipped", "펌웨어 미제출")
+
+    if has_bom:
+>>>>>>> origin/main
         datasheet = ("skipped", "데이터시트 파이프라인 미구현")
     else:
         datasheet = ("skipped", "BOM 없음 · 부품번호를 알 수 없음")
@@ -134,6 +156,7 @@ def build_result(
     bom_filename: str | None = None,
     firmware_filename: str | None = None,
     parts_identified: int = 0,
+    bom: "Bom | None" = None,
 ) -> dict[str, Any]:
     netlist = analysis.netlist
     engine = analysis.engine
@@ -147,6 +170,22 @@ def build_result(
         firmware_input = {"filename": firmware_filename}
         if firmware is not None:
             firmware_input["files"] = len(firmware.files)
+
+    bom_detail: str | None = None
+    if bom is not None:
+        m = bom.match(list(netlist.parts))
+        parts_identified = m.identified_count
+        bits = [f"부품 {m.identified_count}/{netlist.part_count} 식별",
+                f"미식별 {len(m.missing_in_bom) + len(m.blank_mpn)}"]
+        if m.missing_in_bom:
+            bits.append("BOM 에 행 없음: " + ", ".join(m.missing_in_bom[:6]))
+        if m.blank_mpn:
+            bits.append("부품번호 빈 칸: " + ", ".join(m.blank_mpn[:6]))
+        # BOM 에만 있는 부품은 BOM 과 회로도가 어긋났다는 뜻이다. 그냥 넘기지 않는다.
+        if m.extra_in_bom:
+            bits.append("⚠ 회로도에 없는 BOM 부품: " + ", ".join(m.extra_in_bom[:6]))
+        bits.extend(bom.parse_notes())
+        bom_detail = " · ".join(bits)
 
     return {
         "check_id": check_id,
@@ -165,8 +204,13 @@ def build_result(
             ),
             "firmware": firmware_input,
         },
+<<<<<<< HEAD
         "summary": build_summary(netlist, engine, parts_identified or analysis.parts_identified),
         "pipeline": build_pipeline(netlist, engine, has_bom, firmware, pinmap, analysis.bom),
+=======
+        "summary": build_summary(netlist, engine, parts_identified),
+        "pipeline": build_pipeline(netlist, engine, has_bom, has_firmware, bom_detail),
+>>>>>>> origin/main
         "findings": [f.to_dict() for f in engine.findings],
         "netlist": analysis.to_netlist_dict(),
     }

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from prefab import catalog, rules
 from prefab.report import build_rules_catalog
-from prefab.types import INPUT_NAMES
+from prefab.types import CONTRACT_NEEDS
 
 
 def test_every_implemented_module_is_in_the_catalog():
@@ -28,7 +28,7 @@ def test_module_metadata_matches_the_catalog():
 def test_needs_use_the_contract_vocabulary():
     for spec in catalog.CATALOG:
         for need in spec.needs:
-            assert need in INPUT_NAMES, f"{spec.id} 의 needs 에 계약에 없는 값: {need}"
+            assert need in CONTRACT_NEEDS, f"{spec.id} 의 needs 에 계약에 없는 값: {need}"
 
 
 def test_rule_ids_are_unique_and_zero_padded():
