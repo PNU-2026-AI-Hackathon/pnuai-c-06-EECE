@@ -1,0 +1,45 @@
+{
+  "mpn": "HLK-LD2410C",
+  "source_url": "https://d.hlktech.net/download/HLK-LD2410C/1/HLK%20LD2410C%20Human%20%20Presence%20Sensor%20Module%20Data%20Sheet%20V1.00.pdf",
+  "source_tier": "official",
+  "facts": [
+    {
+      "field": "io_level",
+      "value": 3.3,
+      "unit": "V",
+      "table": "Table 2 Performance and electrical parameters table (Interface)",
+      "page": 17,
+      "quote": "A GPIO, IO level 3.3V",
+      "confidence": "high",
+      "reason": "IO 가 도는 로직 레벨이다. Voh 규격(min/max)이 아니다 — 이 매뉴얼에는 Voh 표가 없다. IO 레일이 3.3V 이므로 그 핀의 출력은 3.3V 를 넘지 않는다."
+    },
+    {
+      "field": "vcc_nominal",
+      "value": 5.0,
+      "unit": "V",
+      "table": "Table 2 Performance and electrical parameters table (Operating Voltage)",
+      "page": 17,
+      "quote": "DC 5V, power supply capacity>200mA",
+      "confidence": "high",
+      "reason": "동작 조건 표의 단일 정격값이다. 절대 최대 정격이 아니다. 7쪽 Table 1 의 VCC 핀은 'Power input 5~12V（advise 5V）' 로 범위를 준다."
+    },
+    {
+      "field": "voh_max",
+      "value": null,
+      "confidence": "none",
+      "reason": "출력 하이 전압의 min/max 규격이 매뉴얼에 없다. Table 2 의 'IO level 3.3V' 는 로직 레벨 표기이지 Voh 규격값이 아니다 — io_level 로 따로 기록했다."
+    },
+    {
+      "field": "output_type",
+      "value": null,
+      "confidence": "none",
+      "reason": "push-pull 인지 open-drain 인지 매뉴얼 어디에도 명시되지 않음 (7쪽 핀 정의표·8쪽 5.1·17쪽 Table 2 확인)"
+    },
+    {
+      "field": "vin_absolute_max",
+      "value": null,
+      "confidence": "none",
+      "reason": "Absolute Maximum Ratings 표 자체가 이 매뉴얼에 없다. Table 2 는 동작 조건 표라 절대 최대 정격으로 대용할 수 없다."
+    }
+  ]
+}

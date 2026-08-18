@@ -10,6 +10,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# 데이터시트 추출에만 필요하다. 검사 API 는 이것 없이도 돈다.
+datasheet = [
+    "anthropic>=0.40",
+    "pdfplumber>=0.11",
+]
+
 dev = [
     "pytest>=8.0",
     "httpx>=0.27",

@@ -21,10 +21,10 @@ from ..netlist.graph import (
     Graph,
     format_volts,
 )
-from ..datasheet.facts import VOH_MAX
+from ..datasheet.facts import label
 from ..text import eun, gwa, i_ga
 from ..types import Context, Evidence, Finding, Severity, Verdict
-from ._clearance import Answer, ask, number
+from ._clearance import Answer, ask_output_bound, number
 
 RULE_ID = "R12"
 TITLE = "상위 전원 도메인이 하위를 직결"
@@ -60,8 +60,8 @@ def check(ctx: Context) -> list[Finding]:
         # 넷리스트에는 핀 방향이 없다. Voh 는 구동하는 쪽에나 물어볼 값이라,
         # 방향을 모르면 Voh 를 알아도 그걸로 해제하면 안 된다 (CLAUDE.md 2-2).
         sure = graph.domain(hi).confidence == CONFIDENCE_HIGH
-        answer = ask(
-            ctx, hi, VOH_MAX,
+        answer = ask_output_bound(
+            ctx, hi,
             resolve=sure,
             what=None if sure else "핀 방향과 내부 풀업",
         )
@@ -127,16 +127,24 @@ def _finding(graph: Graph, net, hi, lo, hi_v, lo_v, answer: Answer) -> Finding:
         highlight = [hi_token, *passive_marks, lo_token]
 
     # ----------------------------------------------------------- suggestion
+    # **이미 낸 것을 또 내라고 하지 않는다.** 부품번호를 아는데 "부품번호를 제출하면"
+    # 이라고 쓰면, 사용자는 자기가 뭘 빠뜨렸는지 찾다가 시간을 버린다.
+    if answer.mpn:
+        need = f"{hi}({answer.mpn})의 데이터시트를 읽으면 판정합니다."
+    else:
+        need = (
+            f"{hi}의 부품번호(MPN)를 BOM으로 제출하면 데이터시트의 출력 하이 전압(Voh)을 "
+            f"읽어 판정합니다."
+        )
+
     if passives:
         roles = " · ".join(sorted({role.role for _ref, role in passives}))
         suggestion = (
-            f"{hi}의 부품번호를 제출하면 출력 규격으로 판정합니다. "
-            f"이 네트의 저항은 {roles}이라 직렬로 옮기지 않는 한 보호가 되지 않습니다."
+            f"{need} 이 네트의 저항은 {roles}이라 직렬로 옮기지 않는 한 보호가 되지 않습니다."
         )
     else:
         suggestion = (
-            f"{hi}의 부품번호(MPN)를 BOM으로 제출하면 데이터시트의 출력 하이 전압(Voh)을 "
-            f"읽어 판정합니다. Voh가 {format_volts(VOH_SAFE_MAX_V)}V 이하면 이 항목은 해제됩니다."
+            f"{need} Voh가 {format_volts(VOH_SAFE_MAX_V)}V 이하면 이 항목은 해제됩니다."
         )
 
     evidence: list[Evidence] = [Evidence.netlist("\n".join(lines), highlight)]
@@ -162,7 +170,7 @@ def _finding(graph: Graph, net, hi, lo, hi_v, lo_v, answer: Answer) -> Finding:
         if voh <= VOH_SAFE_MAX_V:
             verdict = Verdict.PASS
             claim = (
-                f"{head} 다만 {hi}({answer.mpn})의 출력 하이 전압은 "
+                f"{head} 다만 {hi}({answer.mpn})의 {label(answer.fact.field)}이 "
                 f"{format_volts(voh)}V로 확인되어 {lo}의 {format_volts(lo_v)}V 입력이 견딥니다. "
                 f"전원이 {format_volts(hi_v)}V일 뿐 출력은 그렇지 않습니다."
             )
@@ -172,7 +180,7 @@ def _finding(graph: Graph, net, hi, lo, hi_v, lo_v, answer: Answer) -> Finding:
             )
         else:
             claim = (
-                f"{head} {tail} {hi}({answer.mpn})의 출력 하이 전압이 "
+                f"{head} {tail} {hi}({answer.mpn})의 {label(answer.fact.field)}이 "
                 f"{format_volts(voh)}V로 확인되어 {format_volts(VOH_SAFE_MAX_V)}V 한도를 넘습니다."
             )
             suggestion = (

@@ -8,6 +8,18 @@ python -m prefab --facts
 ```
 
 `_TEMPLATE.json` 을 복사해서 쓴다. 파일 이름은 부품번호를 소문자로.
+
+LLM 으로 초안을 뽑을 수도 있다 (`ANTHROPIC_API_KEY` 필요):
+
+```bash
+python -m prefab --extract ld2410c.pdf --mpn HLK-LD2410C \
+    --source-url https://... --source-tier official --pages 15-19 \
+    > parts/hlk-ld2410c.json
+```
+
+**결과가 DB 로 바로 안 들어간다.** 파일로 나오고, 사람이 보고 커밋할지 정한다.
+그리고 **모델이 댄 인용문이 그 쪽 원문에 없으면 그 항목은 자동으로 빠진다** —
+지어낸 출처는 여기서 걸린다.
 서식 자체는 `mpn` 이 비어 있어서 그대로 넣으면 통째로 거절된다 — 실수로 DB 를 더럽히지 않는다.
 
 ## 절대 원칙
@@ -42,7 +54,13 @@ python -m prefab --facts
 | `voh_max` · `vol_max` | 출력 High/Low 전압 | Electrical Characteristics |
 | `vih_min` · `vil_max` | 입력 문턱 | Electrical Characteristics |
 | `output_type` | `push-pull` / `open-drain` | Electrical Characteristics |
+| `io_level` | 모듈 IO 가 도는 로직 레벨 | Interface / 사양 표 |
 | `input_pullup_to` | 입력 핀이 내부에서 어디로 풀업되는가 | Application Circuit |
+
+**`voh_max` 와 `io_level` 을 섞지 않는다.** `voh_max` 는 min/max 열이 있는 출력 규격이고,
+`io_level` 은 "IO level 3.3V" 같은 로직 레벨 표기다. 모듈 데이터시트는 Voh 규격을 잘 안 준다.
+없는 규격을 `voh_max` 에 적으면 그건 지어낸 값이다 — 실제로 한 번 그렇게 적었다가
+LLM 추출이 반박해서 항목을 나눴다. 규칙은 둘 다 본다 (`voh_max` 를 먼저).
 
 **Absolute Maximum 과 Recommended Operating 을 섞지 않는다.** 전자는 "넘으면 파손",
 후자는 "이 범위에서 정상 동작"이다. 판정 기준이 다르므로 어느 표에서 읽었는지 반드시 적는다.

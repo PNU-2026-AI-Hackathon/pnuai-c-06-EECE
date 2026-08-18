@@ -1,0 +1,87 @@
+{
+  "mpn": "ESP32-C6",
+  "source_url": "https://documentation.espressif.com/esp32-c6_datasheet_en.pdf",
+  "source_tier": "official",
+  "facts": [
+    {
+      "field": "vcc_nominal",
+      "value": 3.3,
+      "unit": "V",
+      "table": "Table5-2. RecommendedOperatingConditions",
+      "page": 64,
+      "quote": "VDDA1,VDDA2,VDDA3P3 Recommendedinputvoltage 3.0 3.3 3.6 V",
+      "confidence": "high",
+      "reason": "Recommended Operating Conditions 표에 Typ 3.3 V로 명시 (VDDPST1, VDD_SPI, VDDPST2 모두 동일 3.0/3.3/3.6 V)."
+    },
+    {
+      "field": "io_level",
+      "value": 3.3,
+      "unit": "V",
+      "table": "Table5-2. RecommendedOperatingConditions / Table5-4. DCCharacteristics(3.3V,25°C)",
+      "page": 65,
+      "quote": "5.4 DC Characteristics (3.3 V, 25 °C)",
+      "confidence": "medium",
+      "reason": "DC 특성이 VDD 비례식으로만 주어지고 측정 조건이 3.3 V이므로 IO 레벨은 3.3 V급 CMOS로 판단. 단 실제 레벨은 해당 전원 도메인 VDD에 따라 달라짐."
+    },
+    {
+      "field": "vih_min",
+      "value": 2.475,
+      "unit": "V",
+      "table": "Table5-4. DCCharacteristics(3.3V,25°C)",
+      "page": 65,
+      "quote": "0.75×VDD\n1\nV High-levelinputvoltage — VDD +0.3 V",
+      "confidence": "medium",
+      "reason": "표에는 0.75×VDD 로만 표기됨. 숫자값은 VDD=3.3 V 가정 시 계산값이며 다른 VDD에서는 달라짐."
+    },
+    {
+      "field": "vil_max",
+      "value": 0.825,
+      "unit": "V",
+      "table": "Table5-4. DCCharacteristics(3.3V,25°C)",
+      "page": 65,
+      "quote": "0.25×VDD\nV Low-levelinputvoltage –0.3 — V\nIL 1",
+      "confidence": "medium",
+      "reason": "표에는 0.25×VDD 로만 표기됨. 숫자값은 VDD=3.3 V 가정 시 계산값."
+    },
+    {
+      "field": "vol_max",
+      "value": 0.33,
+      "unit": "V",
+      "table": "Table5-4. DCCharacteristics(3.3V,25°C)",
+      "page": 65,
+      "quote": "2 1\nV Low-leveloutputvoltage — — 0.1×VDD V\nOL",
+      "confidence": "medium",
+      "reason": "표에는 0.1×VDD 로만 표기됨. 숫자값은 VDD=3.3 V 가정 시 계산값. 각주: VOH와 VOL은 고임피던스 부하로 측정."
+    },
+    {
+      "field": "voh_max",
+      "value": null,
+      "unit": null,
+      "table": "Table5-4. DCCharacteristics(3.3V,25°C)",
+      "page": 65,
+      "quote": "2 1\nV High-leveloutputvoltage 0.8×VDD — — V\nOH",
+      "confidence": "none",
+      "reason": "VOH는 Min(0.8×VDD)만 규정되어 있고 Max 값이 표에 없음(— 표기). 추정하지 않음."
+    },
+    {
+      "field": "vin_absolute_max",
+      "value": 3.6,
+      "unit": "V",
+      "table": "Table5-1. AbsoluteMaximumRatings",
+      "page": 64,
+      "quote": "Inputpowerpins Allowedinputvoltage –0.3 3.6 V",
+      "confidence": "medium",
+      "reason": "절대최대정격 표의 3.6 V는 '입력 전원 핀'에 대한 값이며, 범용 IO 핀 전용 절대최대 입력전압은 별도 명시 없음. IO는 Table5-4에서 VIH 상한 VDD+0.3 V로만 표기됨."
+    },
+    {
+      "field": "output_type",
+      "value": "CMOS 푸시풀로 추정 (High-level source current 40 mA, Low-level sink current 28 mA 및 VOH/VOL 규정으로부터 유추)",
+      "unit": null,
+      "table": "Table5-4. DCCharacteristics(3.3V,25°C)",
+      "page": 65,
+      "quote": "High-levelsourcecurrent(VDD =3.3V,V\nOH\nI — 40 — mA",
+      "confidence": "low",
+      "reason": "데이터시트에 push-pull/open-drain 등 출력단 형식을 명시한 문장이 없음. 소스/싱크 전류와 VOH/VOL 규정에서 유추한 것이므로 신뢰도 낮음."
+    }
+  ]
+}

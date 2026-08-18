@@ -12,8 +12,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..datasheet.facts import Fact, FactSet, label
+from ..datasheet.facts import IO_LEVEL, VOH_MAX, Fact, FactSet, label
 from ..types import Context, Evidence
+
+
+#: 출력이 어디까지 올라가는지 말해 주는 항목들. 앞의 것이 더 직접적인 규격이다.
+#:
+#: `voh_max` 가 정석이지만 **모듈 데이터시트는 그 규격을 잘 안 준다.**
+#: 대신 "IO 레벨 3.3V" 라고 적는다. 그것도 출력 상한을 말해 준다 —
+#: IO 레일이 3.3V 인데 그 핀의 출력이 5V 로 올라갈 수는 없다.
+#: 실측에서 나온 문제다: `HLK-LD2410C` 매뉴얼에 Voh 규격이 없어서
+#: 사람이 "IO 레벨 3.3V" 를 `voh_max` 라고 적었고, 그건 없는 규격을
+#: 있다고 말한 것이었다. 항목을 나누고 규칙이 둘 다 보게 한다.
+OUTPUT_BOUND_FIELDS = (VOH_MAX, IO_LEVEL)
 
 
 @dataclass(frozen=True)
@@ -85,6 +96,26 @@ def ask(
         return Answer(fact=found, mpn=mpn)
 
     return Answer(mpn=mpn, missing=f"{mpn} — {_why_unusable(found, what)}")
+
+
+def ask_output_bound(
+    ctx: Context, ref: str, *, resolve: bool = True, what: str | None = None
+) -> Answer:
+    """출력이 어디까지 올라가는지 묻는다. `OUTPUT_BOUND_FIELDS` 를 순서대로 본다.
+
+    하나라도 답하면 그걸 쓴다. 아무것도 못 찾으면 **가장 직접적인 항목의
+    미결 사유**를 돌려준다 — 사용자에게 "Voh 를 주세요"가 "IO 레벨을 주세요"보다
+    쓸모 있는 안내다.
+    """
+    first: Answer | None = None
+    for field in OUTPUT_BOUND_FIELDS:
+        answer = ask(ctx, ref, field, resolve=resolve, what=what)
+        if answer.answered:
+            return answer
+        if first is None:
+            first = answer
+    assert first is not None  # OUTPUT_BOUND_FIELDS 는 비어 있지 않다
+    return first
 
 
 def _why_unusable(f: Fact, what: str) -> str:

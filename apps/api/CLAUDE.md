@@ -136,6 +136,20 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
   `confidence: low` 는 저장은 되지만 `usable` 이 아니라 **판정에 못 쓴다**
 - **사실 파일 CLI** — `python -m prefab --facts-load parts/*.json`.
   **LLM 없이 사람이 데이터시트를 읽고 채울 수 있다.** 서식과 규칙은 `parts/README.md`
+- **데이터시트 LLM 추출** (`datasheet/extract.py` · `datasheet/pdf.py`) —
+  PDF 를 쪽별로 읽어 LLM 에 넘기고, 스키마를 강제해 사실을 받는다.
+  **그 다음이 핵심이다: 모델이 댄 인용문이 그 쪽 원문에 정말 있는지 코드가 대조한다.**
+  없으면 버린다. 지어낸 출처가 DB 에 들어가는 걸 막을 수 있는 자리는 여기뿐이다
+  (저장기는 출처가 "있어" 보이면 받는다).
+  `python -m prefab --extract <pdf> --mpn X --source-url ... > parts/x.json`
+  결과는 DB 가 아니라 **파일로 나온다** — 사람이 보고 커밋할지 정한 뒤에 들어간다
+- **실제 LLM 호출 — 됐다 (8/19).** `--extract` 로 `HLK-LD2410C` 매뉴얼 5쪽을 돌려
+  사실 8건을 뽑았고 원문 대조 탈락 0건이었다. 비용 약 $0.03.
+  **그 결과가 사람이 손으로 넣은 값을 반박했다** — 아래 `io_level` 참고
+- **`parts/hlk-ld2410c.json`** — 제조사 공식 PDF 17쪽 Table 2 에서 읽은 실제 값.
+  이것 하나로 실측 보드의 `PRESENCE_3V3` 경고 **2건이 해제된다** (치명 4·경고 2 → 치명 3·경고 1·해제 2).
+  `prefab.db` 는 `.gitignore` 라서 **커밋되는 진실은 이 JSON 뿐이고**,
+  `tests/test_parts_files.py` 가 이 파일만으로 실제 해제가 나는지 검증한다
 - 실측 픽스처: `tests/fixtures/esp32-c6-presence-smart-light.d356`
 - 골든 테스트 — 3건·10부품·8네트·K1 2그룹
 - **펌웨어 소스 — 받았다.** `tests/fixtures/esp32-c6-presence-smart-light.firmware/`
@@ -151,10 +165,22 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
 - 데이터시트 파이프라인 — **PDF 파서 없음, LLM 호출 없음.**
   BOM 은 읽고, 사실 DB 도 있고, 조회도 규칙까지 연결됐다. **비어 있는 것은 내용물뿐이다.**
   남은 단계는 MPN → PDF → 사실 추출 (`.claude/skills/prefab-datasheet` 3~5단계)
-- **부품 사실을 실제로 채워 넣은 부품 — 0개.** 배관과 규칙은 다 됐고 값이 없다.
-  `parts/*.json` 이 하나라도 생기면 그 순간 화면에서 해제가 일어난다
+- 사실을 채운 부품 — **1개** (`HLK-LD2410C`). `JQC-3FF-S-Z` · `XIAO-ESP32C6` 은 아직 없다
+
 - R04 는 아직 없다. `needs` 에 `datasheet` 를 쓰려면 계약(`API_CONTRACT.md`)의 어휘를
   먼저 넓혀야 한다. R11 · R12 는 `datasheet` 를 **선택적으로** 보므로 `needs` 가 그대로다
+
+### 배운 것 — `voh_max` 와 `io_level` 은 다르다
+
+사람이 `HLK-LD2410C` 의 "IO level 3.3V" 를 `voh_max` 로 적었다. **매뉴얼에 Voh 규격
+표는 없다.** LLM 추출이 그걸 잡아내고 `null` 을 돌려주며 "IO 레벨 표기이지 Voh
+규격값이 아니다" 라고 적었다. 사람 쪽이 헌법 2-2 를 어긴 것이었다.
+
+항목을 나눴다. `io_level` 은 모듈 IO 가 도는 로직 레벨이고, 규칙은 `voh_max` 를
+먼저 보되 없으면 `io_level` 로도 판정한다 (IO 레일이 3.3V 면 그 핀 출력이 5V 로
+올라갈 수 없다). 근거 문구도 "IO 로직 레벨"이라고 정확히 말한다.
+
+**모듈 데이터시트는 Voh 규격을 잘 안 준다.** 다음 부품에서도 같은 일이 생긴다.
 
 ### 알려진 버그
 1. R11과 R12가 같은 네트(`PRESENCE_3V3`)에 중복으로 뜬다. dedup 필요.
@@ -222,7 +248,10 @@ src/prefab/
   netlist/graph.py  부품·네트 그래프, X좌표 패드 클러스터링, 전원 도메인 추론
   firmware/         (스텁) 펌웨어 정적 분석
   datasheet/facts.py  Fact · FactSet — 순수 자료형. IO 없음. 규칙이 보는 것
-  datasheet/store.py  part_facts SQLite. 러너만 부른다 (추출기는 아직 없다)
+  datasheet/store.py  part_facts SQLite. 러너만 부른다
+  datasheet/pdf.py    PDF → 쪽별 글자. 쪽 번호를 지키는 것이 일이다
+  datasheet/extract.py  LLM 추출 + **원문 대조 검증**. 네트워크를 부르는 유일한 자리.
+                        규칙은 이 파일을 import 하지 않는다
   rules/            규칙 모듈 + 레지스트리 (여기 등록되면 '구현됨')
   engine.py         규칙 실행 → Finding 수집 → 정렬
   report.py         계약 응답 dict 조립 (summary · pipeline)

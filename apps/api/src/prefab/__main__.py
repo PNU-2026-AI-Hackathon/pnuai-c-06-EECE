@@ -10,6 +10,13 @@
 
     python -m prefab --facts-load parts/hlk-ld2410c.json
     python -m prefab --facts
+
+LLM 으로 PDF 에서 뽑을 수도 있다. 결과는 DB 가 아니라 **파일로 나온다** —
+사람이 보고 커밋할지 정한 다음에 들어간다:
+
+    python -m prefab --extract ld2410c.pdf --mpn HLK-LD2410C \
+        --source-url https://... --source-tier official --pages 15-19 \
+        > parts/hlk-ld2410c.json
 """
 
 from __future__ import annotations
@@ -25,6 +32,7 @@ from .datasheet.store import FactStore
 from .firmware import load_directory, load_zip
 from .netlist.d356 import NetlistParseError
 from .report import build_result, build_rules_catalog
+from .types import Verdict
 from .runner import analyze
 
 #: 목 데이터를 재생성해도 diff 가 나지 않도록 CLI 는 시각을 고정한다.
@@ -59,7 +67,9 @@ def _human(analysis, path: Path) -> str:
         out.append("  없음")
     for f in analysis.engine.findings:
         out.append("")
-        out.append(f"[{f.severity.value}] {f.rule}  net: {f.net}")
+        # 판정이 PASS 인데 [CRITICAL] 로 찍으면 해제가 일어난 게 화면에 안 보인다.
+        tag = "해제" if f.verdict is Verdict.PASS else f.severity.value
+        out.append(f"[{tag}] {f.rule}  net: {f.net}")
         out.append(f"       {f.claim}")
         for ev in f.evidence:
             for line in (ev.text or "").splitlines():
@@ -69,12 +79,125 @@ def _human(analysis, path: Path) -> str:
     out.append("")
     out.append(bar)
     e = analysis.engine
+    cleared = sum(1 for f in e.findings if f.verdict is Verdict.PASS)
+    if cleared:
+        out.append(f"{len(e.findings)}건 중 {cleared}건은 데이터시트로 해제됐습니다.")
     out.append(
         f"{len(e.findings)}건 · 규칙 {e.total}개 중 {len(e.ran)}개 실행 "
         f"(미구현 {len(e.skipped_not_implemented)} · 입력 부족 {len(e.skipped_missing_input)})"
     )
     out.append(bar)
     return "\n".join(out)
+
+
+def _load_env(start: Path | None = None) -> str | None:
+    """`.env` 를 찾아 환경변수로 올린다.
+
+    파이썬은 `.env` 를 자동으로 읽지 않는다 (Vite 는 읽는다 — 그래서 헷갈린다).
+    키를 파일에 넣어 두고 "왜 안 되지" 하는 자리를 없앤다.
+
+    **이미 환경에 있는 값은 덮어쓰지 않는다.** 배포 환경변수가 파일보다 세다.
+    """
+    here = start or Path.cwd()
+    for folder in (here, *here.parents):
+        env = folder / ".env"
+        if not env.is_file():
+            continue
+        for raw in env.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            name, _, value = line.partition("=")
+            name, value = name.strip(), value.strip().strip("'\"")
+            if name and name not in os.environ:
+                os.environ[name] = value
+        return str(env)
+    return None
+
+
+def _extract(args) -> int:
+    """PDF → LLM → 사실 JSON. **DB 에 바로 넣지 않는다.**
+
+    사람이 파일을 보고 커밋할지 정하는 단계를 남긴다. 자동으로 DB 에 들어가면
+    틀린 값이 언제 들어갔는지 아무도 모르게 된다.
+    """
+    from .datasheet.extract import ExtractionError, extract
+    from .datasheet.pdf import PdfError, notes, read_pages
+
+    found = _load_env()
+    if found:
+        print(f"환경 파일: {found}", file=sys.stderr)
+
+    try:
+        import anthropic
+    except ImportError:
+        print("anthropic SDK 가 없습니다. `pip install anthropic` 하세요.", file=sys.stderr)
+        return 2
+
+    span = None
+    if args.pages:
+        try:
+            lo, _, hi = args.pages.partition("-")
+            span = range(int(lo), int(hi or lo) + 1)
+        except ValueError:
+            print(f"--pages 는 '15-19' 모양입니다: {args.pages}", file=sys.stderr)
+            return 2
+
+    try:
+        pages = read_pages(args.extract, pages=span)
+    except PdfError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+
+    for note in notes(pages):
+        print(note, file=sys.stderr)
+
+    try:
+        result = extract(
+            anthropic.Anthropic(),
+            mpn=args.mpn,
+            pages=pages,
+            source_url=args.source_url,
+            source_tier=args.source_tier,
+        )
+    except ExtractionError as exc:
+        print(f"추출하지 못했습니다 — {exc}", file=sys.stderr)
+        return 2
+    except Exception as exc:  # 네트워크·인증·속도제한 전부
+        # SDK 는 자격증명이 없으면 요청을 만들 때 TypeError 를 던진다.
+        # 트레이스백 대신 무엇이 없는지 말한다.
+        text = str(exc)
+        if "credit balance is too low" in text:
+            # 코드 문제가 아니다. 키는 멀쩡하고 잔액만 없다.
+            print(
+                "크레딧 잔액이 0입니다. 키는 정상이고 서버까지 닿았습니다.\n"
+                "  console.anthropic.com → Plans & Billing 에서 크레딧을 구매하세요.\n"
+                "  이 PDF 5쪽 기준 부품당 약 $0.03 입니다.",
+                file=sys.stderr,
+            )
+        elif isinstance(exc, TypeError) and "authentication" in text:
+            where = found or "apps/api/.env (또는 저장소 루트)"
+            print(
+                f"ANTHROPIC_API_KEY 를 찾지 못했습니다.\n"
+                f"  {where} 에 ANTHROPIC_API_KEY=... 한 줄을 넣거나\n"
+                f"  export ANTHROPIC_API_KEY=... 로 환경변수를 설정하세요.\n"
+                f"  LLM 없이 사람이 직접 채우려면 parts/README.md 를 보세요.",
+                file=sys.stderr,
+            )
+        else:
+            print(f"모델을 부르지 못했습니다 — {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 2
+
+    # 떨어뜨린 것은 화면에 남긴다. 조용히 버리지 않는다 (CLAUDE.md 2-4).
+    for d in result.dropped:
+        print(f"  버림  {d.field} — {d.why}", file=sys.stderr)
+    print(
+        f"사실 {len(result.facts)}건 · 버림 {len(result.dropped)}건 "
+        f"(원문 대조 실패)", file=sys.stderr,
+    )
+
+    print(json.dumps(result.payload, ensure_ascii=False, indent=2))
+    return 0
 
 
 def _facts_load(paths: list[str], db: str) -> int:
@@ -127,9 +250,20 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--facts-load", nargs="+", metavar="JSON",
                     help="데이터시트 사실 파일을 부품 DB 에 넣는다")
     ap.add_argument("--facts", action="store_true", help="부품 DB 크기를 본다")
+    ap.add_argument("--extract", metavar="PDF", help="데이터시트 PDF 에서 사실을 뽑는다 (LLM)")
+    ap.add_argument("--mpn", help="--extract 대상 부품번호")
+    ap.add_argument("--source-url", help="--extract 한 PDF 를 받은 주소")
+    ap.add_argument("--source-tier", default="unofficial",
+                    choices=["official", "distributor", "unofficial"])
+    ap.add_argument("--pages", metavar="N-M", help="읽을 쪽 범위 (예: 15-19)")
     ap.add_argument("--db", default=os.getenv("PREFAB_DB", "prefab.db"),
                     help="SQLite 파일 (기본: PREFAB_DB 또는 prefab.db)")
     args = ap.parse_args(argv)
+
+    if args.extract:
+        if not (args.mpn and args.source_url):
+            ap.error("--extract 에는 --mpn 과 --source-url 이 필요합니다")
+        return _extract(args)
 
     if args.facts_load:
         return _facts_load(args.facts_load, args.db)
