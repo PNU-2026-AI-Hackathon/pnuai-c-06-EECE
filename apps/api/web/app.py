@@ -20,7 +20,14 @@ from .service import ApiError
 # --------------------------------------------------------------------- 설정
 
 #: 배포 시 ALLOWED_ORIGINS 환경변수로 Vercel URL 을 넣는다. 쉼표로 여러 개.
-DEFAULT_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
+#:
+#: 5173 만 열어두면 안 된다 — vite 는 5173 이 점유돼 있으면 **말없이 5174 로 올린다.**
+#: 그러면 CORS 가 조용히 막히고 화면은 이유를 모른 채 기능을 잃는다. 실제로 한 번 밟았다.
+#: 개발 포트라 넓게 열어도 위험이 없다.
+DEV_PORTS = (5173, 5174, 5175)
+DEFAULT_ORIGINS = ",".join(
+    f"http://{host}:{port}" for port in DEV_PORTS for host in ("localhost", "127.0.0.1")
+)
 
 ALLOWED_ORIGINS = [
     o.strip() for o in os.getenv("ALLOWED_ORIGINS", DEFAULT_ORIGINS).split(",") if o.strip()
@@ -107,8 +114,9 @@ async def create_check(
         bom_name = bom.filename
 
     firmware_name = None
+    firmware_bytes = None
     if firmware is not None and firmware.filename:
-        await _accept("firmware", firmware)
+        firmware_bytes = await _accept("firmware", firmware)
         firmware_name = firmware.filename
 
     result = service.run_check(
@@ -117,6 +125,7 @@ async def create_check(
         bom_bytes=bom_bytes,
         bom_filename=bom_name,
         firmware_filename=firmware_name,
+        firmware_bytes=firmware_bytes,
         fact_store=facts,
     )
     store.save(result)
