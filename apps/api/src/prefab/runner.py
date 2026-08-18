@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .bom import Bom, parse_bytes as parse_bom_bytes
 from .engine import EngineResult, run
 from .netlist.d356 import Netlist, parse_text
 from .netlist.graph import Graph
@@ -18,22 +19,28 @@ class Analysis:
     netlist: Netlist
     graph: Graph
     engine: EngineResult
+    #: BOM 을 받아 읽었으면 그 결과. 안 받았으면 None
+    bom: Bom | None = None
 
 
 def analyze(
     netlist_text: str,
     *,
     filename: str = "",
-    bom: object | None = None,
+    bom_bytes: bytes | None = None,
     firmware: object | None = None,
 ) -> Analysis:
     """넷리스트 본문을 받아 검사까지 끝낸다.
 
-    bom / firmware 는 아직 파서가 없다. None 이 아니면 '입력은 있다'로만 취급하고,
+    BOM 은 이제 실제로 파싱한다 — 부품기호와 부품번호를 읽는다.
+    firmware 는 아직 파서가 없다. None 이 아니면 '입력은 있다'로만 취급하고,
     그 입력을 NEEDS 로 선언한 규칙은 여전히 미구현이라 건너뛴다.
     있는 척하지 않는다.
     """
     netlist = parse_text(netlist_text, filename=filename)
     graph = Graph(netlist)
+
+    bom = parse_bom_bytes(bom_bytes) if bom_bytes else None
+
     ctx = Context(netlist=graph, bom=bom, firmware=firmware)
-    return Analysis(netlist=netlist, graph=graph, engine=run(ctx))
+    return Analysis(netlist=netlist, graph=graph, engine=run(ctx), bom=bom)

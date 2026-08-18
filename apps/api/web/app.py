@@ -97,8 +97,9 @@ async def create_check(
     netlist_bytes = await _accept("netlist", netlist)
 
     bom_name = None
+    bom_bytes = None
     if bom is not None and bom.filename:
-        await _accept("bom", bom)
+        bom_bytes = await _accept("bom", bom)
         bom_name = bom.filename
 
     firmware_name = None
@@ -109,6 +110,7 @@ async def create_check(
     result = service.run_check(
         netlist_bytes=netlist_bytes,
         netlist_filename=netlist.filename,
+        bom_bytes=bom_bytes,
         bom_filename=bom_name,
         firmware_filename=firmware_name,
     )

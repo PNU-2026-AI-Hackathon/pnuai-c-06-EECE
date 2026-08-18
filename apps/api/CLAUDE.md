@@ -118,6 +118,10 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
   `GET /rules` 와 `summary.rules_*` 가 전부 여기서 계산된다
 - FastAPI (`web/app.py`) — 엔드포인트 4개 + CORS. 로직은 `web/service.py` 에 있다
 - CLI — `python -m prefab <파일> [--json|--rules-json]`
+- **BOM CSV 파서** (`bom.py`) — 부품기호·부품번호를 읽어 넷리스트와 맞춘다.
+  도구별 열 이름 별칭 · 한 행에 여러 부품(`"C1,C2,C3"`) · 엑셀 CP949/BOM 인코딩을 처리한다.
+  **양쪽 방향을 다 본다** — BOM 에 없는 부품, 번호가 빈 부품,
+  그리고 **회로도에 없는 BOM 부품**(BOM↔회로도 어긋남)까지 보고한다
 - 실측 픽스처: `tests/fixtures/esp32-c6-presence-smart-light.d356`
 - 골든 테스트 — 3건·10부품·8네트·K1 2그룹
 - **펌웨어 소스 — 받았다.** `tests/fixtures/esp32-c6-presence-smart-light.firmware/`
@@ -130,7 +134,8 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
 - 펌웨어 파서 — **소스는 있고 파서가 없다**
 - 모듈 핀아웃 DB — **R7 · R8 의 선행 조건.** 실크→GPIO 표는 `docs/CHIPS.md` 에 채워져 있고
   하드웨어 담당 확정까지 끝났다. 파서가 패드마다 실크·GPIO 를 실어 주면 된다 (알려진 버그 2번)
-- 데이터시트 파이프라인 — BOM 없음, PDF 파서 없음, LLM 호출 없음
+- 데이터시트 파이프라인 — **BOM 은 읽는다.** PDF 파서 없음, LLM 호출 없음.
+  다음 단계는 MPN → 데이터시트 → 사실 추출 (`.claude/skills/prefab-datasheet` 절차)
 - 부품 사실 DB — **0개**
 
 ### 알려진 버그

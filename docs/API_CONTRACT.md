@@ -215,6 +215,7 @@ cd apps/api && python -m prefab --rules-json > ../web/src/mocks/rules.json
 |---|---|---|
 | 넷리스트 없음 | `NETLIST_REQUIRED` | 422 |
 | 파싱 실패 | `NETLIST_PARSE_FAILED` | 422 |
+| BOM 을 읽지 못함 | `BOM_PARSE_FAILED` | 422 |
 | 파일 크기 초과 (10MB) | `FILE_TOO_LARGE` | 413 |
 | 확장자 불일치 | `UNSUPPORTED_FILE_TYPE` | 415 |
 | check_id 없음 | `CHECK_NOT_FOUND` | 404 |

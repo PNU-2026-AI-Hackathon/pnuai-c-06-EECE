@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
+from prefab.bom import BomParseError
 from prefab.netlist.d356 import NetlistParseError
 from prefab.report import build_result, build_rules_catalog
 from prefab.runner import analyze
@@ -60,6 +61,10 @@ def netlist_required() -> ApiError:
 
 def netlist_parse_failed(detail: str) -> ApiError:
     return ApiError("NETLIST_PARSE_FAILED", detail, 422)
+
+
+def bom_parse_failed(detail: str) -> ApiError:
+    return ApiError("BOM_PARSE_FAILED", detail, 422)
 
 
 def file_too_large(field: str) -> ApiError:
@@ -117,6 +122,7 @@ def run_check(
     *,
     netlist_bytes: bytes,
     netlist_filename: str,
+    bom_bytes: bytes | None = None,
     bom_filename: str | None = None,
     firmware_filename: str | None = None,
     check_id: str | None = None,
@@ -132,11 +138,13 @@ def run_check(
         analysis = analyze(
             text,
             filename=netlist_filename,
-            bom=bom_filename,
+            bom_bytes=bom_bytes,
             firmware=firmware_filename,
         )
     except NetlistParseError as exc:
         raise netlist_parse_failed(str(exc)) from exc
+    except BomParseError as exc:
+        raise bom_parse_failed(str(exc)) from exc
 
     return build_result(
         check_id=check_id or new_check_id(),
@@ -146,6 +154,7 @@ def run_check(
         netlist_filename=netlist_filename,
         bom_filename=bom_filename,
         firmware_filename=firmware_filename,
+        bom=analysis.bom,
     )
 
 
