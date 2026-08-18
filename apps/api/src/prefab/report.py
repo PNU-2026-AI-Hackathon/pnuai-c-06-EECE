@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 from . import catalog
+from .bom import Bom
 from .engine import EngineResult
 from .netlist.d356 import Netlist
 from .types import Severity, Verdict
@@ -43,6 +44,7 @@ def build_pipeline(
     engine: EngineResult,
     has_bom: bool,
     has_firmware: bool,
+    bom_detail: str | None = None,
 ) -> list[dict[str, Any]]:
     step = dict(PIPELINE_NAMES)
 
@@ -53,7 +55,9 @@ def build_pipeline(
         parse_detail += " · " + " · ".join(notes)
 
     if has_bom:
-        identify = ("done", "BOM 으로 부품번호 확인")
+        # 부분 식별을 'done' 이라고 하지 않는다. 몇 개를 못 읽었는지 그대로 적는다.
+        identify = ("done" if bom_detail and "미식별 0" in bom_detail else "partial",
+                    bom_detail or "BOM 을 읽었습니다")
     else:
         identify = ("partial", "BOM 없음 · 좌표 클러스터링으로 전원 도메인만 추정")
 
@@ -96,9 +100,26 @@ def build_result(
     bom_filename: str | None = None,
     firmware_filename: str | None = None,
     parts_identified: int = 0,
+    bom: "Bom | None" = None,
 ) -> dict[str, Any]:
     has_bom = bom_filename is not None
     has_firmware = firmware_filename is not None
+
+    bom_detail: str | None = None
+    if bom is not None:
+        m = bom.match(list(netlist.parts))
+        parts_identified = m.identified_count
+        bits = [f"부품 {m.identified_count}/{netlist.part_count} 식별",
+                f"미식별 {len(m.missing_in_bom) + len(m.blank_mpn)}"]
+        if m.missing_in_bom:
+            bits.append("BOM 에 행 없음: " + ", ".join(m.missing_in_bom[:6]))
+        if m.blank_mpn:
+            bits.append("부품번호 빈 칸: " + ", ".join(m.blank_mpn[:6]))
+        # BOM 에만 있는 부품은 BOM 과 회로도가 어긋났다는 뜻이다. 그냥 넘기지 않는다.
+        if m.extra_in_bom:
+            bits.append("⚠ 회로도에 없는 BOM 부품: " + ", ".join(m.extra_in_bom[:6]))
+        bits.extend(bom.parse_notes())
+        bom_detail = " · ".join(bits)
 
     return {
         "check_id": check_id,
@@ -114,7 +135,7 @@ def build_result(
             "firmware": {"filename": firmware_filename} if has_firmware else None,
         },
         "summary": build_summary(netlist, engine, parts_identified),
-        "pipeline": build_pipeline(netlist, engine, has_bom, has_firmware),
+        "pipeline": build_pipeline(netlist, engine, has_bom, has_firmware, bom_detail),
         "findings": [f.to_dict() for f in engine.findings],
         "netlist": netlist.to_dict(),
     }
