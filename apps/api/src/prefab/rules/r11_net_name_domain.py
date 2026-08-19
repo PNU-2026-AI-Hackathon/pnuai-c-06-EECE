@@ -62,7 +62,9 @@ def check(ctx: Context) -> list[Finding]:
             # 이름이 14자 칸에 꽉 찼고 전압 토큰이 그 끝에 걸쳐 있으면 값이 잘렸을 수
             # 있다 — `..._3V` 가 `_3V3` 의 앞부분인 경우다. 그 값으로 FAIL 을 내면
             # 오탐이다. 판정을 내리지 않고 무엇을 확인해야 하는지 적는다 (A++2).
-            clipped = voltage_is_clipped(net)
+            clipped = voltage_is_clipped(
+                net, width_limited=graph.netlist.NAME_IS_WIDTH_LIMITED
+            )
 
             claim = (
                 f"네트 이름은 {format_volts(claimed)}V라고 말하는데, "

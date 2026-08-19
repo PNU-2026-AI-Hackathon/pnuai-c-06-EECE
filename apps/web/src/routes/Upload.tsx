@@ -206,7 +206,7 @@ export function UploadPage() {
         <Slot
           title="넷리스트"
           required
-          accept=".d356,.ipc,.txt"
+          accept=".d356,.ipc,.txt,.xml,.net"
           file={netlist}
           onPick={setNetlist}
         />

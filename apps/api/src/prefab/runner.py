@@ -13,7 +13,8 @@ from .datasheet.store import FactStore, Lookup
 from .engine import EngineResult, run
 from .firmware import Firmware
 from .firmware import analyze as analyze_firmware
-from .netlist.d356 import Netlist, parse_text
+from .netlist.d356 import Netlist
+from .netlist.detect import parse_any
 from .netlist.graph import Graph
 from .types import Context
 
@@ -64,7 +65,7 @@ def analyze(
     아는 게 하나도 없으면 `Context.datasheet` 를 None 으로 둔다.
     빈 `FactSet` 을 넘기면 엔진이 "데이터시트가 있다"고 착각한다.
     """
-    netlist = parse_text(netlist_text, filename=filename)
+    netlist = parse_any(netlist_text, filename=filename)
     graph = Graph(netlist)
 
     firmware = analyze_firmware(firmware_sources) if firmware_sources else None
@@ -76,7 +77,7 @@ def analyze(
         facts = lookup.facts
 
     # 이전 넷리스트가 있으면 드리프트를 볼 수 있다 (R10). 없으면 그 규칙이 조용하다.
-    previous = parse_text(previous_netlist_text) if previous_netlist_text else None
+    previous = parse_any(previous_netlist_text) if previous_netlist_text else None
 
     ctx = Context(
         netlist=graph, bom=bom, firmware=firmware, datasheet=facts, git=previous

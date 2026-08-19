@@ -98,3 +98,45 @@ def test_cors_header_on_actual_post(client):
         headers={"Origin": LOCAL_ORIGIN},
     )
     assert res.headers.get("access-control-allow-origin") == LOCAL_ORIGIN
+
+
+XML_FIXTURE = Path(__file__).parent / "fixtures" / "schematic-gpio-named.net.xml"
+
+
+def test_회로도_넷리스트도_업로드된다(client):
+    """계약 확장 — `netlist` 슬롯이 kicadxml 도 받는다.
+
+    형식은 확장자가 아니라 **내용으로** 가른다. 사용자는 파일 이름을 바꾼다.
+    """
+    res = client.post(
+        "/api/v1/checks",
+        files={"netlist": (XML_FIXTURE.name, XML_FIXTURE.read_bytes(), "text/xml")},
+    )
+    assert res.status_code == 201
+    body = res.json()
+    assert body["status"] == "done"
+
+    result = client.get(f"/api/v1/checks/{body['check_id']}").json()
+    assert result["inputs"]["netlist"]["nets"] > 0
+    # 회로도 넷리스트라는 것을 파이프라인이 그대로 말한다 (헌법 2-4)
+    parse_step = result["pipeline"][0]
+    assert "좌표 없음" in parse_step["detail"]
+
+
+def test_확장자가_txt_여도_내용으로_가른다(client):
+    """계약이 `.txt` 를 허용한다. 그 안에 무엇이 들었는지는 내용만 안다."""
+    res = client.post(
+        "/api/v1/checks",
+        files={"netlist": ("board.txt", XML_FIXTURE.read_bytes(), "text/plain")},
+    )
+    assert res.status_code == 201
+    result = client.get(f"/api/v1/checks/{res.json()['check_id']}").json()
+    assert "좌표 없음" in result["pipeline"][0]["detail"]
+
+
+def test_받지_않는_확장자는_그대로_거절한다(client):
+    res = client.post(
+        "/api/v1/checks",
+        files={"netlist": ("board.kicad_sch", b"(kicad_sch)", "text/plain")},
+    )
+    assert res.status_code == 415

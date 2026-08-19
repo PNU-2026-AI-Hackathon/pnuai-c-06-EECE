@@ -30,7 +30,10 @@ from prefab.samples import SAMPLE_CHECK_ID, load_sample
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 ALLOWED_EXTENSIONS: dict[str, tuple[str, ...]] = {
-    "netlist": (".d356", ".ipc", ".txt"),
+    # `.xml`·`.net` 은 KiCad 회로도 넷리스트(kicadxml)다. 형식은 확장자가 아니라
+    # **내용으로** 가른다 (`netlist.detect`) — 여기 목록은 실수로 엉뚱한 파일을
+    # 올리는 것을 막는 1차 방어일 뿐이다.
+    "netlist": (".d356", ".ipc", ".txt", ".xml", ".net"),
     "bom": (".csv",),
     "firmware": (".zip",),
 }

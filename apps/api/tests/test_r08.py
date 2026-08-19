@@ -115,3 +115,98 @@ def test_negative_kicad_pseudo_net_is_not_a_wire():
     findings = _run(_kicad_style_board(), {"a.ino": "void setup(){ pinMode(D2, OUTPUT); }"})
     nets = [f.net for f in findings]
     assert "-SPICLK-PAD22)" not in nets, f"미연결 패드에 R08 오탐: {nets}"
+
+
+# ── 주변장치가 모는 핀 (오탐 수정) ──────────────────────────────────
+#
+# 오픈소스 ESP32-C3 보드 4개 리비전에서 `USB_D+` · `USB_D-` 가 리비전마다
+# 2건씩 떴다. USB 는 전용 주변장치가 몰기 때문에 코드에 `pinMode` 가 없는 것이
+# **정상**이다 — 오히려 만지면 인터페이스가 죽는다.
+#
+# 우리 픽스처에는 USB 를 뽑아 쓰는 보드가 없어서 한 번도 안 만났다.
+# 여기 고정해서 다시는 못 돌아오게 한다.
+
+
+def _board_with_counterpart(net: str, other_ref: str, other_pin: str) -> str:
+    """XIAO 헤더의 D2 를 `net` 에 물리고, 그 반대편 패드 이름을 지정한다."""
+    lines = [
+        rec(n, "U1", pin, x=-0.2635, y=0.7922 - 0.1 * i)
+        for i, (pin, n) in enumerate(zip(LEFT, ["N/C", "N/C", net, "N/C", "N/C", "N/C", "N/C"]))
+    ]
+    lines += [
+        rec("N/C", "U1", pin, x=0.3365, y=0.7922 - 0.1 * i)
+        for i, pin in enumerate(RIGHT)
+    ]
+    lines.append(rec(net, other_ref, other_pin, x=2.0, y=0.0))
+    return board(*lines)
+
+
+def test_positive_control_ordinary_counterpart_still_warns():
+    """대조군 — 같은 보드 모양인데 상대편이 평범한 패드면 경고가 나야 한다.
+
+    이게 없으면 아래 음성 테스트가 '원래 안 뜨는 것' 을 확인한 셈이 된다.
+    """
+    text = _board_with_counterpart("SENSE", "X1", "1")
+    assert len(_run(text, {"a.ino": "void setup(){}"})) == 1
+
+
+def test_negative_usb_data_pin_is_not_a_finding():
+    """상대편이 USB 커넥터의 `D-` 다. **반대쪽 핀이 스스로 밝힌다.**"""
+    text = _board_with_counterpart("USB_DM", "J1", "D-")
+    assert _run(text, {"a.ino": "void setup(){}"}) == []
+
+
+def test_negative_usb_suppression_does_not_depend_on_net_name():
+    """네트 이름은 아무렇게나 붙을 수 있다. 판정 근거는 상대편 핀 이름이다."""
+    text = _board_with_counterpart("NET_42", "J1", "D+")
+    assert _run(text, {"a.ino": "void setup(){}"}) == []
+
+
+def test_negative_lowercase_pin_name_also_counts():
+    text = _board_with_counterpart("USB_DP", "J1", "d+")
+    assert _run(text, {"a.ino": "void setup(){}"}) == []
+
+
+def test_positive_similar_looking_pin_name_still_warns():
+    """`D2` 는 USB 데이터 핀이 아니라 그냥 2번 핀이다. 넓게 잡으면 미탐이 된다."""
+    text = _board_with_counterpart("SENSE", "J1", "D2")
+    assert len(_run(text, {"a.ino": "void setup(){}"})) == 1
+
+
+def test_negative_usb_pin_name_from_schematic_netlist():
+    """실제로 오탐이 난 경로 — 회로도 넷리스트(kicadxml).
+
+    MCU 쪽 핀은 `GPIO18` 이라고만 말한다. 실리콘이 그 핀을 USB 로도 쓴다는 걸
+    핀 이름은 모른다. 그래서 상대편(USB-C 커넥터)의 `D-` 를 본다.
+    """
+    from prefab.netlist.kicadxml import parse_text as parse_xml
+
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<export version="E">
+  <components>
+    <comp ref="U3"><value>ESP32-C3</value></comp>
+    <comp ref="U1"><value>USB-C-16P-SMD</value></comp>
+    <comp ref="R1"><value>100k</value></comp>
+  </components>
+  <nets>
+    <net code="1" name="USB_D-">
+      <node ref="U3" pin="25" pinfunction="GPIO18_25"/>
+      <node ref="U1" pin="A7" pinfunction="D-"/>
+    </net>
+    <net code="2" name="EXTI">
+      <node ref="U3" pin="6" pinfunction="GPIO2_6"/>
+      <node ref="R1" pin="2"/>
+    </net>
+    <net code="3" name="ADC"><node ref="U3" pin="8" pinfunction="GPIO3_8"/>
+      <node ref="R1" pin="1"/></net>
+    <net code="4" name="BTN"><node ref="U3" pin="15" pinfunction="GPIO9_15"/>
+      <node ref="U1" pin="A1" pinfunction="GND"/></net>
+  </nets>
+</export>"""
+    graph = Graph(parse_xml(xml))
+    findings = r08.check(Context(netlist=graph, firmware=analyze_firmware({"a.ino": "void setup(){}"})))
+
+    nets = {f.net for f in findings}
+    assert "USB_D-" not in nets, "USB 데이터 핀은 코드가 안 만지는 것이 정상이다"
+    # 나머지는 그대로 잡아야 한다 — 억제가 규칙 전체를 죽이면 안 된다
+    assert nets == {"EXTI", "ADC", "BTN"}

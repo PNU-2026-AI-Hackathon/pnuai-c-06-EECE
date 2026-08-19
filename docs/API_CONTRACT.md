@@ -22,7 +22,7 @@ GET    /healthz                헬스체크
 
 | 필드 | 필수 | 설명 |
 |---|---|---|
-| `netlist` | ✅ | IPC-D-356 파일 (`.d356` / `.ipc` / `.txt`) |
+| `netlist` | ✅ | IPC-D-356 (`.d356` / `.ipc` / `.txt`) 또는 KiCad 회로도 넷리스트 kicadxml (`.xml` / `.net`). **형식은 내용으로 가른다** |
 | `bom` | ✕ | 부품 목록 CSV (`refdes, mpn, manufacturer, value`) |
 | `firmware` | ✕ | 펌웨어 소스 zip |
 
@@ -285,7 +285,7 @@ IPC-D-356 은 핀 이름을 **4자에서 자른다.** 그래서 물리적으로 
 메시지는 **무엇이 잘못됐고 어떻게 고치는지** 알려준다. 사과하지 않는다.
 프론트는 `error.message` 를 그대로 노출한다. 서버가 스택트레이스를 message 에 넣지 않는다.
 
-받는 확장자: `netlist` = `.d356` / `.ipc` / `.txt` · `bom` = `.csv` · `firmware` = `.zip`
+받는 확장자: `netlist` = `.d356` / `.ipc` / `.txt` / `.xml` / `.net` · `bom` = `.csv` · `firmware` = `.zip`
 
 ---
 
