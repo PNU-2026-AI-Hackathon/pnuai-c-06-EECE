@@ -38,7 +38,7 @@ import re
 
 from ..chips import Chip
 from ..netlist.d356 import Netlist
-from ..netlist.graph import GND_PATTERN
+from ..netlist.graph import GND_PATTERN, local_name
 from ..text import i_ga
 from ..types import Context, Evidence, Finding, Severity, Verdict
 from .r01_unusable_pin import chip_of
@@ -79,7 +79,7 @@ def check(ctx: Context) -> list[Finding]:
         net = netlist.net_at(pad.ref, pad.pin, pad.x, pad.y)
         if netlist.is_dangling(net):
             continue  # 안 뽑아놓은 핀은 정상이다
-        if GND_PATTERN.match(net) or graph.is_power_rail(net):
+        if GND_PATTERN.match(local_name(net)) or graph.is_power_rail(net):
             continue  # 레일 직결은 R03 이 본다. 같은 배선을 두 번 읽히지 않는다
         loads = [
             ref for ref in graph.refs_on(net)

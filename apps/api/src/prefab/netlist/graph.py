@@ -18,6 +18,18 @@ from .pinmap import PinMap, resolve as resolve_pinmap
 #: 접지로 취급할 네트명 접두사
 GND_PATTERN = re.compile(r"^(GND|VSS|AGND|DGND)", re.I)
 
+
+def local_name(net: str) -> str:
+    """계층 시트 경로를 벗긴 네트 이름.
+
+    KiCad 는 계층 시트를 쓰면 네트 이름 앞에 경로를 붙인다 — `/GND` · `/Sensor/SDA`.
+    이름 패턴은 `^` 로 시작하므로 **접지가 접지로 안 보인다.** 실제로
+    오픈소스 보드에서 `/GND` 가 신호 네트로 분류되고 있었다.
+
+    Flux 로 만든 우리 픽스처는 경로가 없어서 이 문제를 한 번도 못 만났다.
+    """
+    return net.rsplit("/", 1)[-1] if net else net
+
 #: 전원 입력 핀으로 취급할 핀 이름 접두사
 SUPPLY_PIN_PATTERN = re.compile(r"^(VCC|VDD|VIN|VBUS|V\+|5V|3V3|3\.3V|VDDIO)", re.I)
 
@@ -58,6 +70,10 @@ DOMAIN_EPSILON_V = 0.15
 
 #: 전압 이름을 가진 네트에 이 수를 넘는 부품이 붙어 있으면 신호가 아니라 전원 레일로 본다.
 POWER_RAIL_FANOUT_MIN = 4
+
+#: 이 수 이상의 공급 핀이 붙어 있으면 이름과 무관하게 전원 레일이다.
+#: 하나로는 부족하다 — 부품 하나가 자기 전원을 받는 것은 그 부품의 사정이다.
+SUPPLY_PINS_MIN = 2
 
 CONFIDENCE_HIGH = "high"
 CONFIDENCE_INFERRED = "inferred"
@@ -273,8 +289,8 @@ class Graph:
         # 3. 이름 없는 패드뿐이면 (K1 의 'pad-'),
         #    전원+접지가 같이 들어 있는 X클러스터에서 레일을 읽는다.
         for gx, members in self.clusters(ref).items():
-            rails = [volts(n) for _p, n in members if volts(n) and not GND_PATTERN.match(n)]
-            has_gnd = any(GND_PATTERN.match(n) for _p, n in members)
+            rails = [volts(n) for _p, n in members if volts(n) and not GND_PATTERN.match(local_name(n))]
+            has_gnd = any(GND_PATTERN.match(local_name(n)) for _p, n in members)
             if rails and has_gnd:
                 return Domain(
                     max(rails),
@@ -289,10 +305,10 @@ class Graph:
         rails = {
             n
             for n in {net for net in self.part_pins.get(ref, {}).values()}
-            if volts(n) and not GND_PATTERN.match(n) and self.is_power_rail(n)
+            if volts(n) and not GND_PATTERN.match(local_name(n)) and self.is_power_rail(n)
         }
         touches_ground = any(
-            GND_PATTERN.match(n) for n in self.part_pins.get(ref, {}).values()
+            GND_PATTERN.match(local_name(n)) for n in self.part_pins.get(ref, {}).values()
         )
         if len(rails) == 1 and touches_ground:
             rail = rails.pop()
@@ -305,15 +321,39 @@ class Graph:
     def is_power_rail(self, net: str) -> bool:
         """이 네트가 전원 레일인가.
 
-        전압 토큰이 있거나(`5V_BUS`), 이름이 레일이라고 말하고(`+VSW`) **팬아웃이 넓을 때**다.
-        이름만으로는 판단하지 않는다 — `VCC_SENSE` 처럼 부품 둘만 붙은 것은 신호다.
+        **이름만으로 판단하지 않는다.** 이름은 양쪽으로 틀린다 —
+        `+VSW` · `V_LDO` 는 전원인데 전압 토큰이 없고, `PRESENCE_3V3` 는 신호인데 있다.
+        토폴로지가 말해 주는 것을 먼저 본다.
+
+        1. 공급 핀(`VCC`·`VDD`…)이 **둘 이상** 붙어 있다 — 여러 부품이 여기서 전원을 받는다
+        2. **접지로 가는 커패시터**가 있고 이름도 레일이라고 말한다 — 디커플링이다
+        3. 이름이 레일 같고 팬아웃이 넓다 (기존 판정)
+
+        1·2 는 이름이 없어도 서고, 3 은 이름에 기댄다. 셋 다 아니면 신호다.
         """
-        if GND_PATTERN.match(net):
+        if GND_PATTERN.match(local_name(net)):
             return True
-        refs = {p.ref for p in self.netlist.nets.get(net, []) if not p.is_via}
-        if len(refs) <= POWER_RAIL_FANOUT_MIN:
-            return False
-        return bool(volts(net) or POWER_NAME_PATTERN.match(net))
+
+        pads = [p for p in self.netlist.nets.get(net, []) if not p.is_via]
+        refs = {p.ref for p in pads}
+
+        if sum(1 for p in pads if SUPPLY_PIN_PATTERN.match(p.pin or "")) >= SUPPLY_PINS_MIN:
+            return True
+
+        named = bool(volts(net) or POWER_NAME_PATTERN.match(local_name(net)))
+        if named and self._decoupled(net, refs):
+            return True
+
+        return named and len(refs) > POWER_RAIL_FANOUT_MIN
+
+    def _decoupled(self, net: str, refs: "set[str]") -> bool:
+        """이 네트와 접지 사이에 커패시터가 있는가. 전원 레일의 서명이다."""
+        for ref in refs:
+            if not PASSIVE_REF_PATTERN.match(ref) or not ref.startswith("C"):
+                continue
+            if any(GND_PATTERN.match(local_name(o)) for o in self.other_nets(ref, net)):
+                return True
+        return False
 
     def signal_nets(self) -> "OrderedDict[str, list[Pad]]":
         """판정 대상 네트. 접지와 전원 레일은 뺀다."""
@@ -321,7 +361,7 @@ class Graph:
         for net, pads in self.netlist.nets.items():
             if not net or net == NO_CONNECT:
                 continue
-            if GND_PATTERN.match(net):
+            if GND_PATTERN.match(local_name(net)):
                 continue
             if self.is_power_rail(net):
                 continue  # 전원 레일은 신호가 아니다
@@ -356,7 +396,7 @@ class Graph:
             return PassiveRole(ROLE_UNKNOWN, None, "반대쪽 터미널을 찾지 못했습니다")
 
         for other in others:
-            if GND_PATTERN.match(other):
+            if GND_PATTERN.match(local_name(other)):
                 return PassiveRole(ROLE_PULLDOWN, other, f"{other} 로 끌어내리는 풀다운")
 
         for other in others:
