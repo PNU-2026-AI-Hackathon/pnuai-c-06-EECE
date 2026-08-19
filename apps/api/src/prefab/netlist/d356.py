@@ -88,6 +88,11 @@ class Pad:
 class Netlist:
     """파싱 결과. 네트는 파일에 나온 순서를 그대로 유지한다."""
 
+    #: **이 형식이 네트 이름 길이를 제한하는가.** IPC-D-356 은 14자에서 자른다.
+    #: 회로도 넷리스트는 안 자르므로 거기서 절단 경고를 내면 **없는 문제를 만든다** —
+    #: `Net-(U3-LNA_IN)` 은 잘린 게 아니라 원래 그 이름이다.
+    NAME_IS_WIDTH_LIMITED = True
+
     def __init__(
         self,
         nets: "OrderedDict[str, list[Pad]]",
@@ -133,7 +138,12 @@ class Netlist:
         return len(net or "") >= NET_NAME_WIDTH
 
     def width_limited_nets(self) -> list[str]:
-        """칸을 꽉 채운 네트 이름들. 등장 순서를 지킨다."""
+        """칸을 꽉 채운 네트 이름들. 등장 순서를 지킨다.
+
+        길이 제한이 없는 형식에서는 물어볼 것이 없다 — 빈 목록이다.
+        """
+        if not self.NAME_IS_WIDTH_LIMITED:
+            return []
         return [n for n in self.ordered_net_names() if self.is_name_at_width_limit(n)]
 
     # ------------------------------------------------------------------ 조회

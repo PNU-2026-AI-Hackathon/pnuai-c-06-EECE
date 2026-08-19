@@ -61,11 +61,11 @@ def _identify_step(has_bom: bool, pinmap, bom=None, refs=None) -> tuple[str, str
     if has_bom:
         return "done", "BOM 으로 부품번호 확인"
     if pinmap:
+        # **어떻게 풀었는지를 말한다.** 모듈은 좌표(헤더 열 정렬)로, 맨칩은 핀 이름으로
+        # 푼다. 둘을 뭉뚱그리면 사용자가 무엇을 더 주면 나아지는지 알 수 없다.
         modules = " · ".join(f"{ref}={mid}" for ref, mid in sorted(pinmap.modules_matched.items()))
-        return (
-            "partial",
-            f"BOM 없음 · 좌표로 모듈 핀아웃만 확정 ({modules} · 패드 {len(pinmap)}개)",
-        )
+        how = f"좌표로 모듈 핀아웃 확정 ({modules})" if modules else "핀 이름으로 GPIO 확정"
+        return "partial", f"BOM 없음 · {how} · 패드 {len(pinmap)}개"
     return "partial", "BOM 없음 · 좌표 클러스터링으로 전원 도메인만 추정"
 
 

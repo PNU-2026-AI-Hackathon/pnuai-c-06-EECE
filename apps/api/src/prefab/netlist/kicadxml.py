@@ -83,6 +83,10 @@ class SchematicNetlist(Netlist):
     규칙은 `Netlist` 만 알면 된다. 부품 정보는 부품 식별 단계가 쓴다.
     """
 
+    #: 회로도 넷리스트는 이름을 안 자른다. IPC-D-356 의 14자 칸 경고를 그대로
+    #: 물려받으면 `Net-(U3-LNA_IN)` 같은 멀쩡한 이름을 "잘렸을 수 있다"고 말한다.
+    NAME_IS_WIDTH_LIMITED = False
+
     def __init__(self, *args, components: "OrderedDict[str, Part] | None" = None, **kwargs):
         super().__init__(*args, **kwargs)
         #: refdes → 회로도가 아는 부품 정보
