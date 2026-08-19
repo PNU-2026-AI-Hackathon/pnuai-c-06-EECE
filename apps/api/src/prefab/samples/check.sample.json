@@ -18,9 +18,10 @@
     }
   },
   "summary": {
-    "critical": 3,
+    "critical": 4,
     "warning": 1,
-    "cleared": 1,
+    "info": 0,
+    "cleared": 0,
     "rules_run": 10,
     "rules_skipped": 1,
     "rules_total": 11,
@@ -49,14 +50,14 @@
     {
       "step": 4,
       "name": "데이터시트 수집",
-      "status": "partial",
-      "detail": "부품 3개 중 2개 수집 · 미수집: JQC-3FF-S-Z"
+      "status": "skipped",
+      "detail": "부품 3개 중 0개 수집 — 조회 대상 HLK-LD2410C · JQC-3FF-S-Z · XIAO-ESP32C6"
     },
     {
       "step": 5,
       "name": "전기적 사실 추출",
-      "status": "done",
-      "detail": "사실 12건 확보 · 판정 1건에 근거로 사용"
+      "status": "skipped",
+      "detail": "읽어 둔 사실 없음"
     },
     {
       "step": 6,
@@ -155,9 +156,9 @@
       "title": "상위 전원 도메인이 하위를 직결",
       "tier": "기본",
       "severity": "CRITICAL",
-      "verdict": "PASS",
+      "verdict": "FAIL",
       "net": "PRESENCE_3V3",
-      "claim": "5V로 동작하는 U2의 출력(U2.OUT)이 3.3V로 동작하는 U1.D2에 직결되어 있습니다. 다만 U2(HLK-LD2410C)의 IO 로직 레벨이 3.3V로 확인되어 U1의 3.3V 입력이 견딥니다. 전원이 5V일 뿐 출력은 그렇지 않습니다.",
+      "claim": "5V로 동작하는 U2의 출력(U2.OUT)이 3.3V로 동작하는 U1.D2에 직결되어 있습니다. 사이에 직렬 저항도 분압도 레벨 시프터도 없습니다.",
       "evidence": [
         {
           "kind": "netlist",
@@ -167,17 +168,10 @@
             "U2.OUT",
             "U1.D2"
           ]
-        },
-        {
-          "kind": "datasheet",
-          "mpn": "HLK-LD2410C",
-          "table": "Table 2 Performance and electrical parameters table (Interface)",
-          "page": 17,
-          "quote": "A GPIO, IO level 3.3V"
         }
       ],
-      "suggestion": "조치할 것이 없습니다. 데이터시트에서 확인했습니다 — Table 2 Performance and electrical parameters table (Interface) · p.17. U2의 부품번호가 바뀌면 이 판정도 다시 해야 합니다. 이 네트에는 R11(네트명이 주장하는 전압과 소스 부품의 전원 도메인이 다름) 도 함께 해당합니다.",
-      "unresolved_reason": null
+      "suggestion": "U2(HLK-LD2410C)의 데이터시트를 읽으면 판정합니다. Voh가 3.6V 이하면 이 항목은 해제됩니다. 이 네트에는 R11(네트명이 주장하는 전압과 소스 부품의 전원 도메인이 다름) 도 함께 해당합니다.",
+      "unresolved_reason": "HLK-LD2410C 의 데이터시트를 아직 읽지 않았습니다 — 출력 하이 전압(Voh)이 필요합니다"
     },
     {
       "rule": "R12",

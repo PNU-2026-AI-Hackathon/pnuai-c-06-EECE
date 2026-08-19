@@ -82,6 +82,24 @@ def volts(name: str | None) -> float | None:
     return float(f"{whole}.{frac}") if frac else float(whole)
 
 
+def voltage_is_clipped(name: str | None) -> bool:
+    """이 이름의 전압 토큰을 믿어도 되는가 (A++2).
+
+    네트명 칸은 14자다. 이름이 그 길이에 꽉 찼고 **전압 토큰이 끝에 걸쳐 있으면**
+    값이 잘렸을 수 있다 — `..._3V` 는 `_3V3` 의 앞부분일 수 있다.
+    3.3V 를 3V 로 읽으면 R11 이 0.3V 차이를 근거로 경고를 낸다. 그게 오탐이다.
+
+    잘렸다고 단정하는 게 아니라 **믿을 수 없다**고 말하는 함수다 (헌법 2-2).
+    """
+    text = name or ""
+    if not Netlist.is_name_at_width_limit(text):
+        return False
+    last = None
+    for last in VOLTAGE_TOKEN.finditer(text):
+        pass
+    return last is not None and last.end() == len(text)
+
+
 def format_volts(value: float | None) -> str:
     """사람에게 보여줄 전압 문자열. 5.0 → '5', 3.3 → '3.3'."""
     if value is None:

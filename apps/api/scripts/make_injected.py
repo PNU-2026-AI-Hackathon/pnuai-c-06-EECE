@@ -465,6 +465,57 @@ CASES += [
 ]
 
 
+# ── R09 부팅 시 출력 나오는 핀에 부하 연결 ──
+#
+# C6 는 GPIO16(U0TXD)만 출처가 확실하다 — 부팅 로그가 115200bps 로 나간다.
+# **음성 케이스가 이 규칙의 전부다.** 같은 핀을 헤더(J1)로 빼는 것은 시리얼 콘솔이고
+# 정상 설계다. 그것까지 잡으면 거의 모든 개발보드에서 오탐이 난다.
+
+BOOT_TX = "IO16"          # C6 U0TXD
+RELAY_BOM = "Reference,MPN\nU1,ESP32-C6-WROOM-1\nK1,JQC-3FF-S-Z\n"
+
+
+def driven_by(pin: str, load_ref: str, load_pin: str, *others: str) -> str:
+    """한 핀을 구동 부품에 직결하고 나머지는 평범하게 뺀다."""
+    lines = [
+        rec("CTRL", "U1", pin, x=0.0),
+        rec("CTRL", load_ref, load_pin, x=0.0, y=0.4),
+    ]
+    for i, p in enumerate(others):
+        net = f"NET_{p}"
+        lines.append(rec(net, "U1", p, x=0.1 * (i + 1)))
+        lines.append(rec(net, "J1", str(i + 1), x=0.1 * (i + 1), y=0.5))
+    return board(*lines)
+
+
+CASES += [
+    {
+        "id": "r09-boot-tx-drives-relay",
+        "kind": "양성",
+        "why": "릴레이 IN 이 GPIO16(U0TXD)에 직결됐다. 전원을 넣을 때마다 부팅 로그로 딸깍거린다",
+        "expect": ["R09"],
+        "bom": RELAY_BOM,
+        "netlist": driven_by(BOOT_TX, "K1", "IN", "IO2", "IO3", "IO17"),
+    },
+    {
+        "id": "r09-boot-tx-to-header",
+        "kind": "음성",
+        "why": "같은 핀인데 커넥터로 뺐다. 시리얼 콘솔은 정상 설계다. 경고가 뜨면 오탐이다",
+        "expect": [],
+        "bom": C6_BOM,
+        "netlist": bare("IO2", "IO3", "IO17", BOOT_TX),
+    },
+    {
+        "id": "r09-ordinary-pin-drives-relay",
+        "kind": "음성",
+        "why": "같은 릴레이인데 부팅 때 조용한 GPIO2 가 몬다. 표에 없는 핀이므로 조용해야 한다",
+        "expect": [],
+        "bom": RELAY_BOM,
+        "netlist": driven_by("IO2", "K1", "IN", "IO3", "IO16", "IO17"),
+    },
+]
+
+
 #: 합성이 아닌 유일한 케이스. 실제 보드이고 정답표가 문서로 고정돼 있다
 #: (`tests/fixtures/esp32-c6-presence-smart-light.EXPECTED.md`).
 #: 합성만으로 재면 "우리가 만든 상황에서만 맞다" 는 소리를 못 벗어난다.

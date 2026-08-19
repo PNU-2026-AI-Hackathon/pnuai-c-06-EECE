@@ -53,19 +53,25 @@
 |---|---|
 | IPC-D-356 넷리스트 파서 | ✅ 동작 (실제 보드 검증) |
 | 규칙 엔진 | ✅ 동작 |
-| 구현된 규칙 | **9 / 11** (차별 4 · 기본 5) |
+| 구현된 규칙 | **10 / 11** (차별 4 · 기본 6) — 남은 하나는 R10(드리프트) |
 | REST API (4개 엔드포인트 + CORS) | ✅ 동작 |
 | CLI (`python -m prefab`) | ✅ 동작 |
 | 펌웨어 정적 분석 | ✅ 동작 (핀 사용·방향·상수 추적) |
-| 모듈 핀아웃 DB | **1 모듈** (XIAO ESP32-C6 · 실물 대조 대기) |
+| 모듈 핀아웃 DB | **1 모듈** (XIAO ESP32-C6 · 하드웨어 담당 확정 완료) |
 | BOM CSV 파서 | ✅ 동작 |
-| 데이터시트 파이프라인 | ⬜ 미구현 (LLM 호출 0회) |
-| 부품 사실 DB | **0 부품** |
-| GitHub Action (CI) | ✅ pytest + 골든 검사 |
+| 데이터시트 파이프라인 | ✅ 동작 (PDF → LLM → **원문 대조 검증**) |
+| 부품 사실 DB | **2 부품 · 13건** (`parts/*.json`) |
+| 검증 측정 | ✅ `python -m prefab --measure` (케이스 24개) |
+| GitHub Action (CI) | ✅ pytest · 측정 · 계약 불변식 |
+| **커밋 간 드리프트 검사** | ✅ PR 마다 회로도 ↔ 코드 대조 (F-1) |
+| 샘플 검사 (업로드 없이) | ✅ `GET /api/v1/checks/chk_sample01` (F-4) |
 
 ### 알려진 문제
-- R11과 R12가 같은 네트에 중복 검출됨 (dedup 필요).
-  `test_no_duplicate_net_across_rules` 에 strict xfail 로 고정해 뒀다.
+- **검증 숫자가 회귀 방지다.** 결함 주입 데이터셋은 우리가 만든 것이라 정답을 알지만,
+  남의 보드에서의 재현율은 아직 못 잰다 (E-1 오픈소스 커밋 라벨링 미착수).
+  `--measure` 보고서가 그 한계를 직접 출력한다.
+- **ESP32-C6 의 부팅 시 출력 핀 목록이 GPIO16 하나뿐이다.** 없어서가 아니라
+  Espressif 공식 문서에서 못 찾아서다. R09 는 표에 없는 핀에 아무 말도 하지 않는다.
 
 ---
 
@@ -74,12 +80,13 @@
 ```bash
 cd apps/api
 uv sync                     # 또는 pip install -e ".[dev]"
-pytest -q                   # 중복 검출 1건은 xfail
+pytest -q
+python -m prefab --measure  # 검출율 · 오탐율
 
 # 실제 보드 — 넷리스트만 (치명 2 · 경고 1)
 python -m prefab tests/fixtures/esp32-c6-presence-smart-light.d356
 
-# 실제 보드 — 펌웨어까지 (차별 규칙 R07·R08 · 치명 4 · 경고 2)
+# 실제 보드 — 펌웨어까지 (차별 규칙 R07·R08)
 python -m prefab tests/fixtures/esp32-c6-presence-smart-light.d356 \
   --firmware tests/fixtures/esp32-c6-presence-smart-light.firmware
 
@@ -99,6 +106,36 @@ ALLOWED_ORIGINS=http://localhost:5173 uvicorn web.app:app --reload --port 8000
 # 배포한 URL 확인 (헬스체크 · CORS 프리플라이트 · 업로드 · 골든 결과)
 ./scripts/smoke.sh https://<배포-URL>
 ```
+
+## 커밋 간 드리프트 검사
+
+**이것이 제품의 최종 형태입니다.** 회로도를 고치고 코드를 안 고치면, 그 PR 에서 걸립니다.
+
+```bash
+python -m prefab board.d356 --firmware fw/ --json > before.json   # 고치기 전
+python -m prefab board.d356 --firmware fw/ --json > after.json    # 고친 뒤
+python -m prefab --diff before.json after.json --fail-on-new
+```
+
+`.github/workflows/drift.yml` 이 PR 마다 이걸 돌리고 결과를 코멘트로 답니다.
+새로 생긴 치명 발견이 있으면 빨간불입니다.
+
+**양쪽 다 지금 코드로 돌립니다.** 예전 코드로 예전 입력을 돌리면 규칙을 고친 것과
+보드를 고친 것이 섞여서, 규칙을 추가한 PR 이 "보드가 나빠졌다"로 읽힙니다.
+
+실제로 어떻게 보이는지 — 실측 보드에서 센서 OUT 을 D2 → D4 로 옮기고 코드는 그대로 뒀을 때:
+
+```
+🔴 새로 생긴 발견
+  R07 · U1.D2   코드가 D2(GPIO2) 핀을 출력으로 구동합니다.
+                그런데 회로도에서 이 핀은 아무 네트에도 연결돼 있지 않습니다.
+  R08 · D4      회로도는 D4(GPIO22)를 PRESENCE_3V3 로 배선해 뒀는데,
+                코드에는 이 핀이 한 번도 나오지 않습니다.
+```
+
+넷리스트 **두 줄** 차이입니다. 컴파일도 되고 DRC 도 통과합니다.
+
+---
 
 ## 배포
 
@@ -124,6 +161,17 @@ GET    /api/v1/checks/{id}     결과 조회
 GET    /api/v1/rules           규칙 카탈로그
 GET    /healthz
 ```
+
+### 업로드 없이 결과부터 보기
+
+서버가 켜질 때 실측 보드 결과 하나를 미리 넣어 둡니다. **새 엔드포인트가 아닙니다.**
+
+```bash
+curl https://<host>/                              # sample_check 경로를 알려준다
+curl https://<host>/api/v1/checks/chk_sample01    # 치명 4 · 경고 1 · R07·R08 포함
+```
+
+데모에서 파일 세 개를 골라 올리는 동안 이야기가 죽는 것을 막기 위한 것입니다.
 
 ```bash
 curl -F "netlist=@board.d356" https://<host>/api/v1/checks
@@ -151,7 +199,7 @@ curl -F "netlist=@board.d356" https://<host>/api/v1/checks
 | R05 | 이 칩이 지원하지 않는 주변장치 조합 | 차별 | netlist, firmware | ✅ |
 | R07 | 코드가 쓰는 핀이 회로도에 미연결 | 차별 | netlist, firmware | ✅ |
 | R08 | 회로도에 연결됐는데 코드가 초기화 안 함 | 차별 | netlist, firmware | ✅ |
-| R09 | 부팅 시 출력 나오는 핀에 부하 연결 | 기본 | netlist | ⬜ |
+| R09 | 부팅 시 출력 나오는 핀에 부하 연결 | 기본 | netlist | ✅ |
 | R10 | 회로도 변경 후 코드 미추종 (드리프트) | 차별 | netlist, firmware | ⬜ |
 | R11 | 네트명이 주장하는 전압과 소스 부품의 전원 도메인이 다름 | 기본 | netlist | ✅ |
 | R12 | 상위 전원 도메인이 하위를 직결 | 기본 | netlist | ✅ |
@@ -214,6 +262,10 @@ tests/                규칙당 3개 + 실제 보드 골든 + 카탈로그 정�
 - 고정폭 레코드. 핀 이름 필드는 `[27:31]` — **4자에서 잘립니다**
   (`LP-GPIO0` → `LP-G`). 정확한 GPIO 번호는 모듈 핀아웃 DB 없이 알 수 없습니다.
 - **MPN·부품값·제조사가 없습니다.** 데이터시트 기반 판정을 하려면 BOM이 반드시 필요합니다.
+- **네트명은 `[3:17]` — 14자에서 잘립니다.** 핀 이름과 같은 문제인데 더 조용하게
+  아픕니다. 이름 끝의 전압 표기가 날아가면 규칙이 아무 말도 안 하고, 서로 다른 두
+  네트가 같은 14자로 뭉치면 **없는 연결이 생깁니다.** 우리 보드의 `_IN_ACTIVE_LOW` ·
+  `D_POS_SWITCHED` 가 정확히 14자이고, 둘 다 **앞이** 잘린 흔적이 남아 있습니다.
 - 릴레이 모듈처럼 여러 패드의 이름이 전부 같게 나오는 부품이 있습니다
   (6개 패드가 모두 `pad-`). **X좌표 클러스터링으로 제어부/스위치부를 분리**합니다.
 

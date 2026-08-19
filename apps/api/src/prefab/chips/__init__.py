@@ -27,9 +27,13 @@ class Chip:
     adc1: tuple[int, ...] = ()
     #: 비어 있으면 이 칩에 ADC2 가 없다는 뜻이다 (없음 ≠ 이상 없음)
     adc2: tuple[int, ...] = ()
-    #: 펌웨어가 돌기 **전에** 칩이 스스로 신호를 내보내는 핀.
-    #: UART0 TX 는 부팅 로그를 그대로 토해낸다. 여기 붙은 것은 매 부팅마다 움직인다.
+    #: 부팅·리셋 순간에 **칩이 스스로** 신호를 내보내는 핀.
+    #: 코드가 돌기 전이라 펌웨어로는 막을 수 없다. 비어 있으면 "이 칩은 출처를 못 찾았다"
+    #: 는 뜻이지 "그런 핀이 없다"가 아니다 — 규칙은 비면 아무 말도 하지 않는다.
     boot_output: tuple[int, ...] = ()
+    #: 그중 부팅 로그(UART0 TX)가 나가는 핀. `boot_output` 의 부분집합이다.
+    #: 사유 문구가 달라서 따로 둔다 — 로그는 수백 밀리초 동안 계속 토글한다.
+    boot_log_tx: int | None = None
 
 
 ESP32 = Chip(
@@ -40,7 +44,10 @@ ESP32 = Chip(
     strapping=(0, 2, 5, 12, 15),
     adc1=tuple(range(32, 40)),
     adc2=(0, 2, 4, 12, 13, 14, 15, 25, 26, 27),
-    boot_output=(1,),  # U0TXD — 부팅 로그
+    # GPIO1 은 부팅 로그(U0TXD), 나머지는 부팅·리셋 순간 HIGH 또는 PWM 이 나온다.
+    # 플래시 핀(6~11)도 부팅 때 토글하지만 그건 R02 가 배선 자체를 잡는다.
+    boot_output=(0, 1, 3, 5, 14, 15),
+    boot_log_tx=1,
 )
 
 ESP32C6 = Chip(
@@ -51,7 +58,10 @@ ESP32C6 = Chip(
     strapping=(4, 5, 8, 9, 15),
     adc1=tuple(range(0, 7)),
     adc2=(),  # 칩에 ADC2 가 존재하지 않는다
-    boot_output=(16,),  # U0TXD — 부팅 로그
+    # C6 는 U0TXD(GPIO16)만 출처가 확실하다. 부팅 글리치 핀 목록은 공식 문서에서
+    # 못 찾았다 — **없어서 비운 게 아니라 못 찾아서 비웠다.** 지어내지 않는다.
+    boot_output=(16,),
+    boot_log_tx=16,
 )
 
 CHIPS: dict[str, Chip] = {c.id: c for c in (ESP32, ESP32C6)}

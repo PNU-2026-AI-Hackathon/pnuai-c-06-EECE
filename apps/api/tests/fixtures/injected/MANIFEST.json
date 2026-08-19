@@ -181,28 +181,36 @@
     {
       "id": "r03-ordinary-pin-tied",
       "kind": "음성",
-      "why": "스트래핑이 아닌 GPIO18 이 GND 에 묶였다. 표에 없는 핀이므로 조용해야 한다",
+      "why": "스트래핑이 아닌 GPIO16 이 GND 에 묶였다. 표에 없는 핀이므로 조용해야 한다",
       "expect": [],
       "netlist": "r03-ordinary-pin-tied.d356",
       "bom": "r03-ordinary-pin-tied.bom.csv"
     },
     {
-      "id": "r09-boot-output-load",
+      "id": "r09-boot-tx-drives-relay",
       "kind": "양성",
-      "why": "GPIO16(U0TXD)에 릴레이가 붙었다. 부팅 로그가 매 부팅마다 그리로 나간다",
+      "why": "릴레이 IN 이 GPIO16(U0TXD)에 직결됐다. 전원을 넣을 때마다 부팅 로그로 딸깍거린다",
       "expect": [
         "R09"
       ],
-      "netlist": "r09-boot-output-load.d356",
-      "bom": "r09-boot-output-load.bom.csv"
+      "netlist": "r09-boot-tx-drives-relay.d356",
+      "bom": "r09-boot-tx-drives-relay.bom.csv"
     },
     {
-      "id": "r09-no-boot-pin",
+      "id": "r09-boot-tx-to-header",
       "kind": "음성",
-      "why": "같은 모양인데 TX 를 안 뽑았다. 조용해야 한다",
+      "why": "같은 핀인데 커넥터로 뺐다. 시리얼 콘솔은 정상 설계다. 경고가 뜨면 오탐이다",
       "expect": [],
-      "netlist": "r09-no-boot-pin.d356",
-      "bom": "r09-no-boot-pin.bom.csv"
+      "netlist": "r09-boot-tx-to-header.d356",
+      "bom": "r09-boot-tx-to-header.bom.csv"
+    },
+    {
+      "id": "r09-ordinary-pin-drives-relay",
+      "kind": "음성",
+      "why": "같은 릴레이인데 부팅 때 조용한 GPIO2 가 몬다. 표에 없는 핀이므로 조용해야 한다",
+      "expect": [],
+      "netlist": "r09-ordinary-pin-drives-relay.d356",
+      "bom": "r09-ordinary-pin-drives-relay.bom.csv"
     },
     {
       "id": "real-esp32c6-presence",

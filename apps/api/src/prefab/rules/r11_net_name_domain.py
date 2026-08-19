@@ -9,7 +9,14 @@
 
 from __future__ import annotations
 
-from ..netlist.graph import DOMAIN_EPSILON_V, Graph, format_volts, volts
+from ..netlist.d356 import NET_NAME_WIDTH
+from ..netlist.graph import (
+    DOMAIN_EPSILON_V,
+    Graph,
+    format_volts,
+    volts,
+    voltage_is_clipped,
+)
 from ..types import Context, Evidence, Finding, Severity, Verdict
 from ._clearance import ask_output_bound, number
 
@@ -52,20 +59,39 @@ def check(ctx: Context) -> list[Finding]:
             if source_pin is not None:
                 lines.append(f"{ref}.{source_pin} → {net}   (이 네트의 소스)")
 
+            # 이름이 14자 칸에 꽉 찼고 전압 토큰이 그 끝에 걸쳐 있으면 값이 잘렸을 수
+            # 있다 — `..._3V` 가 `_3V3` 의 앞부분인 경우다. 그 값으로 FAIL 을 내면
+            # 오탐이다. 판정을 내리지 않고 무엇을 확인해야 하는지 적는다 (A++2).
+            clipped = voltage_is_clipped(net)
+
             claim = (
                 f"네트 이름은 {format_volts(claimed)}V라고 말하는데, "
                 f"이 네트를 구동하는 {ref}는 {format_volts(domain.volts)}V로 동작합니다."
             )
+            if clipped:
+                claim += (
+                    f" 다만 이 이름은 넷리스트의 {NET_NAME_WIDTH}자 칸을 꽉 채웠고 "
+                    "전압 표기가 그 끝에 걸쳐 있어, 원래 이름이 잘렸을 수 있습니다."
+                )
             suggestion = (
                 "이름을 바꾸든 회로를 바꾸든 하나는 필요합니다. "
                 "이름만 맞추면 다음 사람이 또 속습니다."
             )
             evidence = [Evidence.netlist("\n".join(lines), highlight)]
             verdict = Verdict.FAIL
+            clipped_reason: str | None = None
+            if clipped:
+                # 값을 못 믿으면 판정을 내리지 않는다. 무엇을 보면 풀리는지 적는다.
+                verdict = Verdict.UNRESOLVED
+                clipped_reason = (
+                    f"네트명이 {NET_NAME_WIDTH}자에서 잘렸을 수 있어 "
+                    f"{format_volts(claimed)}V 라는 표기를 믿을 수 없습니다 — "
+                    "EDA 원본에서 이 네트의 전체 이름을 확인해 주세요"
+                )
 
             # --- 전원 전압과 출력 전압은 다르다. 데이터시트가 있으면 그걸로 판정한다
             answer = ask_output_bound(ctx, ref)
-            unresolved = answer.missing
+            unresolved = clipped_reason or answer.missing
             voh = number(answer)
             if voh is not None:
                 cite = answer.evidence()
@@ -73,7 +99,11 @@ def check(ctx: Context) -> list[Finding]:
                     evidence.append(cite)
                 unresolved = None
 
-                if abs(voh - claimed) <= DOMAIN_EPSILON_V:
+                if clipped:
+                    # 데이터시트가 출력 전압을 말해 줘도 **비교 대상인 이름**이 잘렸다.
+                    # 무엇과 비교하는지 모르는 채로 해제하면 그게 더 나쁘다.
+                    unresolved = clipped_reason
+                elif abs(voh - claimed) <= DOMAIN_EPSILON_V:
                     verdict = Verdict.PASS
                     claim = (
                         f"네트 이름 {net} 은 맞습니다. {ref}({answer.mpn})의 전원은 "
@@ -88,6 +118,9 @@ def check(ctx: Context) -> list[Finding]:
                         f"이름과 맞지 않습니다."
                     )
                     suggestion = f"{suggestion} 데이터시트 근거 — {answer.fact.cite()}."
+
+            if unresolved is clipped_reason and clipped_reason is not None:
+                verdict = Verdict.UNRESOLVED
 
             findings.append(
                 Finding(

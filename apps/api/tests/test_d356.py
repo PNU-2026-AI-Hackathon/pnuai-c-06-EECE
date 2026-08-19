@@ -4,7 +4,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from prefab.netlist.d356 import NO_CONNECT, NetlistParseError, parse, parse_text
+from prefab.netlist.d356 import (
+    NET_NAME_WIDTH,
+    NO_CONNECT,
+    NetlistParseError,
+    parse,
+    parse_text,
+)
+from tests._builder import board, rec
 
 from _builder import board, rec, via
 
@@ -139,9 +146,41 @@ def test_metric_units_are_rejected_instead_of_silently_misread():
     assert "CUST 1" in str(e.value)
 
 
-def test_flux_fixture_has_nothing_to_report():
+def test_flux_fixture_drops_no_records():
     """Flux 출처 픽스처는 뺄 레코드가 없다. 회귀 감시용."""
     nl = parse(FIXTURE)
     assert nl.non_electrical == {}
     assert nl.unknown_records == {}
+    # 뺀 레코드는 없지만 **네트명 절단 경고는 있다** (A++2). 아래 테스트가 그것이다.
+    assert not [n for n in nl.parse_notes() if "제외" in n or "모르는 레코드" in n]
+
+
+# ── 네트명 14자 절단 (A++2) ─────────────────────────────────────────
+
+
+def test_칸을_꽉_채운_네트명을_찾아낸다():
+    """핀 이름이 4자에서 잘리는 것과 같은 문제인데 더 조용하게 아프다."""
+    nl = parse(FIXTURE)
+    assert nl.width_limited_nets() == ["_IN_ACTIVE_LOW", "D_POS_SWITCHED"]
+    assert all(len(n) == NET_NAME_WIDTH for n in nl.width_limited_nets())
+
+
+def test_절단_가능성을_파싱_노트에_적는다():
+    """조용히 넘기면 R11 이 왜 조용한지 아무도 모른다 (헌법 2-4)."""
+    note = " ".join(parse(FIXTURE).parse_notes())
+    assert "꽉 참" in note and "잘렸을 수 있습니다" in note
+    assert "_IN_ACTIVE_LOW" in note
+
+
+def test_짧은_이름은_아무_말도_안_한다():
+    """정상 보드에서 이 경고가 뜨면 노이즈다."""
+    nl = parse_text(board(rec("3V3", "U1", "VCC"), rec("3V3", "C1", "P1", x=0.1)))
+    assert nl.width_limited_nets() == []
     assert nl.parse_notes() == []
+
+
+def test_잘렸다고_단정하지_않는다():
+    """딱 14자인 이름을 지었을 수도 있다. 말할 수 있는 건 '못 믿는다' 까지다."""
+    note = " ".join(parse(FIXTURE).parse_notes())
+    assert "잘렸습니다" not in note
+    assert "수 있습니다" in note

@@ -46,6 +46,15 @@ _UNITS = re.compile(r"^P\s+UNITS\s+CUST\s+(\d)", re.I)
 #: 연결이 없는 패드가 모이는 자리표시 네트명. 네트 수에 세지 않는다.
 NO_CONNECT = "N/C"
 
+#: 네트명 칸의 폭. **이 길이에 꽉 찬 이름은 잘렸을 수 있다** (A++2).
+#: 핀 이름이 4자에서 잘리는 것과 같은 문제인데, 이쪽은 더 조용하게 아프다 —
+#: 이름 끝의 전압 토큰이 날아가면 R11 이 아무 말도 안 하고,
+#: 서로 다른 두 네트가 같은 14자로 뭉치면 **없는 연결이 생긴다.**
+#:
+#: 실측 보드의 `_IN_ACTIVE_LOW` · `D_POS_SWITCHED` 가 정확히 14자다.
+#: 앞이 잘린 흔적(`_` 로 시작)이 남아 있어서, 이 도구는 **뒤가 아니라 앞을** 잘랐다.
+NET_NAME_WIDTH = 14
+
 _XY = re.compile(r"X([+-]\d{6})Y([+-]\d{6})")
 
 _NET = slice(3, 17)
@@ -100,7 +109,28 @@ class Netlist:
             notes.append(f"{NON_ELECTRICAL_TYPES.get(code, code)} {n}줄 제외")
         for code, n in self.unknown_records.items():
             notes.append(f"⚠ 모르는 레코드 {code} {n}줄 — 연결을 놓쳤을 수 있습니다")
+        clipped = self.width_limited_nets()
+        if clipped:
+            notes.append(
+                f"⚠ 네트명 {len(clipped)}개가 {NET_NAME_WIDTH}자에 꽉 참 "
+                f"({' · '.join(clipped[:4])}) — 원래 이름이 잘렸을 수 있습니다"
+            )
         return notes
+
+    # ------------------------------------------------------- 네트명 절단 (A++2)
+
+    @staticmethod
+    def is_name_at_width_limit(net: str | None) -> bool:
+        """이 이름이 칸을 꽉 채웠는가.
+
+        **잘렸다고 단정하지 않는다.** 정확히 14자인 이름을 지은 것일 수도 있다.
+        말할 수 있는 건 "이 파일은 더 긴 이름을 담을 수 없었다" 까지다 (헌법 2-2).
+        """
+        return len(net or "") >= NET_NAME_WIDTH
+
+    def width_limited_nets(self) -> list[str]:
+        """칸을 꽉 채운 네트 이름들. 등장 순서를 지킨다."""
+        return [n for n in self.ordered_net_names() if self.is_name_at_width_limit(n)]
 
     # ------------------------------------------------------------------ 조회
 

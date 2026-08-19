@@ -31,6 +31,12 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/prefab", "web"]
 
+# 샘플 검사 JSON (F-4). 패키지 안에 있지만 **명시해 둔다** —
+# 배포 이미지에는 tests/ 가 없어서 이 파일이 빠지면 서버에서 다시 만들 길이 없고,
+# 조용히 "샘플 없음" 이 된다. 배포하고 나서 알게 되는 종류의 사고다.
+[tool.hatch.build]
+artifacts = ["src/prefab/samples/*.json"]
+
 [tool.pytest.ini_options]
 pythonpath = ["src", ".", "tests"]
 testpaths = ["tests"]

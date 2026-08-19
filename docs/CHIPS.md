@@ -33,7 +33,7 @@ def check(ctx):
 | 스트래핑 | GPIO0, 2, 5, 12, 15 | 부팅 시 레벨이 부팅 모드를 결정 |
 | ADC1 | GPIO32 ~ 39 | WiFi와 무관하게 사용 가능 |
 | ADC2 | GPIO0, 2, 4, 12 ~ 15, 25 ~ 27 | **WiFi 구동 중 사용 불가** |
-| 부팅 중 출력 | GPIO1 (U0TXD) | 펌웨어가 돌기 전에 부팅 로그가 나온다 |
+| 부팅 시 출력 | GPIO0, 1, 3, 5, 14, 15 | 리셋 직후 HIGH 또는 PWM 이 나온다. **GPIO1 은 부팅 로그(U0TXD)** |
 
 ## ESP32-C6
 
@@ -44,7 +44,12 @@ def check(ctx):
 | 스트래핑 | GPIO4, 5, 8, 9, 15 | GPIO8·9는 부팅 모드, GPIO15는 JTAG 소스 선택 |
 | ADC1 | GPIO0 ~ GPIO6 | 7채널 |
 | ADC2 | **없음** | 칩에 ADC2가 존재하지 않음 |
-| 부팅 중 출력 | GPIO16 (U0TXD) | 펌웨어가 돌기 전에 부팅 로그가 나온다 |
+| 부팅 시 출력 | GPIO16 | U0TXD. 부트 ROM 로그가 **115200bps** 로 나간다 |
+
+> **C6 의 부팅 시 출력 목록은 GPIO16 하나뿐입니다 — 출처를 찾은 것이 그것뿐이라서입니다.**
+> 구형 ESP32 처럼 부팅 때 PWM 이 나오는 핀 목록을 Espressif 공식 문서에서 찾지 못했습니다.
+> **"그런 핀이 없다"가 아니라 "아직 못 찾았다"** 입니다. 출처를 찾으면 여기에 추가하세요.
+> 지어낸 핀 번호를 넣으면 R09 가 그 보드에서 오탐을 냅니다.
 
 ### C6에서 주의할 겹침
 
@@ -60,8 +65,8 @@ GPIO4·5를 아날로그 입력으로 쓰면 부팅 시점의 레벨이 부팅 �
 | **R1** 코드가 쓸 수 없는 핀을 사용 | 입력 전용 핀에 OUTPUT → `CRITICAL` | 플래시 핀 사용 → `CRITICAL`<br>스트래핑 핀 사용 → `WARNING` |
 | **R2** 회로도가 플래시 핀에 배선 | GPIO6~11 배선 → `CRITICAL` | GPIO24~30 배선 → `CRITICAL` |
 | **R3** 스트래핑 핀이 전원·접지 직결 | GPIO0·2·5·12·15 → `WARNING` | GPIO4·5·8·9·15 → `WARNING` |
-| **R9** 부팅 중 출력 핀에 무언가 붙음 | GPIO1 에 연결 → `정보` | GPIO16 에 연결 → `정보` |
 | **R5** 칩이 지원하지 않는 조합 | ADC2 + WiFi 동시 → `CRITICAL` | ADC2 없음 → `skipped`<br>ADC(GPIO4·5) + 스트래핑 겹침 → `WARNING` |
+| **R9** 부팅 시 출력 핀에 부하 | GPIO0·1·3·5·14·15 에 구동 부품 → `WARNING` | GPIO16(U0TXD)에 구동 부품 → `WARNING` |
 | **R7·R8·R10** 코드 ↔ 회로도 대조 | 칩 무관 | 칩 무관 |
 
 **R2·R3 은 회로도만 봅니다.** R1 이 같은 핀을 코드 쪽에서 보는 것과 짝입니다 —
@@ -72,6 +77,9 @@ GPIO4·5를 아날로그 입력으로 쓰면 부팅 시점의 레벨이 부팅 �
   맨칩 설계에서 외부 플래시로 가는 배선은 정상이기 때문입니다.
 - R3 은 **직결만** 잡습니다. 저항·스위치를 거치면 패드가 다른 네트에 있어 안 걸립니다.
   풀업 저항과 부트 버튼은 정상 설계입니다.
+- R9 는 **구동 부품(K·Q·M·BZ·LS)만** 부하로 셉니다. 커넥터(`J`)로 빼는 것은
+  시리얼 콘솔이라 정상 설계이고, 그것까지 잡으면 거의 모든 개발보드에서 오탐이 납니다.
+  레일에 직결된 경우는 R3 이 보므로 R9 는 비켜섭니다 — 같은 배선을 두 번 읽히지 않습니다.
 
 **R1과 R5는 칩마다 내용이 다를 뿐 양쪽 다 살아 있습니다.**
 C6에서 못 하는 항목은 숨기지 않고 `skipped` + 사유로 내보냅니다.
@@ -185,10 +193,14 @@ X 좌표 클러스터링이 실제로 제어부/스위치부를 갈라낸다는 
 
 - [ESP32-C6 Datasheet — Espressif](https://documentation.espressif.com/esp32-c6_datasheet_en.html)
 - [GPIO & RTC GPIO — ESP32-C6, ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-reference/peripherals/gpio.html)
-- [ESP32 Datasheet — Espressif](https://www.espressif.com/sites/default/files/documentation/esp32_datasheet_en.pdf) (U0TXD = GPIO1)
-- [UART — ESP32-C6, ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-reference/peripherals/uart.html) (U0TXD 기본 핀)
 - [Boot Mode Selection — ESP32-C6, esptool](https://docs.espressif.com/projects/esptool/en/latest/esp32c6/advanced-topics/boot-mode-selection.html)
 - [ADC2 / WiFi 충돌 — ESP-IDF](https://github.com/espressif/esp-idf/blob/v4.0.3/docs/en/api-reference/peripherals/adc.rst)
+- 부팅 시 출력 (ESP32-C6, GPIO16 = U0TXD 기본 시리얼 콘솔):
+  [ESP32-C6-DevKitC-1 핀아웃](https://www.espboards.dev/esp32/esp32-c6-devkitc-1/) ·
+  ROM 로그 115200bps 는 [Boot Mode Selection — ESP32-C6, esptool](https://docs.espressif.com/projects/esptool/en/latest/esp32c6/advanced-topics/boot-mode-selection.html)
+- 부팅 시 출력 (구형 ESP32, GPIO0·1·3·5·14·15):
+  [ESP32 Pinout Reference — Random Nerd Tutorials](https://randomnerdtutorials.com/esp32-pinout-reference-gpios/)
+  (2차 출처입니다. **1차 출처로 교체해 주세요** — 하드웨어 담당 검수 항목)
 - [XIAO ESP32C6 핀아웃 — Seeed Studio Wiki](https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/)
 
 표를 고칠 때는 **근거 링크를 함께 남깁니다.** 출처 없는 핀 번호는 규칙에 넣지 않습니다.
