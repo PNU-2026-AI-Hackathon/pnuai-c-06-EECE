@@ -18,19 +18,28 @@ jobs:
         with:
           python-version: "3.11"
       - name: 의존성 설치
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,datasheet]"
       - name: 테스트
         run: pytest -q
-      - name: 실제 보드 검사가 3건을 그대로 내는지
+      # 검출율·오탐율. 라벨은 tests/fixtures/injected/MANIFEST.json 에 있고
+      # 케이스를 하나라도 못 읽으면 종료 코드 1 로 끝난다.
+      - name: 검증 측정
+        run: python -m prefab --measure
+
+      # 발견 목록을 여기에 다시 적지 않는다. 그러면 tests/test_golden_real_board.py
+      # 와 같은 진실을 두 벌 갖게 되고, 실제로 한쪽만 갱신돼 CI 가 낡았다.
+      # 여기서는 CLI 경로가 살아 있는지와 계약 불변식만 본다.
+      - name: CLI 가 계약대로 뱉는지
         run: |
           python -m prefab tests/fixtures/esp32-c6-presence-smart-light.d356 --json > /tmp/check.json
           python - <<'PY'
           import json
           r = json.load(open("/tmp/check.json"))
-          got = [(f["rule"], f["net"]) for f in r["findings"]]
-          want = [("R12","PRESENCE_3V3"), ("R12","_IN_ACTIVE_LOW"), ("R11","PRESENCE_3V3")]
-          assert got == want, f"골든 결과가 바뀌었다: {got}"
           s = r["summary"]
-          assert s["rules_run"] + s["rules_skipped"] == s["rules_total"], s
-          print("골든 통과:", got)
+          assert r["findings"], "실측 보드에서 발견이 하나도 없다"
+          assert s["rules_run"] + s["rules_skipped"] == s["rules_total"] > 0, s
+          assert s["critical"] + s["warning"] + s["cleared"] == len(r["findings"]), s
+          for f in r["findings"]:
+              assert f["rule"] and f["evidence"], f
+          print("계약 통과:", len(r["findings"]), "건 ·", s)
           PY
