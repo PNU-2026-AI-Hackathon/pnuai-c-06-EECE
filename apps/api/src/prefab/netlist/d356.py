@@ -75,6 +75,10 @@ class Pad:
     record: str
     x: float | None = None
     y: float | None = None
+    #: 핀의 **이름**(기능). IPC-D-356 에는 없다 — 4자 칸에 잘린 `pin` 이 전부다.
+    #: 회로도 넷리스트(kicadxml)로 들어온 보드에만 채워진다 (`GPIO3` · `U0TXD`).
+    #: 없으면 None 이다. **없는 것을 지어내지 않는다.**
+    name: str | None = None
 
     @property
     def is_via(self) -> bool:

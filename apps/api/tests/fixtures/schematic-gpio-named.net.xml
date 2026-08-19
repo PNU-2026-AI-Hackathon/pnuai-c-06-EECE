@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<export version="E">
+  <design>
+    <source>schematic-gpio-named.kicad_sch</source>
+  </design>
+  <components>
+    <comp ref="U1">
+      <value>ESP32-C3-MINI-1</value>
+      <footprint>RF_Module:ESP32-C3-MINI-1</footprint>
+      <fields>
+        <field name="LCSC">C2913196</field>
+        <field name="Datasheet">https://example.invalid/esp32-c3-mini-1.pdf</field>
+      </fields>
+    </comp>
+    <comp ref="R1">
+      <value>10k_0402</value>
+      <fields>
+        <field name="MPN">RC0402FR-0710KL</field>
+      </fields>
+    </comp>
+    <comp ref="J1">
+      <value>Conn_01x02</value>
+    </comp>
+  </components>
+  <nets>
+    <net code="1" name="GND">
+      <node ref="U1" pin="33" pinfunction="GND_33"/>
+      <node ref="R1" pin="2"/>
+      <node ref="J1" pin="2" pinfunction="Pin_2_2"/>
+    </net>
+    <net code="2" name="SENSOR_PWR_EN">
+      <node ref="U1" pin="16" pinfunction="GPIO10_16"/>
+      <node ref="R1" pin="1"/>
+    </net>
+    <net code="3" name="ADC_IN">
+      <node ref="U1" pin="8" pinfunction="GPIO3_8"/>
+      <node ref="J1" pin="1" pinfunction="Pin_1_1"/>
+    </net>
+    <net code="4" name="unconnected-(U1-GPIO8-Pad14)">
+      <node ref="U1" pin="14" pinfunction="GPIO8_14"/>
+    </net>
+    <net code="5" name="BUTTON">
+      <node ref="U1" pin="15" pinfunction="GPIO9_15"/>
+    </net>
+    <net code="6" name="UART_TX">
+      <node ref="U1" pin="28" pinfunction="U0TXD_28"/>
+    </net>
+  </nets>
+</export>
