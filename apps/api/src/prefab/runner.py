@@ -51,6 +51,7 @@ def analyze(
     bom_bytes: bytes | None = None,
     firmware_sources: "dict[str, str] | None" = None,
     fact_store: FactStore | None = None,
+    previous_netlist_text: str | None = None,
 ) -> Analysis:
     """넷리스트 본문(+ 있으면 펌웨어 소스)을 받아 검사까지 끝낸다.
 
@@ -74,7 +75,12 @@ def analyze(
     if lookup is not None and len(lookup.facts) > 0:
         facts = lookup.facts
 
-    ctx = Context(netlist=graph, bom=bom, firmware=firmware, datasheet=facts)
+    # 이전 넷리스트가 있으면 드리프트를 볼 수 있다 (R10). 없으면 그 규칙이 조용하다.
+    previous = parse_text(previous_netlist_text) if previous_netlist_text else None
+
+    ctx = Context(
+        netlist=graph, bom=bom, firmware=firmware, datasheet=facts, git=previous
+    )
     return Analysis(
         netlist=netlist,
         graph=graph,

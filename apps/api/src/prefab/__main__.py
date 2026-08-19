@@ -280,6 +280,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("netlist", nargs="?", help="IPC-D-356 파일")
     ap.add_argument("--bom", help="부품 목록 CSV")
     ap.add_argument("--firmware", help="펌웨어 소스 디렉터리 또는 zip")
+    ap.add_argument("--previous", metavar="BEFORE.d356",
+                    help="이전 넷리스트. 주면 R10(드리프트)이 무엇이 옮겨갔는지 말한다")
     ap.add_argument("--json", action="store_true", help="API 계약과 같은 JSON 으로 출력")
     ap.add_argument("--rules-json", action="store_true", help="규칙 카탈로그 JSON 만 출력")
     ap.add_argument("--facts-load", nargs="+", metavar="JSON",
@@ -370,6 +372,10 @@ def main(argv: list[str] | None = None) -> int:
             filename=path.name,
             bom_bytes=bom_bytes,
             firmware_sources=sources,
+            previous_netlist_text=(
+                Path(args.previous).read_text(encoding="utf-8", errors="replace")
+                if args.previous else None
+            ),
             fact_store=FactStore(os.getenv("PREFAB_DB", "prefab.db")),
         )
     except (NetlistParseError, BomParseError) as exc:

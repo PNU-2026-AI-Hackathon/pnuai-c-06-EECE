@@ -27,6 +27,17 @@ python -m prefab tests/fixtures/esp32-c6-presence-smart-light.d356 \\
 
 부품 사실 DB(`--use-facts`)는 **일부러 안 넣었다.** 넣으면 이 파일이 로컬 DB 상태에
 따라 달라져서, 커밋된 파일만으로는 다시 만들 수 없게 된다.
+
+다시 뽑는 명령 — **`PREFAB_DB` 를 빈 파일로 둔다.**
+
+    PREFAB_DB=/tmp/empty.db python -m prefab \
+      tests/fixtures/esp32-c6-presence-smart-light.d356 \
+      --bom tests/fixtures/esp32-c6-presence-smart-light.bom.csv \
+      --firmware tests/fixtures/esp32-c6-presence-smart-light.firmware \
+      --json > src/prefab/samples/check.sample.json
+
+로컬 사실 DB 가 섞이면 커밋된 파일만으로 재현이 안 된다.
+`tests/test_samples.py` 도 사실 DB 없이 대조하므로, 그냥 돌리면 계속 어긋난다.
 """
 
 from __future__ import annotations

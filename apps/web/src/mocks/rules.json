@@ -77,9 +77,9 @@
     },
     {
       "id": "R09",
-      "title": "부팅 중 출력이 나오는 핀에 부하 연결",
+      "title": "부팅 시 출력 나오는 핀에 부하 연결",
       "tier": "기본",
-      "severity": "INFO",
+      "severity": "WARNING",
       "needs": [
         "netlist"
       ],
@@ -89,12 +89,12 @@
       "id": "R10",
       "title": "회로도 변경 후 코드 미추종 (드리프트)",
       "tier": "차별",
-      "severity": "WARNING",
+      "severity": "CRITICAL",
       "needs": [
         "netlist",
         "firmware"
       ],
-      "implemented": false
+      "implemented": true
     },
     {
       "id": "R11",
