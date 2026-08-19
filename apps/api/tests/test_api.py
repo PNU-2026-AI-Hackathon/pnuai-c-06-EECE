@@ -34,10 +34,15 @@ def test_healthz(client):
     assert client.get("/healthz").json() == {"status": "ok"}
 
 
-def test_rules_includes_unimplemented(client):
+def test_rules_exposes_every_rule_with_its_state(client):
+    """구현 여부를 규칙마다 실어 보낸다. 미구현도 숨기지 않는다.
+
+    원래 "미구현이 하나는 있다"를 단정했는데 11/11 이 되면서 깨졌다.
+    지키려던 것은 개수가 아니라 노출이다.
+    """
     rules = client.get("/api/v1/rules").json()["rules"]
     assert len(rules) == 11
-    assert any(r["implemented"] is False for r in rules)
+    assert all(isinstance(r["implemented"], bool) for r in rules)
     r12 = next(r for r in rules if r["id"] == "R12")
     assert r12["implemented"] is True
     assert r12["needs"] == ["netlist"]

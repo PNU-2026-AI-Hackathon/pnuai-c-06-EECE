@@ -52,9 +52,10 @@ def _regenerate() -> dict:
 def test_실려_있는_샘플이_지금_엔진과_같다():
     """어긋나면 다시 뽑아야 한다 — 명령은 `src/prefab/samples/__init__.py` 에 있다."""
     assert load_sample() == _regenerate(), (
-        "샘플이 엔진보다 낡았습니다. "
-        "python -m prefab tests/fixtures/esp32-c6-presence-smart-light.d356 "
-        "--bom ... --firmware ... --json > src/prefab/samples/check.sample.json"
+        "샘플이 엔진보다 낡았습니다. 아래로 다시 뽑으세요 —\n"
+        "  PREFAB_DB=/tmp/empty-prefab.db python -m prefab tests/fixtures/esp32-c6-presence-smart-light.d356 --bom tests/fixtures/esp32-c6-presence-smart-light.bom.csv --firmware tests/fixtures/esp32-c6-presence-smart-light.firmware --json > src/prefab/samples/check.sample.json\n"
+        "**PREFAB_DB 를 빈 파일로 두는 것이 핵심입니다.** 로컬 사실 DB 가 섞이면 "
+        "커밋된 파일만으로 재현할 수 없고, 이 테스트가 계속 빨간불입니다."
     )
 
 

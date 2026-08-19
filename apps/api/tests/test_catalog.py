@@ -43,9 +43,15 @@ def test_r06_is_retired_and_not_reused():
 
 
 def test_unimplemented_rules_are_exposed_not_hidden():
+    """구현 여부를 **모든 규칙에 대해** 내보낸다. 숨기지 않는다.
+
+    원래 "미구현이 하나는 있다"를 함께 단정했는데, R10 이 들어오면서 11/11 이 되어
+    그 단정이 깨졌다. 재기 좋은 상태를 전제로 삼은 것이었다 — 지키려던 것은
+    **개수가 아니라 노출**이다. 카탈로그 전체가 실리고 레지스트리와 일치하면 된다.
+    """
     payload = build_rules_catalog()["rules"]
     assert len(payload) == catalog.TOTAL
-    assert any(r["implemented"] is False for r in payload)
+    assert all("implemented" in r for r in payload)
     assert {r["id"] for r in payload if r["implemented"]} == set(rules.IMPLEMENTED_IDS)
 
 

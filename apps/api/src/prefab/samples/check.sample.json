@@ -22,8 +22,8 @@
     "warning": 1,
     "info": 0,
     "cleared": 0,
-    "rules_run": 10,
-    "rules_skipped": 1,
+    "rules_run": 11,
+    "rules_skipped": 0,
     "rules_total": 11,
     "parts_identified": 3,
     "parts_total": 10
@@ -63,7 +63,7 @@
       "step": 6,
       "name": "규칙 엔진",
       "status": "done",
-      "detail": "11개 중 10개 실행 · 미구현 1 · 입력 부족 0"
+      "detail": "11개 중 11개 실행 · 미구현 0 · 입력 부족 0"
     },
     {
       "step": 7,
