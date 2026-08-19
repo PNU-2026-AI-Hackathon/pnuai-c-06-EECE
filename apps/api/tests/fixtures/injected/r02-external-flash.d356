@@ -1,0 +1,17 @@
+P  CODE 00
+P  UNITS CUST 0
+327FLASH_IO24       U1    -IO24          X+000000Y+000000
+327FLASH_IO24       U9    -1             X+000000Y+006000
+327FLASH_IO25       U1    -IO25          X+001000Y+000000
+327FLASH_IO25       U9    -2             X+001000Y+006000
+327FLASH_IO26       U1    -IO26          X+002000Y+000000
+327FLASH_IO26       U9    -3             X+002000Y+006000
+327FLASH_IO27       U1    -IO27          X+003000Y+000000
+327FLASH_IO27       U9    -4             X+003000Y+006000
+327NET_IO2          U1    -IO2           X+009000Y+000000
+327NET_IO2          J1    -1             X+009000Y+005000
+327NET_IO3          U1    -IO3           X+010000Y+000000
+327NET_IO3          J1    -2             X+010000Y+005000
+327NET_IO16         U1    -IO16          X+011000Y+000000
+327NET_IO16         J1    -3             X+011000Y+005000
+999

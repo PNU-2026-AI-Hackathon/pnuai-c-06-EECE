@@ -201,8 +201,10 @@ CASES += [
     {
         "id": "r01-flash-pin",
         "kind": "양성",
-        "why": "코드가 GPIO24 를 쓴다. C6 에서 내장 플래시 전용이라 부팅이 실패한다",
-        "expect": ["R01"],
+        # R02 도 같이 뜬다. 배선(R02)과 사용(R01)이 둘 다 사실이라 억지로 하나만
+        # 남기지 않는다. 화면에서 어떻게 묶을지는 별개 문제다 (핀 단위 dedup 미구현).
+        "why": "코드가 GPIO24 를 쓰고 회로도도 그 핀을 뽑아놨다. C6 내장 플래시 전용이다",
+        "expect": ["R01", "R02"],
         "bom": C6_BOM,
         "firmware": sketch(2, 3, 7, 24),
         "netlist": bare("IO2", "IO3", "IO7", "IO24"),
@@ -288,6 +290,119 @@ CASES += [
         "bom": C6_BOM,
         "firmware": analog(2, 3, 16, 17),
         "netlist": bare("IO2", "IO3", "IO16", "IO17"),
+    },
+]
+
+
+
+# ── R02 회로도가 SPI 플래시 전용 핀에 배선 ──
+#
+# 시연 보드는 플래시 핀을 안 뽑아놔서 여기 안 걸린다. 맨칩 설계로 만든다.
+# **음성 케이스가 중요하다** — 맨칩에서 플래시 핀이 진짜 플래시 IC 로 가는 것은
+# 정상 설계다. 그것까지 잡으면 맨칩 보드마다 오탐이 난다.
+
+FLASH_IO = ("IO24", "IO25", "IO26", "IO27")   # C6 내장 플래시 전용 (GPIO24~30)
+
+
+def flash_to_device(*extra: str) -> str:
+    """플래시 핀 4가닥이 한 IC(U9)로 간다. 정상 설계다."""
+    lines = []
+    for i, pin in enumerate(FLASH_IO):
+        net = f"FLASH_{pin}"
+        lines.append(rec(net, "U1", pin, x=0.1 * i))
+        lines.append(rec(net, "U9", str(i + 1), x=0.1 * i, y=0.6))
+    for j, pin in enumerate(extra):
+        net = f"NET_{pin}"
+        lines.append(rec(net, "U1", pin, x=0.1 * (j + 9)))
+        lines.append(rec(net, "J1", str(j + 1), x=0.1 * (j + 9), y=0.5))
+    return board(*lines)
+
+
+CASES += [
+    {
+        "id": "r02-flash-pin-wired",
+        "kind": "양성",
+        "why": "GPIO24 가 LED 커넥터로 빠졌다. C6 에서 내장 플래시 전용이라 부팅이 실패한다",
+        "expect": ["R02"],
+        "bom": C6_BOM,
+        "netlist": bare("IO2", "IO3", "IO16", "IO24"),
+    },
+    {
+        "id": "r02-external-flash",
+        "kind": "음성",
+        "why": "플래시 핀 4가닥이 전부 한 IC 로 간다. 이건 플래시 IC 다. 경고가 뜨면 오탐이다",
+        "expect": [],
+        "bom": C6_BOM,
+        "netlist": flash_to_device("IO2", "IO3", "IO16"),
+    },
+    {
+        "id": "r02-no-flash-pin",
+        "kind": "음성",
+        "why": "같은 모양인데 플래시 핀을 안 건드린다. 조용해야 한다",
+        "expect": [],
+        "bom": C6_BOM,
+        "netlist": bare("IO2", "IO3", "IO16", "IO17"),
+    },
+]
+
+
+# ── R03 스트래핑 핀이 전원·접지에 직결 ──
+#
+# 저항·스위치를 거치면 그 패드는 다른 네트에 있으므로 안 걸린다. 그게 맞다 —
+# 풀업 저항과 부트 버튼은 정상 설계이고 그것까지 잡으면 거의 모든 보드에서 오탐이다.
+
+STRAP = "IO8"   # C6 스트래핑 (GPIO4·5·8·9·15)
+
+
+def tied(pin: str, rail: str, *others: str) -> str:
+    """한 핀을 레일에 직결하고 나머지는 평범하게 뺀다."""
+    lines = [rec(rail, "U1", pin, x=0.0), rec(rail, "C1", "2", x=0.0, y=0.4)]
+    for i, p in enumerate(others):
+        net = f"NET_{p}"
+        lines.append(rec(net, "U1", p, x=0.1 * (i + 1)))
+        lines.append(rec(net, "J1", str(i + 1), x=0.1 * (i + 1), y=0.5))
+    return board(*lines)
+
+
+def through_resistor(pin: str, rail: str, *others: str) -> str:
+    """스트래핑 핀 → 저항 → 레일. 패드는 레일이 아니라 중간 네트에 있다."""
+    lines = [
+        rec("STRAP_PU", "U1", pin, x=0.0),
+        rec("STRAP_PU", "R9", "1", x=0.0, y=0.4),
+        rec(rail, "R9", "2", x=0.0, y=0.8),
+        rec(rail, "C1", "2", x=0.1, y=0.8),
+    ]
+    for i, p in enumerate(others):
+        net = f"NET_{p}"
+        lines.append(rec(net, "U1", p, x=0.1 * (i + 1)))
+        lines.append(rec(net, "J1", str(i + 1), x=0.1 * (i + 1), y=0.5))
+    return board(*lines)
+
+
+CASES += [
+    {
+        "id": "r03-strapping-tied-gnd",
+        "kind": "양성",
+        "why": "GPIO8 이 GND 에 직결됐다. C6 스트래핑이라 부팅 모드가 한쪽으로 굳는다",
+        "expect": ["R03"],
+        "bom": C6_BOM,
+        "netlist": tied(STRAP, "GND", "IO2", "IO3", "IO16"),
+    },
+    {
+        "id": "r03-strapping-pullup",
+        "kind": "음성",
+        "why": "같은 핀인데 저항을 거친다. 풀업은 정상 설계다. 경고가 뜨면 오탐이다",
+        "expect": [],
+        "bom": C6_BOM,
+        "netlist": through_resistor(STRAP, "3V3", "IO2", "IO3", "IO16"),
+    },
+    {
+        "id": "r03-ordinary-pin-tied",
+        "kind": "음성",
+        "why": "스트래핑이 아닌 GPIO16 이 GND 에 묶였다. 표에 없는 핀이므로 조용해야 한다",
+        "expect": [],
+        "bom": C6_BOM,
+        "netlist": tied("IO16", "GND", "IO2", "IO3", "IO17"),
     },
 ]
 

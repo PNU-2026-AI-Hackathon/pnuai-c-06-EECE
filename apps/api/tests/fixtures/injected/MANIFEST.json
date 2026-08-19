@@ -55,9 +55,10 @@
     {
       "id": "r01-flash-pin",
       "kind": "양성",
-      "why": "코드가 GPIO24 를 쓴다. C6 에서 내장 플래시 전용이라 부팅이 실패한다",
+      "why": "코드가 GPIO24 를 쓰고 회로도도 그 핀을 뽑아놨다. C6 내장 플래시 전용이다",
       "expect": [
-        "R01"
+        "R01",
+        "R02"
       ],
       "netlist": "r01-flash-pin.d356",
       "bom": "r01-flash-pin.bom.csv",
@@ -132,6 +133,58 @@
       "netlist": "r05-adc-no-overlap.d356",
       "bom": "r05-adc-no-overlap.bom.csv",
       "firmware": "r05-adc-no-overlap.firmware"
+    },
+    {
+      "id": "r02-flash-pin-wired",
+      "kind": "양성",
+      "why": "GPIO24 가 LED 커넥터로 빠졌다. C6 에서 내장 플래시 전용이라 부팅이 실패한다",
+      "expect": [
+        "R02"
+      ],
+      "netlist": "r02-flash-pin-wired.d356",
+      "bom": "r02-flash-pin-wired.bom.csv"
+    },
+    {
+      "id": "r02-external-flash",
+      "kind": "음성",
+      "why": "플래시 핀 4가닥이 전부 한 IC 로 간다. 이건 플래시 IC 다. 경고가 뜨면 오탐이다",
+      "expect": [],
+      "netlist": "r02-external-flash.d356",
+      "bom": "r02-external-flash.bom.csv"
+    },
+    {
+      "id": "r02-no-flash-pin",
+      "kind": "음성",
+      "why": "같은 모양인데 플래시 핀을 안 건드린다. 조용해야 한다",
+      "expect": [],
+      "netlist": "r02-no-flash-pin.d356",
+      "bom": "r02-no-flash-pin.bom.csv"
+    },
+    {
+      "id": "r03-strapping-tied-gnd",
+      "kind": "양성",
+      "why": "GPIO8 이 GND 에 직결됐다. C6 스트래핑이라 부팅 모드가 한쪽으로 굳는다",
+      "expect": [
+        "R03"
+      ],
+      "netlist": "r03-strapping-tied-gnd.d356",
+      "bom": "r03-strapping-tied-gnd.bom.csv"
+    },
+    {
+      "id": "r03-strapping-pullup",
+      "kind": "음성",
+      "why": "같은 핀인데 저항을 거친다. 풀업은 정상 설계다. 경고가 뜨면 오탐이다",
+      "expect": [],
+      "netlist": "r03-strapping-pullup.d356",
+      "bom": "r03-strapping-pullup.bom.csv"
+    },
+    {
+      "id": "r03-ordinary-pin-tied",
+      "kind": "음성",
+      "why": "스트래핑이 아닌 GPIO16 이 GND 에 묶였다. 표에 없는 핀이므로 조용해야 한다",
+      "expect": [],
+      "netlist": "r03-ordinary-pin-tied.d356",
+      "bom": "r03-ordinary-pin-tied.bom.csv"
     },
     {
       "id": "real-esp32c6-presence",

@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from _builder import rules_that_run
 from web import service
 
 FIXTURE = Path(__file__).parent / "fixtures" / "esp32-c6-presence-smart-light.d356"
@@ -84,7 +85,7 @@ def test_run_check_on_the_real_board():
     assert result["status"] == "done"
     assert result["check_id"].startswith("chk_")
     assert len(result["findings"]) == 2
-    assert result["summary"]["rules_run"] == 2
+    assert result["summary"]["rules_run"] == rules_that_run("netlist")
 
 
 def test_created_at_is_utc_with_a_trailing_z():
@@ -101,7 +102,7 @@ def test_firmware_zip_runs_the_differentiating_rules():
         firmware_filename="src.zip",
         firmware_bytes=_firmware_zip(),
     )
-    assert result["summary"]["rules_run"] == 6
+    assert result["summary"]["rules_run"] == rules_that_run("netlist", "firmware")
     assert (result["summary"]["critical"], result["summary"]["warning"]) == (4, 1)
     assert result["pipeline"][2]["status"] == "done"
     assert result["inputs"]["firmware"]["filename"] == "src.zip"

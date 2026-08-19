@@ -20,9 +20,13 @@ from prefab.report import build_result
 from prefab.runner import analyze
 from prefab.types import Severity
 
+from _builder import rules_that_run
+
 FIXTURES = Path(__file__).parent / "fixtures"
 FIXTURE = FIXTURES / "esp32-c6-presence-smart-light.d356"
 FIRMWARE_DIR = FIXTURES / "esp32-c6-presence-smart-light.firmware"
+
+
 
 
 def _analysis(with_firmware: bool = False):
@@ -60,7 +64,7 @@ def test_netlist_only_summary():
     s = _result()["summary"]
     # dedup 이후 R11 은 R12 에 합쳐진다. 경고는 0 이다.
     assert (s["critical"], s["warning"]) == (2, 0)
-    assert s["rules_run"] == 2
+    assert s["rules_run"] == rules_that_run("netlist")
     assert s["rules_run"] + s["rules_skipped"] == s["rules_total"] == catalog.TOTAL
 
 
@@ -94,7 +98,7 @@ def test_with_firmware_findings_match_the_expected_doc():
 def test_with_firmware_summary():
     s = _result(with_firmware=True)["summary"]
     assert (s["critical"], s["warning"]) == (4, 1)
-    assert s["rules_run"] == 6
+    assert s["rules_run"] == rules_that_run("netlist", "firmware")
     assert s["rules_run"] + s["rules_skipped"] == s["rules_total"]
 
 

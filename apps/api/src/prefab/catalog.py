@@ -37,19 +37,17 @@ CATALOG: tuple[RuleSpec, ...] = (
     ),
     RuleSpec(
         "R02",
-        "회로도가 SPI flash 핀에 연결",
+        "회로도가 SPI 플래시 전용 핀에 배선",
         "기본",
         Severity.CRITICAL,
         ("netlist",),
-        "규칙 로직 미작성 — 칩 표(docs/CHIPS.md)와 pinmap 은 있다",
     ),
     RuleSpec(
         "R03",
-        "strapping 핀 부팅 상태 오류",
+        "스트래핑 핀이 전원·접지에 직결",
         "기본",
         Severity.WARNING,
         ("netlist",),
-        "규칙 로직 미작성 — 칩 표(docs/CHIPS.md)와 pinmap 은 있다",
     ),
     RuleSpec(
         "R04",

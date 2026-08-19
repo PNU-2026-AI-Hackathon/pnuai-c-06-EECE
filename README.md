@@ -183,8 +183,8 @@ curl -F "netlist=@board.d356" \
 | ID | 규칙 | 등급 | 필요 입력 | 상태 |
 |---|---|:---:|---|:---:|
 | R1 | 코드가 이 칩에서 쓸 수 없는 핀을 사용 | 차별 | netlist, firmware, chip | ⬜ |
-| R2 | 회로도가 SPI flash 핀에 연결 | 기본 | netlist, chip | ⬜ |
-| R3 | strapping 핀 부팅 상태 오류 | 기본 | netlist, chip | ⬜ |
+| R2 | 회로도가 SPI 플래시 전용 핀에 배선 | 기본 | netlist, chip | ✅ |
+| R3 | 스트래핑 핀이 전원·접지에 직결 | 기본 | netlist, chip | ✅ |
 | R4 | 외부 부품 출력이 GPIO 입력 최대 정격 초과 | 기본 | netlist, datasheet | ⬜ |
 | R5 | 이 칩이 지원하지 않는 주변장치 조합 | 차별 | firmware, chip | ⬜ |
 | R7 | 코드가 쓰는 핀이 회로도에 미연결 | 차별 | netlist, firmware | ✅ |

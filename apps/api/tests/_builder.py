@@ -33,3 +33,19 @@ def via(net: str, x: float = 0.0, y: float = 0.0) -> str:
 def board(*lines: str) -> str:
     header = "P  CODE 00\nP  UNITS CUST 0\n"
     return header + "\n".join(lines) + "\n999\n"
+
+
+def rules_that_run(*inputs: str) -> int:
+    """이 입력들로 실행 가능한 규칙 수.
+
+    숫자를 손으로 적지 않는다. 규칙이 하나 늘 때마다 테스트를 고치게 되고,
+    그러다 한쪽만 고친다 (`catalog.py` 머리말과 같은 이유).
+    """
+    from prefab import catalog, rules
+
+    available = set(inputs)
+    return sum(
+        1
+        for spec in catalog.CATALOG
+        if rules.is_implemented(spec.id) and set(spec.needs) <= available
+    )

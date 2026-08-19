@@ -53,7 +53,7 @@
 |---|---|
 | IPC-D-356 넷리스트 파서 | ✅ 동작 (실제 보드 검증) |
 | 규칙 엔진 | ✅ 동작 |
-| 구현된 규칙 | **4 / 11** (R07·R08 차별 · R11·R12 기본) |
+| 구현된 규칙 | **9 / 11** (차별 4 · 기본 5) |
 | REST API (4개 엔드포인트 + CORS) | ✅ 동작 |
 | CLI (`python -m prefab`) | ✅ 동작 |
 | 펌웨어 정적 분석 | ✅ 동작 (핀 사용·방향·상수 추적) |
@@ -144,16 +144,16 @@ curl -F "netlist=@board.d356" https://<host>/api/v1/checks
 
 | ID | 규칙 | 등급 | 필요 입력 | 상태 |
 |---|---|---|---|---|
-| R01 | 코드가 이 칩에서 쓸 수 없는 핀을 사용 | 차별 | netlist, firmware | ⬜ |
-| R02 | 회로도가 SPI flash 핀에 연결 | 기본 | netlist | ⬜ |
-| R03 | strapping 핀 부팅 상태 오류 | 기본 | netlist | ⬜ |
-| R04 | 외부 부품 출력이 GPIO 입력 최대 정격 초과 | 기본 | netlist, bom | ⬜ |
-| R05 | 이 칩이 지원하지 않는 주변장치 조합 | 차별 | firmware | ⬜ |
+| R01 | 코드가 이 칩에서 쓸 수 없는 핀을 사용 | 차별 | netlist, firmware | ✅ |
+| R02 | 회로도가 SPI 플래시 전용 핀에 배선 | 기본 | netlist | ✅ |
+| R03 | 스트래핑 핀이 전원·접지에 직결 | 기본 | netlist | ✅ |
+| R04 | 외부 부품 출력이 GPIO 입력 최대 정격 초과 | 기본 | netlist, bom | ✅ |
+| R05 | 이 칩이 지원하지 않는 주변장치 조합 | 차별 | netlist, firmware | ✅ |
 | R07 | 코드가 쓰는 핀이 회로도에 미연결 | 차별 | netlist, firmware | ✅ |
 | R08 | 회로도에 연결됐는데 코드가 초기화 안 함 | 차별 | netlist, firmware | ✅ |
-| R09 | 부팅 시 출력 나오는 핀에 부하 | 기본 | netlist | ⬜ |
+| R09 | 부팅 시 출력 나오는 핀에 부하 연결 | 기본 | netlist | ⬜ |
 | R10 | 회로도 변경 후 코드 미추종 (드리프트) | 차별 | netlist, firmware | ⬜ |
-| R11 | 네트명이 주장하는 전압 ≠ 소스 부품 전원 도메인 | 기본 | netlist | ✅ |
+| R11 | 네트명이 주장하는 전압과 소스 부품의 전원 도메인이 다름 | 기본 | netlist | ✅ |
 | R12 | 상위 전원 도메인이 하위를 직결 | 기본 | netlist | ✅ |
 
 전체 11개. R6(I2C 풀업 누락)은 Flux Design Review가 이미 제공하므로 폐기했고, 번호를 재사용하지 않습니다.
@@ -195,7 +195,8 @@ src/prefab/
   netlist/graph.py    부품·네트 그래프, 전원 도메인, 수동 소자 판별
   netlist/pinmap.py   패드 → 실크 라벨 · GPIO 확정
   firmware/arduino.py 핀 사용 추출 (상수 추적 · 방향 · 못 읽은 자리 분류)
-  datasheet/bom.py    BOM CSV 파서
+  bom.py              BOM CSV 파서
+  datasheet/          데이터시트 사실 추출 · 사실 DB
   rules/              규칙 모듈 + 레지스트리
   engine.py           규칙 실행 → Finding 수집
   report.py           계약 응답 조립
