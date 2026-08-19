@@ -20,9 +20,9 @@
   "summary": {
     "critical": 3,
     "warning": 1,
-    "cleared": 2,
-    "rules_run": 4,
-    "rules_skipped": 7,
+    "cleared": 1,
+    "rules_run": 5,
+    "rules_skipped": 6,
     "rules_total": 11,
     "parts_identified": 3,
     "parts_total": 10
@@ -50,19 +50,19 @@
       "step": 4,
       "name": "데이터시트 수집",
       "status": "partial",
-      "detail": "부품 3개 중 1개 수집 · 미수집: JQC-3FF-S-Z · XIAO-ESP32C6"
+      "detail": "부품 3개 중 2개 수집 · 미수집: JQC-3FF-S-Z"
     },
     {
       "step": 5,
       "name": "전기적 사실 추출",
       "status": "done",
-      "detail": "사실 5건 확보 · 판정 2건에 근거로 사용"
+      "detail": "사실 12건 확보 · 판정 1건에 근거로 사용"
     },
     {
       "step": 6,
       "name": "규칙 엔진",
       "status": "done",
-      "detail": "11개 중 4개 실행 · 미구현 7 · 입력 부족 0"
+      "detail": "11개 중 5개 실행 · 미구현 6 · 입력 부족 0"
     },
     {
       "step": 7,
@@ -176,7 +176,7 @@
           "quote": "A GPIO, IO level 3.3V"
         }
       ],
-      "suggestion": "조치할 것이 없습니다. 데이터시트에서 확인했습니다 — Table 2 Performance and electrical parameters table (Interface) · p.17. U2의 부품번호가 바뀌면 이 판정도 다시 해야 합니다.",
+      "suggestion": "조치할 것이 없습니다. 데이터시트에서 확인했습니다 — Table 2 Performance and electrical parameters table (Interface) · p.17. U2의 부품번호가 바뀌면 이 판정도 다시 해야 합니다. 이 네트에는 R11(네트명이 주장하는 전압과 소스 부품의 전원 도메인이 다름) 도 함께 해당합니다.",
       "unresolved_reason": null
     },
     {
@@ -229,34 +229,6 @@
         }
       ],
       "suggestion": "코드에서 D5를 초기화하고 제어하세요. 초기화하지 않으면 부팅 후 핀이 뜬 상태로 남아 연결된 부품이 임의로 동작할 수 있습니다. 아직 쓸 계획이 없는 미래용 배선이라면 그대로 두셔도 됩니다.",
-      "unresolved_reason": null
-    },
-    {
-      "rule": "R11",
-      "title": "네트명이 주장하는 전압과 소스 부품의 전원 도메인이 다름",
-      "tier": "기본",
-      "severity": "WARNING",
-      "verdict": "PASS",
-      "net": "PRESENCE_3V3",
-      "claim": "네트 이름 PRESENCE_3V3 은 맞습니다. U2(HLK-LD2410C)의 전원은 5V지만 출력은 3.3V입니다.",
-      "evidence": [
-        {
-          "kind": "netlist",
-          "text": "네트명: PRESENCE_3V3\nU2.VCC → 5V_BUS   (U2 전원 도메인 = 5.0V)\nU2.OUT → PRESENCE_3V3   (이 네트의 소스)",
-          "highlight": [
-            "PRESENCE_3V3",
-            "5V_BUS"
-          ]
-        },
-        {
-          "kind": "datasheet",
-          "mpn": "HLK-LD2410C",
-          "table": "Table 2 Performance and electrical parameters table (Interface)",
-          "page": 17,
-          "quote": "A GPIO, IO level 3.3V"
-        }
-      ],
-      "suggestion": "조치할 것이 없습니다. 데이터시트에서 확인했습니다 — Table 2 Performance and electrical parameters table (Interface) · p.17.",
       "unresolved_reason": null
     }
   ],

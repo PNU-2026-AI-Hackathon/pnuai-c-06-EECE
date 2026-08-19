@@ -71,7 +71,8 @@ CASES: list[dict] = [
         "id": "r12-cross-domain",
         "kind": "양성",
         "why": "5V 로 도는 U2 의 출력이 3.3V 로 도는 U1 핀에 직결됐다",
-        "expect": ["R11", "R12"],
+        # R11 은 근거가 R12 와 같아서 합쳐진다 (engine.dedupe).
+        "expect": ["R12"],
         "netlist": board(
             rec("5V_BUS", "U2", "VCC"), rec("5V_BUS", "C1", "P1", x=0.1),
             rec("5V_BUS", "C2", "P1", x=0.2), rec("5V_BUS", "J1", "VBUS", x=0.3),
@@ -99,7 +100,7 @@ CASES: list[dict] = [
         "id": "r11-name-lies",
         "kind": "양성",
         "why": "네트 이름은 3V3 인데 구동하는 U2 는 5V 로 돈다",
-        "expect": ["R11", "R12"],
+        "expect": ["R12"],
         "netlist": board(
             rec("5V_BUS", "U2", "VCC"), rec("5V_BUS", "C1", "P1", x=0.1),
             rec("5V_BUS", "C2", "P1", x=0.2), rec("5V_BUS", "J1", "VBUS", x=0.3),
@@ -127,7 +128,8 @@ CASES: list[dict] = [
         "id": "r04-overvoltage",
         "kind": "양성",
         "why": "U2 출력 5V 가 U1 절대 최대 3.6V 를 넘는다. 양쪽 데이터시트가 있다",
-        "expect": ["R04", "R11", "R12"],
+        # R12 는 넷리스트 근거뿐이라 데이터시트 근거를 든 R04 로 합쳐진다.
+        "expect": ["R04"],
         "bom": BOM,
         "facts": FACTS,
         "netlist": board(
@@ -168,7 +170,7 @@ REAL_BOARD = {
     "id": "real-esp32c6-presence",
     "kind": "실측",
     "why": "실제 보드 + 실제 펌웨어. 정답표는 EXPECTED.md 에 고정돼 있다",
-    "expect": ["R07", "R08", "R11", "R12"],
+    "expect": ["R07", "R08", "R12"],
     "netlist_src": "esp32-c6-presence-smart-light.d356",
     "bom_src": "esp32-c6-presence-smart-light.bom.csv",
     "firmware_src": "esp32-c6-presence-smart-light.firmware",

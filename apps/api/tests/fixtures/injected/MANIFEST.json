@@ -5,7 +5,6 @@
       "kind": "양성",
       "why": "5V 로 도는 U2 의 출력이 3.3V 로 도는 U1 핀에 직결됐다",
       "expect": [
-        "R11",
         "R12"
       ],
       "netlist": "r12-cross-domain.d356"
@@ -22,7 +21,6 @@
       "kind": "양성",
       "why": "네트 이름은 3V3 인데 구동하는 U2 는 5V 로 돈다",
       "expect": [
-        "R11",
         "R12"
       ],
       "netlist": "r11-name-lies.d356"
@@ -39,9 +37,7 @@
       "kind": "양성",
       "why": "U2 출력 5V 가 U1 절대 최대 3.6V 를 넘는다. 양쪽 데이터시트가 있다",
       "expect": [
-        "R04",
-        "R11",
-        "R12"
+        "R04"
       ],
       "netlist": "r04-overvoltage.d356",
       "bom": "r04-overvoltage.bom.csv",
@@ -63,7 +59,6 @@
       "expect": [
         "R07",
         "R08",
-        "R11",
         "R12"
       ],
       "netlist": "../esp32-c6-presence-smart-light.d356",

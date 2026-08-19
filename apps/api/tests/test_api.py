@@ -55,8 +55,8 @@ def test_create_then_fetch(client):
     got = client.get(f"/api/v1/checks/{body['check_id']}")
     assert got.status_code == 200
     result = got.json()
-    assert len(result["findings"]) == 3
-    assert [f["rule"] for f in result["findings"]] == ["R12", "R12", "R11"]
+    assert len(result["findings"]) == 2
+    assert [f["rule"] for f in result["findings"]] == ["R12", "R12"]
 
 
 def test_missing_netlist_returns_contract_error(client):

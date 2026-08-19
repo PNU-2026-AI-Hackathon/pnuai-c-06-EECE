@@ -83,7 +83,7 @@ def test_run_check_on_the_real_board():
     )
     assert result["status"] == "done"
     assert result["check_id"].startswith("chk_")
-    assert len(result["findings"]) == 3
+    assert len(result["findings"]) == 2
     assert result["summary"]["rules_run"] == 2
 
 
@@ -102,7 +102,7 @@ def test_firmware_zip_runs_the_differentiating_rules():
         firmware_bytes=_firmware_zip(),
     )
     assert result["summary"]["rules_run"] == 4
-    assert (result["summary"]["critical"], result["summary"]["warning"]) == (4, 2)
+    assert (result["summary"]["critical"], result["summary"]["warning"]) == (4, 1)
     assert result["pipeline"][2]["status"] == "done"
     assert result["inputs"]["firmware"]["filename"] == "src.zip"
     assert result["inputs"]["firmware"]["files"] == 1
