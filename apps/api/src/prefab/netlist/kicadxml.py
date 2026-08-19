@@ -32,7 +32,6 @@ KiCad 로 만든 보드에서는 `pinmap` 이 하나도 안 풀렸고, 그래서
 
 from __future__ import annotations
 
-import re
 from collections import OrderedDict
 from xml.etree import ElementTree as ET
 
