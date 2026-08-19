@@ -179,15 +179,21 @@ def _bare_chip(ref: str, pads: "list[Pad]") -> "list[PadIdentity]":
     모듈로 못 알아본 부품에만 시도한다. 어느 칩인지는 **여기서 정하지 않는다** —
     패드 이름은 GPIO 번호만 말해 주고, 그 번호가 스트래핑인지 플래시인지는
     칩마다 다르다. 칩은 BOM 의 부품번호로 규칙이 정한다.
+
+    **이름이 있으면 이름을 본다.** 회로도 넷리스트(kicadxml)로 들어온 보드는
+    핀 이름이 잘리지 않은 채 온다 (`GPIO3`). IPC-D-356 은 그 칸이 4자라
+    `IO24` 처럼 딱 맞는 것만 살아남았는데, 그게 R07·R08 이 KiCad 보드에서
+    통째로 침묵하던 이유였다 (`_docs/규모_실험.md` B).
     """
     found: "list[PadIdentity]" = []
     for pad in pads:
-        m = BARE_PAD_PATTERN.match(pad.pin.strip())
+        label = (pad.name or pad.pin).strip()
+        m = BARE_PAD_PATTERN.match(label)
         if m:
             found.append(
                 PadIdentity(
                     ref=ref, pin=pad.pin, x=pad.x, y=pad.y,
-                    silk=pad.pin, gpio=int(m.group(1)), module="",
+                    silk=label, gpio=int(m.group(1)), module="",
                 )
             )
     # 커넥터에 `IO1` 하나 붙은 것을 칩으로 오인하면 그 뒤가 전부 오탐이다.
