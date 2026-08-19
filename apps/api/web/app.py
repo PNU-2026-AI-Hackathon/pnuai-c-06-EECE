@@ -52,6 +52,10 @@ app.add_middleware(
 )
 
 store = service.Store(DB_PATH)
+
+#: 업로드 없이 볼 수 있는 실측 보드 결과 하나 (F-4).
+#: 넣지 못하면 None 이 되고, 루트 응답에서도 빠진다 — 있는 척하지 않는다.
+SAMPLE_CHECK_ID = service.seed_sample(store)
 #: 부품 사실 DB. **checks 와 같은 파일**을 쓴다 — SQLite 한 개 (CLAUDE.md 9절).
 facts = FactStore(DB_PATH)
 
@@ -78,7 +82,12 @@ async def healthz() -> dict[str, str]:
 
 @app.get("/")
 async def root() -> dict[str, str]:
-    return {"service": "prefab-api", "docs": "/docs", "contract": "/api/v1/rules"}
+    """서비스 안내. 계약에 없는 엔드포인트라 여기서만 샘플 ID 를 알려준다."""
+    out = {"service": "prefab-api", "docs": "/docs", "contract": "/api/v1/rules"}
+    if SAMPLE_CHECK_ID:
+        # 프론트가 이 값을 읽어 "업로드 없이 예시 보기" 를 띄운다 (F-4).
+        out["sample_check"] = f"/api/v1/checks/{SAMPLE_CHECK_ID}"
+    return out
 
 
 @app.get("/api/v1/rules")

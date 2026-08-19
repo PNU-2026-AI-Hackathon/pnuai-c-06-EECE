@@ -87,3 +87,60 @@ def test_check_is_a_pure_function():
     first = [f.to_dict() for f in _run(text)]
     second = [f.to_dict() for f in _run(text)]
     assert first == second
+
+
+# ── 네트명 14자 절단 (A++2) ─────────────────────────────────────────
+#
+# 넷리스트의 네트명 칸은 14자다. 이름이 그 길이에 꽉 찼고 전압 표기가 끝에 걸쳐
+# 있으면 `..._3V` 가 `_3V3` 의 앞부분일 수 있다. 3.3V 를 3V 로 읽고 경고를 내면
+# 그게 오탐이다 — 판정을 내리지 않고 무엇을 확인해야 하는지 적는다.
+
+
+def _clipped_board(net: str) -> str:
+    """`net` 을 5V 부품이 구동하는 보드. 이름만 갈아끼운다."""
+    return board(
+        rec("5V_BUS", "U2", "VCC"), rec("5V_BUS", "C1", "P1", x=0.1),
+        rec("5V_BUS", "C2", "P1", x=0.2), rec("5V_BUS", "J1", "VBUS", x=0.3),
+        rec(net, "U2", "OUT", y=0.1),
+        rec("3V3", "U1", "3V3", x=0.5), rec("3V3", "C3", "P1", x=0.6),
+        rec("3V3", "C4", "P1", x=0.7), rec("3V3", "R9", "P1", x=0.8),
+        rec(net, "U1", "D2", x=0.5, y=0.1),
+    )
+
+
+def _r11(netlist: str):
+    return _run(netlist)
+
+
+def test_짧은_이름이면_그대로_판정한다():
+    """대조군. 12자짜리 이름은 잘릴 수 없으므로 FAIL 이다."""
+    f = _r11(_clipped_board("PRESENCE_3V3"))
+    assert len(f) == 1
+    assert f[0].verdict is Verdict.FAIL
+    # BOM 이 없어 U2 미식별 사유는 붙지만, **절단 사유는 붙지 않는다**
+    assert "14자" not in (f[0].unresolved_reason or "")
+
+
+def test_이름이_칸을_꽉_채우고_전압이_끝에_걸치면_판정을_미룬다():
+    """`SENSOR_OUT_3V3` 는 14자다. 원래 `SENSOR_OUT_3V3_A` 였을 수도 있다."""
+    f = _r11(_clipped_board("SENSOR_OUT_3V3"))
+    assert len(f) == 1
+    assert f[0].verdict is Verdict.UNRESOLVED
+    assert f[0].unresolved_reason is not None
+    assert "14자" in f[0].unresolved_reason
+    # 무엇을 하면 풀리는지 적는다. "BOM 필요" 같은 거짓말을 하지 않는다.
+    assert "전체 이름" in f[0].unresolved_reason
+
+
+def test_전압_표기가_끝에_없으면_믿는다():
+    """`3V3_SENSOR_OUT` 도 14자지만 전압이 앞에 있어 잘린 자리가 아니다."""
+    f = _r11(_clipped_board("3V3_SENSOR_OUT"))
+    assert len(f) == 1
+    assert f[0].verdict is Verdict.FAIL
+
+
+def test_판정을_미뤄도_근거는_그대로_붙는다():
+    """모른다고 해서 아무것도 안 보여주면 사용자가 확인할 자리가 없다."""
+    f = _r11(_clipped_board("SENSOR_OUT_3V3"))[0]
+    assert f.evidence
+    assert "잘렸을 수 있습니다" in f.claim

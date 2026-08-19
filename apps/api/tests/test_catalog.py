@@ -73,3 +73,27 @@ def test_implemented_rules_declare_no_blocker():
     for spec in catalog.CATALOG:
         if rules.is_implemented(spec.id):
             assert spec.blocked_by is None, f"{spec.id} 는 구현됐는데 차단 사유가 남아 있다"
+
+
+def test_요약의_심각도_합이_발견_개수와_같다():
+    """심각도는 세 단계다. 하나라도 안 세면 화면의 타일 합이 발견 수보다 작아진다.
+
+    `build_summary` 주석이 이 불변식을 못 박고 있는데, 지키는 테스트가
+    R09 파일 안에 있었다. 규칙 하나에 매인 검사가 아니라 계약 불변식이라
+    여기로 옮긴다 — R09 가 사라져도 이 규칙은 남아야 한다.
+    """
+    from pathlib import Path
+
+    from prefab.report import build_result
+    from prefab.runner import analyze
+
+    fixtures = Path(__file__).parent / "fixtures"
+    a = analyze(
+        (fixtures / "esp32-c6-presence-smart-light.d356").read_text(),
+        bom_bytes=(fixtures / "esp32-c6-presence-smart-light.bom.csv").read_bytes(),
+    )
+    r = build_result(check_id="c", created_at="t", analysis=a, netlist_filename="b.d356")
+    s = r["summary"]
+
+    assert s["critical"] + s["warning"] + s["info"] + s["cleared"] == len(r["findings"])
+    assert s["rules_run"] + s["rules_skipped"] == s["rules_total"]

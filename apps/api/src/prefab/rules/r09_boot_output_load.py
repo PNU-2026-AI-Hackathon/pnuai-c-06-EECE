@@ -1,40 +1,63 @@
-"""R09 — 부팅 중 신호가 나오는 핀에 무언가 붙어 있다.
+"""R09 — 부팅 시 출력 나오는 핀에 부하 연결.
 
-**칩 표(`docs/CHIPS.md`)가 어느 핀이 그런 핀인지 규정한다.**
+**칩 표(`docs/CHIPS.md`)가 어느 핀이 부팅 때 스스로 신호를 내는지 규정한다.**
 
 ```
-ESP32     GPIO1  (U0TXD)   펌웨어가 돌기 전에 부팅 로그가 나온다
-ESP32-C6  GPIO16 (U0TXD)   〃
+ESP32     GPIO0 · 1 · 3 · 5 · 14 · 15   GPIO1 은 부팅 로그(U0TXD), 나머지는 HIGH/PWM
+ESP32-C6  GPIO16                        U0TXD — 부팅 로그가 115200bps 로 나간다
 ```
 
-이 핀들은 **펌웨어가 시작하기도 전에** 칩이 스스로 신호를 낸다. 부팅 로그가
-115200 보드레이트로 그대로 나가므로, 여기 붙은 것은 매 부팅마다 움직인다.
-릴레이면 딸깍거리고 모터 드라이버면 움찔한다.
+리셋 직후 몇백 밀리초 동안 이 핀들은 **코드와 무관하게** 신호를 낸다. 부트 ROM 이
+로그를 찍고, 스트래핑 결과에 따라 레벨이 튄다. `setup()` 은 그게 다 끝난 뒤에 돈다 —
+**펌웨어로는 막을 수 없다.** 릴레이 IN 이 여기 붙어 있으면 보드에 전원을 넣을 때마다
+릴레이가 딸깍거리고, 모터 드라이버 EN 이면 축이 움찔한다.
 
-## 왜 `정보` 인가
+## 무엇을 잡고 무엇을 안 잡나
 
-**이건 결함이 아니다.** 개발 보드는 거의 전부 TX 를 USB-UART 브리지나 디버그 헤더로
-뽑아놓는다. 그게 정상이고, 그것까지 경고로 올리면 모든 보드에서 시끄러워진다.
+**직결된 구동 부품만 잡는다.** R03 과 같은 좁은 경계다.
 
-그리고 넷리스트만으로는 **거기 붙은 게 브리지인지 릴레이인지 알 수 없다.**
-부품을 모르면 판정하지 않는다 (CLAUDE.md 2-2). 우리가 아는 건 하나다 —
-*이 핀은 부팅 중에 신호가 나온다.* 그 사실만 알려주고 판단은 사람이 한다.
+- **잡는다** — 릴레이(`K`) · 트랜지스터(`Q`) · 모터(`M`) · 부저(`BZ`) · 스피커(`LS`).
+  부품기호 접두어는 IEEE 315 / ASME Y14.44 표준이고, 이 리포는 이미 같은 관례로
+  수동 소자를 가른다 (`graph.PASSIVE_REF_PATTERN`).
+- **안 잡는다** — 커넥터(`J`). 부팅 로그 핀을 헤더로 빼는 것은 **정상 설계**다.
+  시리얼 콘솔이 바로 그것이다. 이걸 잡으면 거의 모든 개발보드에서 오탐이 난다.
+- **안 잡는다** — 저항·커패시터만 붙은 네트. 직렬 저항은 오히려 완화책이다.
+- **안 잡는다** — 전원·접지에 직결된 경우. 그건 R03 의 영역이고, 여기서도 띄우면
+  같은 배선을 두 번 읽게 된다.
 
-BOM 이 들어와 부품이 식별되면 그때 좁힐 수 있다. 지금은 좁히는 척하지 않는다.
+## 부품을 모르면 모른다고 한다
+
+부품기호가 `K1` 이면 릴레이라는 **관례**는 알지만 그 모듈의 IN 이 실제로 어떤
+입력인지는 데이터시트가 답한다. BOM 으로 부품번호가 확인되지 않으면 판정은 그대로
+두되 `unresolved_reason` 에 무엇을 내면 풀리는지 적는다 (CLAUDE.md 2-2).
 """
 
 from __future__ import annotations
 
+import re
+
 from ..chips import Chip
 from ..netlist.d356 import Netlist
+from ..netlist.graph import GND_PATTERN
+from ..text import i_ga
 from ..types import Context, Evidence, Finding, Severity, Verdict
 from .r01_unusable_pin import chip_of
 
 RULE_ID = "R09"
-TITLE = "부팅 중 출력이 나오는 핀에 부하 연결"
-SEVERITY = Severity.INFO
+TITLE = "부팅 시 출력 나오는 핀에 부하 연결"
+SEVERITY = Severity.WARNING
 TIER = "기본"
 NEEDS = ["netlist"]
+
+#: 핀이 토글하면 **실제로 움직이는** 부품. 부품기호 접두어 표준(IEEE 315)을 따른다.
+#: 커넥터(J)·수동 소자(R·C·L)는 일부러 뺐다 — 위 「무엇을 안 잡나」 참고.
+ACTUATOR_REF_PATTERN = re.compile(r"^(K|Q|M|BZ|LS|RLY|SSR)\d", re.I)
+
+#: 부품기호 접두어 → 사람이 읽는 이름
+ACTUATOR_NAMES: dict[str, str] = {
+    "K": "릴레이", "RLY": "릴레이", "SSR": "SSR",
+    "Q": "트랜지스터", "M": "모터", "BZ": "부저", "LS": "스피커",
+}
 
 
 def check(ctx: Context) -> list[Finding]:
@@ -42,11 +65,12 @@ def check(ctx: Context) -> list[Finding]:
     graph = ctx.netlist
     pinmap = getattr(graph, "pinmap", None)
     chip = chip_of(pinmap, ctx.bom)
-    if chip is None or not chip.boot_output or pinmap is None:
-        return []  # 어느 칩인지 모르면 어느 핀이 부팅 중 출력인지도 모른다
+    if chip is None or not chip.boot_output:
+        return []  # 어느 칩인지 모르면 어느 핀이 부팅 때 출력인지도 모른다
+    if pinmap is None:
+        return []
 
     netlist: Netlist = graph.netlist
-    signal_nets = set(graph.signal_nets())
     findings: list[Finding] = []
 
     for pad in pinmap.gpio_pads():
@@ -54,29 +78,57 @@ def check(ctx: Context) -> list[Finding]:
             continue
         net = netlist.net_at(pad.ref, pad.pin, pad.x, pad.y)
         if netlist.is_dangling(net):
-            continue  # 안 뽑아놓았으면 붙은 것도 없다
-        if net not in signal_nets:
-            continue  # 전원·접지에 물린 것은 이 규칙이 말할 것이 아니다
-
-        others = [(ref, pin) for ref, pin in netlist.connections(net) if ref != pad.ref]
-        if not others:
-            continue  # 상대가 없으면 움직일 것도 없다
-
-        findings.append(_finding(chip, pad, net, others))
+            continue  # 안 뽑아놓은 핀은 정상이다
+        if GND_PATTERN.match(net) or graph.is_power_rail(net):
+            continue  # 레일 직결은 R03 이 본다. 같은 배선을 두 번 읽히지 않는다
+        loads = [
+            ref for ref in graph.refs_on(net)
+            if ref != pad.ref and ACTUATOR_REF_PATTERN.match(ref)
+        ]
+        if not loads:
+            continue  # 커넥터·수동 소자만 붙은 것은 정상이다
+        findings.append(_finding(chip, pad, net, loads, graph, ctx.bom))
 
     return findings
 
 
-def _finding(chip: Chip, pad, net: str, others: "list[tuple[str, str]]") -> Finding:
+def _actuator_name(ref: str) -> str:
+    """부품기호 접두어를 사람 말로. 모르면 '구동 부품' 이라고만 한다."""
+    letters = "".join(c for c in ref if c.isalpha()).upper()
+    for key in sorted(ACTUATOR_NAMES, key=len, reverse=True):
+        if letters.startswith(key):
+            return ACTUATOR_NAMES[key]
+    return "구동 부품"
+
+
+def _why_it_outputs(chip: Chip, gpio: int) -> str:
+    if chip.boot_log_tx == gpio:
+        return "부팅 로그(UART0 TX)가 115200bps 로 나갑니다"
+    return "부팅·리셋 순간에 HIGH 또는 PWM 이 나갑니다"
+
+
+def _unresolved(loads: list[str], bom) -> str | None:
+    """부품번호가 확인 안 된 부하를 그대로 적는다. 판정은 바꾸지 않는다."""
+    if bom is None:
+        return f"{' · '.join(loads)} 미식별 — BOM 필요"
+    unknown = [ref for ref in loads if not bom.mpn_of(ref)]
+    if unknown:
+        return f"{' · '.join(unknown)} 부품번호 없음 — BOM 에 채우면 입력 규격으로 확정됩니다"
+    return None
+
+
+def _finding(chip: Chip, pad, net: str, loads: list[str], graph, bom) -> Finding:
     where = f"{pad.ref}.{pad.silk}" if pad.silk else f"{pad.ref}.{pad.pin}"
     token = f"GPIO{pad.gpio}"
-    attached = ", ".join(f"{ref}.{pin}" for ref, pin in others[:6])
+    reason = _why_it_outputs(chip, pad.gpio)
+    named = " · ".join(f"{ref}({_actuator_name(ref)})" for ref in loads)
+    # 조사는 마지막 부품기호에 맞춘다 (헌법 11절).
+    named_ja = i_ga(named) if len(loads) == 1 else named + " 이(가)"
 
-    lines = [
-        f"{chip.name} — {token} 는 UART0 TX 다. 펌웨어 전에 부팅 로그가 나온다",
-        f"{where} → {net}",
-        f"같은 네트: {attached}",
-    ]
+    lines = [f"{chip.name} — {token} 는 부팅 때 출력이 나오는 핀이다", f"{where} → {net}"]
+    for ref in loads:
+        pin = graph.ref_pin(ref, net)
+        lines.append(f"{pin} → {net}   ({_actuator_name(ref)})")
 
     return Finding(
         rule=RULE_ID,
@@ -86,15 +138,17 @@ def _finding(chip: Chip, pad, net: str, others: "list[tuple[str, str]]") -> Find
         verdict=Verdict.FAIL,
         net=net,
         claim=(
-            f"{where}({token}) 에 {attached} 가 붙어 있습니다. "
-            f"{chip.name} 에서 이 핀은 펌웨어가 시작하기 전에 부팅 로그를 내보냅니다. "
-            f"여기 붙은 것이 매 부팅마다 그 신호를 받습니다."
+            f"{where}({token}) 에 {named_ja} 직결돼 있는데, "
+            f"{chip.name} 에서 이 핀은 {reason}. "
+            "코드가 돌기 전에 나오는 신호라 펌웨어로는 막을 수 없습니다 — "
+            "전원을 넣을 때마다 한 번씩 동작합니다."
         ),
-        evidence=(Evidence.netlist("\n".join(lines), [where, token]),),
+        evidence=(Evidence.netlist("\n".join(lines), [where, token, net, *loads]),),
         suggestion=(
-            "붙은 것이 USB-UART 브리지나 디버그 헤더면 정상입니다. "
-            "릴레이·모터 드라이버처럼 부팅 중에 움직이면 안 되는 것이라면 다른 핀으로 옮기세요. "
-            "부품 목록(BOM)을 제출하면 무엇이 붙었는지까지 확인합니다."
+            "부팅 때 출력이 안 나오는 핀으로 옮기는 것이 가장 확실합니다. "
+            "핀을 못 바꾸면 부하 쪽에 풀다운(또는 반전 입력이면 풀업)을 넣어 "
+            "부팅 구간 동안 비활성으로 붙잡아 두세요. "
+            f"{chip.name} 의 핀 표는 `docs/CHIPS.md` 에 있습니다."
         ),
-        unresolved_reason=None,
+        unresolved_reason=_unresolved(loads, bom),
     )

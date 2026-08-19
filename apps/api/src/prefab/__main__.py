@@ -240,6 +240,41 @@ def _facts_list(db: str) -> int:
     return 0
 
 
+def _diff(args) -> int:
+    """검사 결과 두 개를 비교해 마크다운으로 낸다 (F-1).
+
+    **양쪽 다 지금 코드로 뽑은 결과여야 한다.** 예전 코드가 낸 예전 결과와 비교하면
+    규칙을 고친 것과 보드를 고친 것이 섞인다. 워크플로가 그 순서를 지킨다.
+    """
+    from .diff import diff_results, format_diff, load
+
+    before, after = args.diff
+    for raw in (before, after):
+        if not Path(raw).exists():
+            print(f"검사 결과 파일을 찾지 못했습니다: {raw}", file=sys.stderr)
+            return 2
+
+    d = diff_results(load(before), load(after))
+
+    if args.json:
+        print(json.dumps({
+            "added": d.added,
+            "removed": d.removed,
+            "changed": [{"before": c.before, "after": c.after} for c in d.changed],
+            "before_summary": d.before_summary,
+            "after_summary": d.after_summary,
+            "notes": d.notes,
+        }, ensure_ascii=False, indent=2))
+    else:
+        print(format_diff(d, before_label=args.labels[0], after_label=args.labels[1]))
+
+    if args.fail_on_new and d.blocking:
+        print(f"\n새로 생긴 치명 발견 {len(d.blocking)}건 — 이 PR 에서 회로도와 코드가 어긋났습니다.",
+              file=sys.stderr)
+        return 1
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="prefab", description="회로도와 펌웨어의 어긋남을 찾습니다.")
     ap.add_argument("netlist", nargs="?", help="IPC-D-356 파일")
@@ -252,6 +287,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--facts", action="store_true", help="부품 DB 크기를 본다")
     ap.add_argument("--measure", metavar="DIR", nargs="?", const="tests/fixtures/injected",
                     help="라벨된 케이스 폴더에 엔진을 돌려 검출율·오탐율을 낸다")
+    ap.add_argument("--diff", nargs=2, metavar=("BEFORE.json", "AFTER.json"),
+                    help="검사 결과 두 개를 비교한다 (F-1 — 커밋 간 드리프트)")
+    ap.add_argument("--labels", nargs=2, metavar=("BEFORE", "AFTER"), default=["base", "head"],
+                    help="--diff 출력에 쓸 이름 (기본: base head)")
+    ap.add_argument("--fail-on-new", action="store_true",
+                    help="--diff 에서 새 치명 발견이 생기면 종료 코드 1")
     ap.add_argument("--extract", metavar="PDF", help="데이터시트 PDF 에서 사실을 뽑는다 (LLM)")
     ap.add_argument("--mpn", help="--extract 대상 부품번호")
     ap.add_argument("--source-url", help="--extract 한 PDF 를 받은 주소")
@@ -261,6 +302,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--db", default=os.getenv("PREFAB_DB", "prefab.db"),
                     help="SQLite 파일 (기본: PREFAB_DB 또는 prefab.db)")
     args = ap.parse_args(argv)
+
+    if args.diff:
+        return _diff(args)
 
     if args.measure:
         from .measure import format_report, run

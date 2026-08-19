@@ -22,6 +22,7 @@ from prefab.netlist.d356 import NetlistParseError
 from prefab.report import build_result, build_rules_catalog
 from prefab.datasheet.store import FactStore
 from prefab.runner import analyze
+from prefab.samples import SAMPLE_CHECK_ID, load_sample
 
 # --------------------------------------------------------------------- 상수
 
@@ -186,6 +187,25 @@ def run_check(
 
 def rules_catalog() -> dict[str, Any]:
     return build_rules_catalog()
+
+
+def seed_sample(store: "Store") -> str | None:
+    """샘플 검사를 저장소에 넣는다 (F-4). 넣은 ID 또는 None.
+
+    데모에서 **업로드 없이 결과 화면부터** 띄우기 위한 것이다.
+    `GET /api/v1/checks/chk_sample01` 로 조회된다 — 새 엔드포인트가 아니다.
+
+    **실패해도 조용히 넘어간다.** 샘플이 없다고 서버가 안 뜨면 그게 훨씬 나쁘다.
+    대신 넣었는지 아닌지를 돌려주므로, 부른 쪽이 그 사실을 노출할 수 있다.
+    """
+    sample = load_sample()
+    if sample is None:
+        return None
+    try:
+        store.save(sample)
+    except Exception:  # noqa: BLE001 - 샘플 때문에 서버가 죽으면 안 된다
+        return None
+    return sample.get("check_id", SAMPLE_CHECK_ID)
 
 
 # --------------------------------------------------------------------- 저장

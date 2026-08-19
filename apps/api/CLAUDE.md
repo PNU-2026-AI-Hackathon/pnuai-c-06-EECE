@@ -113,7 +113,8 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
   이식 전후 JSON 이 **바이트 단위로 같다** (규칙 개수 정정분 제외)
 - IPC-D-356 파서 — 실제 보드에서 네트 8 / 부품 10 정확히 추출.
   좌표는 오프셋이 아니라 정규식 `X([+-]\d{6})Y([+-]\d{6})` 로 읽는다
-- 규칙 엔진 — R04 · R07 · R08 · R11 · R12 동작 (5/11)
+- 규칙 엔진 — R01 · R02 · R03 · R04 · R05 · R07 · R08 · R09 · R11 · R12 동작 (10/11).
+  남은 하나는 R10(드리프트)뿐이다
 - **데이터시트 해제 경로** (`rules/_clearance.py`) — R11 · R12 가 사실 DB 를 보고
   경고를 **해제(`PASS`)하거나 확정(`FAIL`)**한다. 비교는 결정적 코드가 한다.
   해제에는 **반드시 출처(`Evidence.datasheet`)가 붙는다.**
@@ -164,6 +165,32 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
   **결함 없는 케이스가 오탐율의 전부다** — 겉모습이 비슷한데 정상인 보드를 짝으로 둔다.
   케이스를 못 읽으면 숫자에서 조용히 빼지 않고 그대로 적고 종료 코드 1 로 끝낸다.
   보고서가 **무엇을 못 재는지도 같이 적는다** — 숫자만 떼어 인용되면 안 된다
+- **커밋 간 드리프트 검사** (`diff.py` · `.github/workflows/drift.yml`) — **F-1.**
+  PR 마다 **같은 엔진(HEAD 코드)** 을 base 입력과 head 입력에 각각 돌려 발견 목록을
+  비교하고, 새로 생긴 치명 발견이 있으면 빨간불로 막는다. R10 을 기다리지 않고도
+  드리프트 서사가 완성되는 자리다 (`결정_기록.md` D-2).
+  `python -m prefab --diff before.json after.json --fail-on-new`.
+  **base 코드로 base 입력을 돌리면 안 된다** — 규칙을 고친 것과 보드를 고친 것이
+  섞여서, 규칙을 추가한 PR 이 "보드가 나빠졌다"로 읽힌다. 워크플로가 그 순서를 지킨다.
+  같은 발견인지는 `(규칙 · 네트 · 지목한 자리)` 로 가른다 — `claim` 문구는 안 쓴다.
+  문구를 다듬은 PR 이 전부 "새 발견"으로 뜨면 첫 주에 꺼진다 (2-3)
+- 드리프트 픽스처: `tests/fixtures/esp32-c6-presence-smart-light.moved-to-d4.d356`
+  실측 보드에서 **두 줄만 바꾼 판** — 센서 OUT 이 D2 → D4 로 옮겨갔고 코드는 그대로다.
+  R07(코드가 쓰는 D2 가 떨어짐)·R08(새로 배선된 D4 를 코드가 안 씀)이 새로 뜬다
+- **네트명 절단 대응** (A++2) — 네트명 칸은 14자다. 이름이 그 길이에 꽉 차면
+  `Netlist.width_limited_nets()` 가 잡아 파싱 노트로 올린다 (파이프라인 1단계에 그대로 보인다).
+  **잘렸다고 단정하지 않는다** — 딱 14자인 이름을 지었을 수도 있다.
+  실측 보드의 `_IN_ACTIVE_LOW` · `D_POS_SWITCHED` 가 정확히 14자이고,
+  둘 다 앞이 잘린 흔적(`_` 로 시작)이 남아 있다 — **이 도구는 뒤가 아니라 앞을 잘랐다.**
+  R11 은 이름이 꽉 찼고 **전압 토큰이 그 끝에 걸쳐 있으면** `UNRESOLVED` 를 낸다
+  (`graph.voltage_is_clipped`). `..._3V` 가 `_3V3` 의 앞부분이면 3.3V 를 3V 로 읽고
+  0.3V 차이로 경고를 내게 되는데, 그게 오탐이다
+- **샘플 검사** (`samples/check.sample.json` · `service.seed_sample`) — **F-4.**
+  서버가 켜질 때 실측 보드 결과 하나를 저장소에 넣어 둔다.
+  `GET /api/v1/checks/chk_sample01` — **새 엔드포인트가 아니고 계약도 안 바뀐다.**
+  배포 이미지에 `tests/` 가 없어서(`.dockerignore`) 켜질 때 엔진을 못 돌린다.
+  그래서 미리 뽑은 결과를 패키지에 싣고, `tests/test_samples.py` 가 매번 다시 뽑아
+  대조해서 낡지 않게 막는다. 못 읽어도 서버는 그냥 뜬다 — 루트 응답에서 빠질 뿐이다
 - 실측 픽스처: `tests/fixtures/esp32-c6-presence-smart-light.d356`
 - 골든 테스트 — 3건·10부품·8네트·K1 2그룹
 - **펌웨어 소스 — 받았다.** `tests/fixtures/esp32-c6-presence-smart-light.firmware/`
@@ -173,16 +200,10 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
 - 음성 케이스 기준선: `tests/fixtures/NEGATIVE_CASES.md` — **경고가 뜨면 오탐인 목록**
 
 ### 없다
-- 펌웨어 파서 — **소스는 있고 파서가 없다**
-- 모듈 핀아웃 DB — **R7 · R8 의 선행 조건.** 실크→GPIO 표는 `docs/CHIPS.md` 에 채워져 있고
-  하드웨어 담당 확정까지 끝났다. 파서가 패드마다 실크·GPIO 를 실어 주면 된다 (알려진 버그 2번)
-- 데이터시트 파이프라인 — **PDF 파서 없음, LLM 호출 없음.**
-  BOM 은 읽고, 사실 DB 도 있고, 조회도 규칙까지 연결됐다. **비어 있는 것은 내용물뿐이다.**
-  남은 단계는 MPN → PDF → 사실 추출 (`.claude/skills/prefab-datasheet` 3~5단계)
-- 사실을 채운 부품 — **1개** (`HLK-LD2410C`). `JQC-3FF-S-Z` · `XIAO-ESP32C6` 은 아직 없다
-
-- R04 는 아직 없다. `needs` 에 `datasheet` 를 쓰려면 계약(`API_CONTRACT.md`)의 어휘를
-  먼저 넓혀야 한다. R11 · R12 는 `datasheet` 를 **선택적으로** 보므로 `needs` 가 그대로다
+- R10(드리프트) — git 이력을 계약의 4번째 입력으로 넣어야 한다. 프론트와 합의가 먼저다
+- 사실을 채운 부품 — **2개** (`HLK-LD2410C` · `ESP32-C6`). `JQC-3FF-S-Z` 는 아직 없다
+- C6 의 부팅 시 출력 핀 목록 — `GPIO16`(U0TXD) 하나뿐이다. 나머지는 **없어서가 아니라
+  출처를 못 찾아서** 비어 있다. R09 는 표에 없는 핀에 대해 아무 말도 하지 않는다
 
 ### 배운 것 — `voh_max` 와 `io_level` 은 다르다
 
@@ -225,21 +246,21 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
 
 | ID | 규칙 | 등급 | NEEDS | 상태 |
 |---|---|---|---|---|
-| R01 | 코드가 이 칩에서 쓸 수 없는 핀을 사용 | **차별** | netlist, firmware | 미구현 |
-| R02 | 회로도가 SPI flash 핀에 연결 | 기본 | netlist | 미구현 |
-| R03 | strapping 핀 부팅 상태 오류 | 기본 | netlist | 미구현 |
+| R01 | 코드가 이 칩에서 쓸 수 없는 핀을 사용 | **차별** | netlist, firmware | **동작** |
+| R02 | 회로도가 SPI 플래시 전용 핀에 배선 | 기본 | netlist | **동작** |
+| R03 | 스트래핑 핀이 전원·접지에 직결 | 기본 | netlist | **동작** |
 | R04 | 외부 부품 출력이 GPIO 입력 최대 정격 초과 | 기본 | netlist, bom | **동작** |
-| R05 | 이 칩이 지원하지 않는 주변장치 조합 | **차별** | firmware | 미구현 |
+| R05 | 이 칩이 지원하지 않는 주변장치 조합 | **차별** | netlist, firmware | **동작** |
 | ~~R06~~ | ~~I2C 풀업 누락~~ | — | — | **폐기 — Flux가 이미 함. 번호 재사용 금지** |
 | R07 | 코드가 쓰는 핀이 회로도에 미연결 | **차별** | netlist, firmware | **동작** |
 | R08 | 회로도에 연결됐는데 코드가 초기화 안 함 | **차별** | netlist, firmware | **동작** |
-| R09 | 부팅 시 출력 나오는 핀에 부하 | 기본 | netlist | 미구현 |
-| R10 | 회로도 변경 후 코드 미추종 (드리프트) | **차별** | netlist, firmware | 미구현 |
+| R09 | 부팅 시 출력 나오는 핀에 부하 연결 | 기본 | netlist | **동작** |
+| R10 | 회로도 변경 후 코드 미추종 (드리프트) | **차별** | netlist, firmware | 미구현 — **F-1 이 규칙 없이 같은 것을 보여준다** |
 | R11 | 네트명이 주장하는 전압 ≠ 소스 부품 전원 도메인 | 기본 | netlist | **동작** |
 | R12 | 상위 전원 도메인이 하위를 직결 | 기본 | netlist | **동작** |
 | ~~R13~~ | ~~코드가 출력으로 구동하는 핀에 다른 출력이 연결~~ | — | — | **기각 — 하드웨어 판정 "문제 안 됨"** |
 
-카탈로그 전체 **11개**. `NEEDS` 어휘는 계약과 같은 `netlist` / `bom` / `firmware` 세 개뿐이다.
+카탈로그 전체 **11개** · 구현 **10개**. 남은 하나는 R10(드리프트)이고 계약에 4번째 입력이 필요하다. `NEEDS` 어휘는 계약과 같은 `netlist` / `bom` / `firmware` 세 개뿐이다.
 
 > 엔진 내부(`INPUT_NAMES`)는 `datasheet` 까지 안다. 사실 DB 조회 결과를 규칙에 넘겨야 해서다.
 > 하지만 **카탈로그의 `needs` 에 쓰면 프론트가 모르는 값이 나간다.**
@@ -257,7 +278,9 @@ src/prefab/
   catalog.py        규칙 카탈로그 — 규칙 개수의 유일한 진실
   netlist/d356.py   IPC-D-356 파서
   netlist/graph.py  부품·네트 그래프, X좌표 패드 클러스터링, 전원 도메인 추론
-  firmware/         (스텁) 펌웨어 정적 분석
+  firmware/arduino.py 펌웨어 정적 분석 (핀 사용·방향·상수 추적·못 읽은 자리 분류)
+  chips/            칩 제약 · 모듈 핀아웃 (docs/CHIPS.md 의 코드 사본)
+  netlist/pinmap.py 패드 → 실크 라벨 · GPIO 확정 (좌표 클러스터링)
   datasheet/facts.py  Fact · FactSet — 순수 자료형. IO 없음. 규칙이 보는 것
   datasheet/store.py  part_facts SQLite. 러너만 부른다
   datasheet/pdf.py    PDF → 쪽별 글자. 쪽 번호를 지키는 것이 일이다
@@ -265,7 +288,10 @@ src/prefab/
                         규칙은 이 파일을 import 하지 않는다
   rules/            규칙 모듈 + 레지스트리 (여기 등록되면 '구현됨')
   rules/_clearance.py  규칙 ↔ 사실 DB 사이. 순수 함수다 (러너가 이미 읽어 왔다)
-  engine.py         규칙 실행 → Finding 수집 → 정렬
+  engine.py         규칙 실행 → Finding 수집 → 정렬 → 근거 기준 합치기(dedupe)
+  diff.py           검사 결과 커밋 간 비교 (F-1). 순수 함수 — git 도 네트워크도 모른다
+  samples/          업로드 없이 보여줄 실측 보드 결과 하나 (F-4)
+  measure.py        검출율 · 오탐율 측정 (E-3)
   report.py         계약 응답 dict 조립 (summary · pipeline)
   runner.py         파싱 → 그래프 → 엔진. CLI 와 web 이 같이 쓴다
   __main__.py       python -m prefab <파일> [--json|--rules-json|--facts-load]
@@ -273,6 +299,9 @@ parts/            사람이 손으로 적는 부품 사실 파일 (서식·규�
 web/service.py      검증 · 오류 · SQLite. HTTP 프레임워크를 모른다
 web/app.py          FastAPI 어댑터. 판정도 검증도 여기 없다
 scripts/smoke.sh    배포한 URL 이 진짜 도는지 확인
+scripts/make_injected.py  결함 주입 데이터셋 생성기 (E-2)
+.github/workflows/ci.yml     pytest · 측정 · 계약 불변식
+.github/workflows/drift.yml  PR 마다 회로도 ↔ 코드 대조 (F-1)
 tests/              규칙당 3개 + 실제 보드 골든 테스트 + 카탈로그 정합성
 ```
 

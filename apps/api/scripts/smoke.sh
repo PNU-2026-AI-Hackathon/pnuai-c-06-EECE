@@ -25,15 +25,37 @@ CHECK_ID=$(curl -fsS -X POST "$BASE/api/v1/checks" -F "netlist=@$FIXTURE" \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["check_id"])')
 echo "  check_id = $CHECK_ID"
 
-echo "5) 결과가 골든과 같은지"
-curl -fsS "$BASE/api/v1/checks/$CHECK_ID" | python3 - <<'PY'
+echo "5) 결과가 계약대로 오는지"
+# 발견 목록을 여기 적지 않는다. 그러면 tests/ 와 같은 진실을 두 벌 갖게 되고,
+# 실제로 한쪽만 갱신돼 낡는다 (CLAUDE.md 10절). 여기서는 계약 불변식만 본다.
+curl -fsS "$BASE/api/v1/checks/$CHECK_ID" | python3 - <<'PYEOF'
 import json, sys
 r = json.load(sys.stdin)
-got = [(f["rule"], f["net"]) for f in r["findings"]]
-want = [("R12","PRESENCE_3V3"), ("R12","_IN_ACTIVE_LOW"), ("R11","PRESENCE_3V3")]
-assert got == want, f"  !! 결과가 다르다: {got}"
 s = r["summary"]
-assert s["rules_run"] + s["rules_skipped"] == s["rules_total"]
-print(f"  발견 {len(got)}건 · 규칙 {s['rules_run']}/{s['rules_total']} 실행 · 부품 {s['parts_total']}")
+assert r["findings"], "  !! 실측 보드에서 발견이 하나도 없다"
+assert s["rules_run"] + s["rules_skipped"] == s["rules_total"] > 0, s
+assert s["critical"] + s["warning"] + s["cleared"] == len(r["findings"]), s
+for f in r["findings"]:
+    assert f["rule"] and f["evidence"], f
+print(f"  발견 {len(r['findings'])}건 · 규칙 {s['rules_run']}/{s['rules_total']} 실행 · 부품 {s['parts_total']}")
 print("  통과")
-PY
+PYEOF
+
+echo "6) 샘플 검사 — 업로드 없이 결과부터 (F-4)"
+# 이 단계가 배포 이미지에 샘플 JSON 이 실렸는지까지 확인한다.
+# 안 실리면 조용히 "샘플 없음" 이 되고, 데모 당일에 알게 된다.
+SAMPLE=$(curl -fsS "$BASE/" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("sample_check",""))')
+if [ -z "$SAMPLE" ]; then
+  echo "  !! 루트 응답에 sample_check 가 없다 — 배포 이미지에 샘플 JSON 이 안 실렸다"
+  exit 1
+fi
+echo "  $SAMPLE"
+curl -fsS "$BASE$SAMPLE" | python3 - <<'PYEOF'
+import json, sys
+r = json.load(sys.stdin)
+rules = {f["rule"] for f in r["findings"]}
+assert {"R07", "R08"} <= rules, f"  !! 차별 규칙이 샘플에 없다: {rules}"
+assert r["inputs"]["firmware"] and r["inputs"]["bom"], r["inputs"]
+print(f"  발견 {len(r['findings'])}건 · 차별 규칙 포함 · 업로드 0회")
+print("  통과")
+PYEOF
