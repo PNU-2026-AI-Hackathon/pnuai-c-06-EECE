@@ -171,6 +171,25 @@ CASES: list[dict] = [
 C6_BOM = "Reference,MPN\nU1,ESP32-C6-WROOM-1\n"
 
 
+def plain_pins(chip_id: str) -> "list[int]":
+    """이 칩의 표에 **아무 데도 안 걸린** GPIO.
+
+    곁가지 핀(패드 수를 채우려고 넣는 핀)은 여기서 골라야 한다.
+    손으로 고르면 틀린다 — 세 번 틀렸다. GPIO9 는 스트래핑, GPIO8 은 구형 플래시,
+    GPIO16 은 C6 UART TX 였다. 칩 표가 자라면 어제의 평범한 핀이 오늘 특별해진다.
+    """
+    from prefab.chips import CHIPS
+
+    c = CHIPS[chip_id]
+    taken = set(c.input_only) | set(c.spi_flash) | set(c.strapping) | set(c.boot_output)
+    taken |= set(c.adc1) | set(c.adc2)
+    return [g for g in range(31) if g not in taken]
+
+
+#: 곁가지로 쓸 깨끗한 핀. 표에서 계산하므로 표가 자라면 같이 움직인다.
+C6_PLAIN = plain_pins("esp32c6")
+
+
 def bare(*pins: str) -> str:
     """맨칩 패드. 최소 4개는 있어야 칩으로 인정한다 (커넥터 오인 방지).
 
@@ -224,9 +243,9 @@ CASES += [
         "why": "같은 모양인데 표에 없는 핀만 쓴다. 조용해야 한다",
         "expect": [],
         "bom": C6_BOM,
-        # GPIO9 도 C6 스트래핑이다. 표에 없는 핀만 고른다.
-        "firmware": sketch(2, 3, 7, 16),
-        "netlist": bare("IO2", "IO3", "IO7", "IO16"),
+        # 표에 걸린 핀을 피한다 — GPIO9 는 스트래핑, GPIO16 은 UART TX 다.
+        "firmware": sketch(2, 3, 7, 18),
+        "netlist": bare("IO2", "IO3", "IO7", "IO18"),
     },
     {
         "id": "r01-unknown-chip",
@@ -259,8 +278,8 @@ CASES += [
         "why": "구형 ESP32 에서 ADC2(GPIO25)와 WiFi 를 같이 쓴다. 읽기가 실패한다",
         "expect": ["R05"],
         "bom": ESP32_BOM,
-        "firmware": analog(25, 32, 16, 17, wifi=True),
-        "netlist": bare("IO25", "IO32", "IO16", "IO17"),
+        "firmware": analog(25, 32, 18, 17, wifi=True),
+        "netlist": bare("IO25", "IO32", "IO18", "IO17"),
     },
     {
         "id": "r05-adc2-without-wifi",
@@ -268,8 +287,8 @@ CASES += [
         "why": "같은 핀인데 WiFi 를 안 쓴다. 핀만 보고 경고하면 오탐이다",
         "expect": [],
         "bom": ESP32_BOM,
-        "firmware": analog(25, 32, 16, 17),
-        "netlist": bare("IO25", "IO32", "IO16", "IO17"),
+        "firmware": analog(25, 32, 18, 17),
+        "netlist": bare("IO25", "IO32", "IO18", "IO17"),
     },
     {
         "id": "r05-adc-strapping-overlap",
@@ -279,8 +298,8 @@ CASES += [
         # dedup 은 네트 단위라 핀 단위 발견(net=None)은 안 묶인다. 열린 항목이다.
         "expect": ["R01", "R05"],
         "bom": C6_BOM,
-        "firmware": analog(4, 2, 16, 17),
-        "netlist": bare("IO4", "IO2", "IO16", "IO17"),
+        "firmware": analog(4, 2, 18, 17),
+        "netlist": bare("IO4", "IO2", "IO18", "IO17"),
     },
     {
         "id": "r05-adc-no-overlap",
@@ -288,8 +307,8 @@ CASES += [
         "why": "같은 모양인데 겹치지 않는 ADC 채널만 쓴다",
         "expect": [],
         "bom": C6_BOM,
-        "firmware": analog(2, 3, 16, 17),
-        "netlist": bare("IO2", "IO3", "IO16", "IO17"),
+        "firmware": analog(2, 3, 18, 17),
+        "netlist": bare("IO2", "IO3", "IO18", "IO17"),
     },
 ]
 
@@ -325,7 +344,7 @@ CASES += [
         "why": "GPIO24 가 LED 커넥터로 빠졌다. C6 에서 내장 플래시 전용이라 부팅이 실패한다",
         "expect": ["R02"],
         "bom": C6_BOM,
-        "netlist": bare("IO2", "IO3", "IO16", "IO24"),
+        "netlist": bare("IO2", "IO3", "IO18", "IO24"),
     },
     {
         "id": "r02-external-flash",
@@ -333,7 +352,7 @@ CASES += [
         "why": "플래시 핀 4가닥이 전부 한 IC 로 간다. 이건 플래시 IC 다. 경고가 뜨면 오탐이다",
         "expect": [],
         "bom": C6_BOM,
-        "netlist": flash_to_device("IO2", "IO3", "IO16"),
+        "netlist": flash_to_device("IO2", "IO3", "IO18"),
     },
     {
         "id": "r02-no-flash-pin",
@@ -341,7 +360,7 @@ CASES += [
         "why": "같은 모양인데 플래시 핀을 안 건드린다. 조용해야 한다",
         "expect": [],
         "bom": C6_BOM,
-        "netlist": bare("IO2", "IO3", "IO16", "IO17"),
+        "netlist": bare("IO2", "IO3", "IO18", "IO17"),
     },
 ]
 
@@ -386,7 +405,7 @@ CASES += [
         "why": "GPIO8 이 GND 에 직결됐다. C6 스트래핑이라 부팅 모드가 한쪽으로 굳는다",
         "expect": ["R03"],
         "bom": C6_BOM,
-        "netlist": tied(STRAP, "GND", "IO2", "IO3", "IO16"),
+        "netlist": tied(STRAP, "GND", "IO2", "IO3", "IO18"),
     },
     {
         "id": "r03-strapping-pullup",
@@ -394,15 +413,54 @@ CASES += [
         "why": "같은 핀인데 저항을 거친다. 풀업은 정상 설계다. 경고가 뜨면 오탐이다",
         "expect": [],
         "bom": C6_BOM,
-        "netlist": through_resistor(STRAP, "3V3", "IO2", "IO3", "IO16"),
+        "netlist": through_resistor(STRAP, "3V3", "IO2", "IO3", "IO18"),
     },
     {
         "id": "r03-ordinary-pin-tied",
         "kind": "음성",
-        "why": "스트래핑이 아닌 GPIO16 이 GND 에 묶였다. 표에 없는 핀이므로 조용해야 한다",
+        "why": "스트래핑이 아닌 GPIO18 이 GND 에 묶였다. 표에 없는 핀이므로 조용해야 한다",
         "expect": [],
         "bom": C6_BOM,
-        "netlist": tied("IO16", "GND", "IO2", "IO3", "IO17"),
+        "netlist": tied("IO18", "GND", "IO2", "IO3", "IO17"),
+    },
+]
+
+
+
+# ── R09 부팅 중 출력이 나오는 핀에 부하 연결 ──
+#
+# 등급이 `정보` 다. 개발 보드는 거의 전부 TX 를 뽑아놓으므로 경고로 올리면 시끄럽다.
+# 넷리스트만으로는 붙은 게 브리지인지 릴레이인지 모른다. 사실만 알린다.
+
+BOOT_TX = "IO16"   # C6 U0TXD
+
+
+def peered(*pairs: "tuple[str, str]") -> str:
+    """(패드, 상대부품) 목록으로 맨칩 보드를 만든다."""
+    lines = []
+    for i, (pin, peer) in enumerate(pairs):
+        net = f"NET_{pin}"
+        lines.append(rec(net, "U1", pin, x=0.1 * i))
+        lines.append(rec(net, peer, "1", x=0.1 * i, y=0.5))
+    return board(*lines)
+
+
+CASES += [
+    {
+        "id": "r09-boot-output-load",
+        "kind": "양성",
+        "why": "GPIO16(U0TXD)에 릴레이가 붙었다. 부팅 로그가 매 부팅마다 그리로 나간다",
+        "expect": ["R09"],
+        "bom": C6_BOM,
+        "netlist": peered((BOOT_TX, "K1"), ("IO2", "J1"), ("IO3", "J1"), ("IO17", "J1")),
+    },
+    {
+        "id": "r09-no-boot-pin",
+        "kind": "음성",
+        "why": "같은 모양인데 TX 를 안 뽑았다. 조용해야 한다",
+        "expect": [],
+        "bom": C6_BOM,
+        "netlist": peered(("IO2", "J1"), ("IO3", "J1"), ("IO17", "J1"), ("IO18", "J1")),
     },
 ]
 

@@ -68,6 +68,7 @@ GET    /healthz                헬스체크
   "summary": {
     "critical": 1,
     "warning": 1,
+    "info": 0,
     "cleared": 1,
     "rules_run": 2,
     "rules_skipped": 9,
@@ -107,6 +108,8 @@ GET    /healthz                헬스체크
 - `pipeline[].status`: `done` | `partial` | `skipped` | `failed`
 - `created_at`: **UTC** (`Z` 로 끝난다). 서버는 시간대를 정하지 않는다.
   한국 시간 표시는 화면이 변환한다.
+- `summary.critical + warning + info + cleared` 는 **`findings` 개수와 항상 같다.**
+  심각도는 세 단계이고 `info` 도 센다 — 안 세면 화면의 타일 합이 발견 수보다 작아진다.
 - `summary.rules_run + summary.rules_skipped == summary.rules_total` 이 **항상 성립한다.**
   세 값 모두 규칙 레지스트리에서 계산된다. 문서에 손으로 적은 숫자를 쓰지 않는다.
   현재 `rules_total` 은 11 이다 (R6 은 폐기). 구현된 것은 **R07 · R08 · R11 · R12** 네 개다.

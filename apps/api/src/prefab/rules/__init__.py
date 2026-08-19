@@ -16,6 +16,7 @@ from . import (
     r05_unsupported_combo,
     r07_pin_not_connected,
     r08_connected_but_unused,
+    r09_boot_output_load,
     r11_net_name_domain,
     r12_cross_domain,
 )
@@ -29,6 +30,7 @@ MODULES: tuple[ModuleType, ...] = (
     r05_unsupported_combo,
     r07_pin_not_connected,
     r08_connected_but_unused,
+    r09_boot_output_load,
     r11_net_name_domain,
     r12_cross_domain,
 )

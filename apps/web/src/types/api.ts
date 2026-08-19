@@ -73,6 +73,8 @@ export interface PipelineStep {
 export interface CheckSummary {
   critical: number;
   warning: number;
+  /** 결함이 아니라 확인 요청. 세지 않으면 타일 합이 발견 수와 어긋난다 */
+  info: number;
   cleared: number;
   rules_run: number;
   rules_skipped: number;

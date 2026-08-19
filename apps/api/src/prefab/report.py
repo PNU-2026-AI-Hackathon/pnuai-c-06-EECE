@@ -28,11 +28,13 @@ def build_summary(netlist: Netlist, engine: EngineResult, parts_identified: int 
     findings = engine.findings
     # 해제된 발견은 심각도로 세지 않는다. 데이터시트로 풀린 항목이 화면에
     # "심각 1건" 으로도 남으면 해제가 일어난 것처럼 보이지 않는다.
-    # 이렇게 해야 critical + warning + cleared 가 발견 개수와 항상 같다.
+    # 이렇게 해야 critical + warning + info + cleared 가 발견 개수와 항상 같다.
     open_findings = [f for f in findings if f.verdict is not Verdict.PASS]
     return {
         "critical": sum(1 for f in open_findings if f.severity is Severity.CRITICAL),
         "warning": sum(1 for f in open_findings if f.severity is Severity.WARNING),
+        # INFO 를 안 세면 "발견 3건" 인데 타일 합이 2 가 된다. 심각도는 세 단계다.
+        "info": sum(1 for f in open_findings if f.severity is Severity.INFO),
         "cleared": sum(1 for f in findings if f.verdict is Verdict.PASS),
         "rules_run": len(engine.ran),
         "rules_skipped": len(engine.skipped),
@@ -216,7 +218,10 @@ def build_result(
                 "parts": netlist.part_count,
             },
             "bom": (
-                {"filename": bom_filename or (bom.filename if bom else ""), "parts": len(bom) if bom else 0}
+                # Bom 에는 파일명이 없다. 파일명은 업로드가 알고 규칙은 모른다.
+                # 예전 구현의 잔재로 bom.filename 을 읽고 있었다 — 호출자가
+                # bom_filename 을 안 주면 AttributeError 로 터졌다.
+                {"filename": bom_filename or "", "parts": len(bom) if bom else 0}
                 if has_bom
                 else None
             ),

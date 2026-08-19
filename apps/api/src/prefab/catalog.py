@@ -83,11 +83,12 @@ CATALOG: tuple[RuleSpec, ...] = (
     ),
     RuleSpec(
         "R09",
-        "부팅 시 출력 나오는 핀에 부하 연결",
+        "부팅 중 출력이 나오는 핀에 부하 연결",
         "기본",
-        Severity.WARNING,
+        # 결함이 아니라 확인 요청이다. 개발 보드는 거의 전부 TX 를 뽑아놓는다.
+        # 경고로 올리면 모든 보드에서 시끄러워진다 (후보A 원안도 `정보` 다).
+        Severity.INFO,
         ("netlist",),
-        "규칙 로직 미작성 — 칩 표(docs/CHIPS.md)와 pinmap 은 있다",
     ),
     RuleSpec(
         "R10",

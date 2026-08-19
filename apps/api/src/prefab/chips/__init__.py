@@ -27,6 +27,9 @@ class Chip:
     adc1: tuple[int, ...] = ()
     #: 비어 있으면 이 칩에 ADC2 가 없다는 뜻이다 (없음 ≠ 이상 없음)
     adc2: tuple[int, ...] = ()
+    #: 펌웨어가 돌기 **전에** 칩이 스스로 신호를 내보내는 핀.
+    #: UART0 TX 는 부팅 로그를 그대로 토해낸다. 여기 붙은 것은 매 부팅마다 움직인다.
+    boot_output: tuple[int, ...] = ()
 
 
 ESP32 = Chip(
@@ -37,6 +40,7 @@ ESP32 = Chip(
     strapping=(0, 2, 5, 12, 15),
     adc1=tuple(range(32, 40)),
     adc2=(0, 2, 4, 12, 13, 14, 15, 25, 26, 27),
+    boot_output=(1,),  # U0TXD — 부팅 로그
 )
 
 ESP32C6 = Chip(
@@ -47,6 +51,7 @@ ESP32C6 = Chip(
     strapping=(4, 5, 8, 9, 15),
     adc1=tuple(range(0, 7)),
     adc2=(),  # 칩에 ADC2 가 존재하지 않는다
+    boot_output=(16,),  # U0TXD — 부팅 로그
 )
 
 CHIPS: dict[str, Chip] = {c.id: c for c in (ESP32, ESP32C6)}

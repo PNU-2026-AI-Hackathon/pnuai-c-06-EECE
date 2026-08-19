@@ -20,7 +20,7 @@ C6_BOM = b"Reference,MPN\nU1,ESP32-C6-WROOM-1\n"
 ESP32_BOM = b"Reference,MPN\nU1,ESP32-D0WD-V3\n"
 
 #: 평범한 핀 넷. 맨칩으로 인정받으려면 IO 패드가 최소 4개 있어야 한다.
-PLAIN = ("IO2", "IO3", "IO16")
+PLAIN = ("IO2", "IO3", "IO18")
 
 
 def _rest(*pins: str) -> list[str]:
@@ -86,12 +86,12 @@ def test_저항을_거치면_조용하다():
 
 
 def test_스트래핑이_아닌_핀이_묶이면_조용하다():
-    assert _run(_tied("IO16", "GND", "IO2", "IO3", "IO17")) == []
+    assert _run(_tied("IO18", "GND", "IO2", "IO3", "IO17")) == []
 
 
 def test_평범한_신호에_붙으면_조용하다():
     """스트래핑 핀이라도 신호 네트에 붙은 것은 정상이다. 레벨이 고정되지 않는다."""
-    assert _run(board(*_rest("IO8", "IO2", "IO3", "IO16"))) == []
+    assert _run(board(*_rest("IO8", "IO2", "IO3", "IO18"))) == []
 
 
 def test_안_뽑아놓은_스트래핑_핀은_정상이다():
