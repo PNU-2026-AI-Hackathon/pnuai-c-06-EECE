@@ -23,6 +23,21 @@ SEVERITY = Severity.WARNING
 TIER = "차별"
 NEEDS = ["netlist", "firmware"]
 
+#: **하드웨어 주변장치가 직접 모는 인터페이스의 핀 이름.**
+#:
+#: 이 규칙의 주장은 "코드가 안 만졌으니 그 부품이 안 움직인다" 인데,
+#: USB 처럼 전용 주변장치가 모는 핀에서는 그 주장이 틀린다. 코드에
+#: `pinMode(18, ...)` 이 없는 것이 **정상**이고, 오히려 만지면 인터페이스가 죽는다.
+#:
+#: 오픈소스 ESP32-C3 보드 4개 리비전에서 이 오탐이 리비전마다 2건씩 떴다
+#: (`USB_D+` · `USB_D-`). 우리 픽스처에는 USB 를 뽑아 쓰는 보드가 없어서
+#: 한 번도 안 만난 종류다 (`_docs/규모_실험.md`).
+#:
+#: **네트 이름을 안 믿는다.** 네트는 아무렇게나 이름 붙일 수 있다.
+#: 대신 **반대쪽 핀이 스스로 밝힌 이름**을 본다 (헌법 11절 「반대쪽을 본다」) —
+#: USB-C 커넥터의 핀은 그 자신이 `D+` · `D-` 다.
+PERIPHERAL_PIN_NAMES = frozenset({"D+", "D-", "DP", "DM", "USB_D+", "USB_D-", "USBDP", "USBDM"})
+
 
 def check(ctx: Context) -> list[Finding]:
     """순수 함수. 네트워크·LLM·파일 IO 금지."""
@@ -42,6 +57,8 @@ def check(ctx: Context) -> list[Finding]:
             continue  # 배선이 없으면 이 규칙의 대상이 아니다 (R07 이 본다)
         if net not in signal_nets:
             continue  # 전원·접지에 물린 핀은 코드가 만질 것이 아니다
+        if _peripheral_driven(netlist, net or "", pad.ref):
+            continue  # 주변장치가 모는 핀이다. 코드가 안 만지는 것이 정상이다
 
         if firmware.find(silk=pad.silk, gpio=pad.gpio) is not None:
             continue  # 코드가 이미 쓴다
@@ -49,6 +66,25 @@ def check(ctx: Context) -> list[Finding]:
         findings.append(_finding(graph, pad, net, netlist, firmware))
 
     return findings
+
+
+def _peripheral_driven(netlist: Netlist, net: str, mcu_ref: str) -> bool:
+    """이 네트가 주변장치 인터페이스인가 — **반대쪽 핀이 스스로 밝힌다.**
+
+    MCU 쪽 핀은 `GPIO18` 이라고만 말한다 (실리콘이 그 핀을 USB 로도 쓰는 걸
+    핀 이름은 모른다). 그래서 상대편을 본다 — USB-C 커넥터의 핀은 `D-` 다.
+
+    핀 이름이 없는 형식(IPC-D-356 은 4자에서 자른다)에서는 잘린 이름으로 본다.
+    `D-` 는 두 자라 살아남는다. 못 알아보면 **기존대로 경고를 낸다** —
+    조용히 통과시키지 않는다 (헌법 2-4).
+    """
+    for pad in netlist.connection_pads(net):
+        if pad.ref == mcu_ref:
+            continue
+        label = (pad.name or pad.pin or "").strip().upper()
+        if label in PERIPHERAL_PIN_NAMES:
+            return True
+    return False
 
 
 def _netlist_lines(graph, pad, net: str, netlist: Netlist) -> list[str]:
