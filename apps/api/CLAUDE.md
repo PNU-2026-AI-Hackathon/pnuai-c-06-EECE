@@ -155,6 +155,11 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
   이것 하나로 실측 보드의 `PRESENCE_3V3` 경고 **2건이 해제된다** (치명 4·경고 2 → 치명 3·경고 1·해제 2).
   `prefab.db` 는 `.gitignore` 라서 **커밋되는 진실은 이 JSON 뿐이고**,
   `tests/test_parts_files.py` 가 이 파일만으로 실제 해제가 나는지 검증한다
+- **검증 측정** (`measure.py` · `tests/fixtures/injected/`) — 라벨된 케이스에 엔진을
+  돌려 검출율·오탐율을 낸다. `python -m prefab --measure`.
+  **결함 없는 케이스가 오탐율의 전부다** — 겉모습이 비슷한데 정상인 보드를 짝으로 둔다.
+  케이스를 못 읽으면 숫자에서 조용히 빼지 않고 그대로 적고 종료 코드 1 로 끝낸다.
+  보고서가 **무엇을 못 재는지도 같이 적는다** — 숫자만 떼어 인용되면 안 된다
 - 실측 픽스처: `tests/fixtures/esp32-c6-presence-smart-light.d356`
 - 골든 테스트 — 3건·10부품·8네트·K1 2그룹
 - **펌웨어 소스 — 받았다.** `tests/fixtures/esp32-c6-presence-smart-light.firmware/`
