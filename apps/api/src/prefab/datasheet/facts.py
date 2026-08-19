@@ -22,6 +22,25 @@ OUTPUT_TYPE = "output_type"            #: push-pull / open-drain
 IO_LEVEL = "io_level"                  #: 모듈 IO 가 도는 로직 레벨
 INPUT_PULLUP_TO = "input_pullup_to"    #: 입력 핀이 내부에서 어디로 풀업되는가
 
+#: 보드가 칩에서 물려받는 항목.
+#:
+#: 핀의 전기 특성은 **칩이 정하고 보드가 바꾸지 못한다.** GPIO 가 몇 V 를 견디는지는
+#: 브레이크아웃 보드를 거쳐도 그대로다.
+#:
+#: **`vcc_nominal` 은 일부러 뺐다.** 보드에는 레귤레이터가 있다 — XIAO ESP32C6 은
+#: USB 5V 를 받아 칩에 3.3V 를 준다. 칩의 3.3V 를 보드 공급 전압이라고 하면
+#: 틀린 값이 되고, 그 틀린 값으로 R11·R12 가 판정한다.
+CHIP_INHERITED: tuple[str, ...] = (
+    VIH_MIN,
+    VIL_MAX,
+    VOH_MAX,
+    VOL_MAX,
+    VIN_ABSOLUTE_MAX,
+    IO_LEVEL,
+    OUTPUT_TYPE,
+    INPUT_PULLUP_TO,
+)
+
 #: 사용자에게 보여줄 이름. "voh_max 를 못 읽었습니다"는 비전공자가 못 읽는다.
 FIELD_LABELS: dict[str, str] = {
     VOH_MAX: "출력 하이 전압(Voh)",

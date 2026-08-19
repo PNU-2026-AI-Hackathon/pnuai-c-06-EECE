@@ -1,0 +1,34 @@
+[
+  {
+    "mpn": "FAKE-SENSOR-5V",
+    "source_url": "https://example.invalid/sensor.pdf",
+    "source_tier": "official",
+    "facts": [
+      {
+        "field": "io_level",
+        "value": 3.3,
+        "unit": "V",
+        "table": "Electrical Characteristics",
+        "page": 2,
+        "quote": "IO level 3.3V",
+        "confidence": "high"
+      }
+    ]
+  },
+  {
+    "mpn": "FAKE-MCU-3V3",
+    "source_url": "https://example.invalid/mcu.pdf",
+    "source_tier": "official",
+    "facts": [
+      {
+        "field": "vin_absolute_max",
+        "value": 3.6,
+        "unit": "V",
+        "table": "Absolute Maximum Ratings",
+        "page": 5,
+        "quote": "Allowed input voltage 3.6 V",
+        "confidence": "high"
+      }
+    ]
+  }
+]

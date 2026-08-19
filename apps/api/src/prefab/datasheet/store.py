@@ -12,12 +12,12 @@ from __future__ import annotations
 import json
 import sqlite3
 from contextlib import contextmanager
-from dataclasses import dataclass, field as _field
+from dataclasses import dataclass, field as _field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Iterable, Iterator
 
-from .facts import CONF_NONE, TIER_UNOFFICIAL, Fact, FactSet
+from .facts import CHIP_INHERITED, CONF_NONE, TIER_UNOFFICIAL, Fact, FactSet
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS part_facts (
@@ -35,6 +35,16 @@ CREATE TABLE IF NOT EXISTS part_facts (
     source_tier TEXT    NOT NULL,
     created_at  TEXT    NOT NULL,
     PRIMARY KEY (mpn, field)
+)
+"""
+
+#: 보드 → 칩. BOM 에는 보드 이름이 적히고 데이터시트는 칩 이름으로 나온다.
+#: `prefab-datasheet` 스킬이 경고하는 "모듈 vs 칩" 함정을 이 표가 잇는다.
+_ALIAS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS part_aliases (
+    board      TEXT PRIMARY KEY,
+    chip       TEXT NOT NULL,
+    created_at TEXT NOT NULL
 )
 """
 
@@ -85,6 +95,7 @@ class FactStore:
         self.path = str(path)
         with self._session() as conn:
             conn.execute(_SCHEMA)
+            conn.execute(_ALIAS_SCHEMA)
 
     @contextmanager
     def _session(self) -> Iterator[sqlite3.Connection]:
@@ -100,24 +111,63 @@ class FactStore:
     # ── 1단계: 캐시부터 본다 ────────────────────────────────────────────
 
     def lookup(self, mpns: Iterable[str]) -> Lookup:
-        """MPN 목록으로 아는 사실을 전부 꺼낸다. **LLM 을 부르기 전에 이걸 먼저 한다.**"""
+        """MPN 목록으로 아는 사실을 전부 꺼낸다. **LLM 을 부르기 전에 이걸 먼저 한다.**
+
+        보드 이름으로 물어도 그 보드가 얹은 칩의 **핀 전기 특성**은 같이 나온다
+        (`CHIP_INHERITED`). BOM 에는 보드 이름이 적히고 데이터시트는 칩 이름으로
+        나오기 때문이다.
+        """
         wanted = [m for m in dict.fromkeys(mpns) if m]
         if not wanted:
             return Lookup(FactSet(), [], [])
 
-        marks = ",".join("?" * len(wanted))
+        alias = self._aliases(wanted)
+        chips = [c for c in dict.fromkeys(alias.values()) if c not in wanted]
+
+        marks = ",".join("?" * len(wanted + chips))
         with self._session() as conn:
             rows = conn.execute(
-                f"SELECT * FROM part_facts WHERE mpn IN ({marks})", wanted
+                f"SELECT * FROM part_facts WHERE mpn IN ({marks})", wanted + chips
             ).fetchall()
 
-        facts = [_row_to_fact(r) for r in rows]
+        found_facts = [_row_to_fact(r) for r in rows]
+        by_mpn: dict[str, dict[str, Fact]] = {}
+        for f in found_facts:
+            by_mpn.setdefault(f.mpn, {})[f.field] = f
+
+        facts = [f for f in found_facts if f.mpn in wanted]
+        for board, chip in alias.items():
+            own = by_mpn.get(board, {})
+            for field, fact in by_mpn.get(chip, {}).items():
+                # 보드가 직접 가진 사실이 칩에서 물려받은 것보다 세다.
+                if field in CHIP_INHERITED and field not in own:
+                    facts.append(_inherit(fact, board))
+
         found = {f.mpn for f in facts}
         return Lookup(
             facts=FactSet(facts),
             hits=[m for m in wanted if m in found],
             misses=[m for m in wanted if m not in found],
         )
+
+    def _aliases(self, boards: list[str]) -> dict[str, str]:
+        marks = ",".join("?" * len(boards))
+        with self._session() as conn:
+            rows = conn.execute(
+                f"SELECT board, chip FROM part_aliases WHERE board IN ({marks})", boards
+            ).fetchall()
+        return {r["board"]: r["chip"] for r in rows}
+
+    def alias(self, board: str, chip: str) -> None:
+        """보드가 어느 칩을 얹었는지 적어 둔다."""
+        if not board or not chip or board == chip:
+            return
+        with self._session() as conn:
+            conn.execute(
+                "INSERT INTO part_aliases VALUES (?,?,?) "
+                "ON CONFLICT(board) DO UPDATE SET chip=excluded.chip",
+                (board, chip, datetime.now(UTC).isoformat(timespec="seconds")),
+            )
 
     # ── 6단계: DB 에 쓴다 ──────────────────────────────────────────────
 
@@ -181,6 +231,9 @@ class FactStore:
             else:
                 report.stored += 1
 
+        for board in extraction.get("applies_to_boards") or []:
+            self.alias(str(board).strip(), mpn)
+
         if rows:
             with self._session() as conn:
                 conn.executemany(
@@ -211,6 +264,20 @@ class FactStore:
                 "SELECT COUNT(DISTINCT mpn) AS parts, COUNT(*) AS facts FROM part_facts"
             ).fetchone()
         return int(row["parts"]), int(row["facts"])
+
+
+def _inherit(fact: Fact, board: str) -> Fact:
+    """칩의 사실을 보드 이름으로 다시 붙인다.
+
+    **출처는 그대로 둔다** — 칩 데이터시트에서 읽은 것이 맞고, 화면에도 그렇게
+    보여야 한다. 다만 왜 이 보드에 적용되는지를 `reason` 앞에 붙인다.
+    """
+    note = f"{fact.mpn} 칩의 핀 특성이다. {board} 는 그 칩을 얹었을 뿐이라 같은 값이 적용된다."
+    return replace(
+        fact,
+        mpn=board,
+        reason=f"{note} {fact.reason}" if fact.reason else note,
+    )
 
 
 def _row_to_fact(row: sqlite3.Row) -> Fact:

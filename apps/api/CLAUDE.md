@@ -113,7 +113,7 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
   이식 전후 JSON 이 **바이트 단위로 같다** (규칙 개수 정정분 제외)
 - IPC-D-356 파서 — 실제 보드에서 네트 8 / 부품 10 정확히 추출.
   좌표는 오프셋이 아니라 정규식 `X([+-]\d{6})Y([+-]\d{6})` 로 읽는다
-- 규칙 엔진 — R11 · R12 동작. 실제 보드에서 3건 검출
+- 규칙 엔진 — R04 · R07 · R08 · R11 · R12 동작 (5/11)
 - **데이터시트 해제 경로** (`rules/_clearance.py`) — R11 · R12 가 사실 DB 를 보고
   경고를 **해제(`PASS`)하거나 확정(`FAIL`)**한다. 비교는 결정적 코드가 한다.
   해제에는 **반드시 출처(`Evidence.datasheet`)가 붙는다.**
@@ -134,6 +134,11 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
   저장기가 두 가지를 거절한다: **값이 있는데 출처(page·quote)가 없는 것**,
   **값이 없는데 이유가 없는 것**. `value: null` + `reason` 은 정상적인 사실로 저장한다.
   `confidence: low` 는 저장은 되지만 `usable` 이 아니라 **판정에 못 쓴다**
+- **보드 → 칩 매핑** (`part_aliases` 표) — BOM 에는 보드 이름이 적히고 데이터시트는
+  칩 이름으로 나온다. 사실 파일의 `applies_to_boards` 가 그 둘을 잇는다.
+  **핀 전기 특성만 물려받는다** (`facts.CHIP_INHERITED`) — `vcc_nominal` 은 뺐다.
+  보드에는 레귤레이터가 있어서 (XIAO 는 USB 5V → 칩 3.3V) 칩 전압을 보드 전압이라고
+  하면 틀린 값으로 R11·R12 가 판정한다. 보드가 직접 가진 사실이 칩 것보다 세다
 - **사실 파일 CLI** — `python -m prefab --facts-load parts/*.json`.
   **LLM 없이 사람이 데이터시트를 읽고 채울 수 있다.** 서식과 규칙은 `parts/README.md`
 - **데이터시트 LLM 추출** (`datasheet/extract.py` · `datasheet/pdf.py`) —
@@ -150,6 +155,15 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
   이것 하나로 실측 보드의 `PRESENCE_3V3` 경고 **2건이 해제된다** (치명 4·경고 2 → 치명 3·경고 1·해제 2).
   `prefab.db` 는 `.gitignore` 라서 **커밋되는 진실은 이 JSON 뿐이고**,
   `tests/test_parts_files.py` 가 이 파일만으로 실제 해제가 나는지 검증한다
+- **발견 합치기** (`engine.dedupe`) — 같은 네트에서 **새로운 근거를 하나도 못 내놓는**
+  발견을 합친다. R11 은 R12 와 근거가 같은 넷리스트 줄이라 합쳐진다.
+  **심각도로 고르면 안 된다** — 그렇게 만들었더니 차별 등급 R08 이 기본 등급 R12 에
+  먹혀 사라졌다. 기준은 근거다. 합쳐진 규칙은 남은 발견의 `suggestion` 에 적힌다
+- **검증 측정** (`measure.py` · `tests/fixtures/injected/`) — 라벨된 케이스에 엔진을
+  돌려 검출율·오탐율을 낸다. `python -m prefab --measure`.
+  **결함 없는 케이스가 오탐율의 전부다** — 겉모습이 비슷한데 정상인 보드를 짝으로 둔다.
+  케이스를 못 읽으면 숫자에서 조용히 빼지 않고 그대로 적고 종료 코드 1 로 끝낸다.
+  보고서가 **무엇을 못 재는지도 같이 적는다** — 숫자만 떼어 인용되면 안 된다
 - 실측 픽스처: `tests/fixtures/esp32-c6-presence-smart-light.d356`
 - 골든 테스트 — 3건·10부품·8네트·K1 2그룹
 - **펌웨어 소스 — 받았다.** `tests/fixtures/esp32-c6-presence-smart-light.firmware/`
@@ -183,9 +197,6 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
 **모듈 데이터시트는 Voh 규격을 잘 안 준다.** 다음 부품에서도 같은 일이 생긴다.
 
 ### 알려진 버그
-1. R11과 R12가 같은 네트(`PRESENCE_3V3`)에 중복으로 뜬다. dedup 필요.
-   `test_golden_real_board.py::test_no_duplicate_net_across_rules` 에 **strict xfail** 로 박아 뒀다.
-   고치면 그 테스트가 XPASS 로 터진다. 그때 데코레이터를 지운다.
 2. **핀 이름이 4자로 뭉쳐 서로 다른 핀이 구분되지 않는다.** U1 레코드 25개 → 이름 18종
    (`LP-G`×3 = D0·D1·D2, `SDIO`×3 = D3·D4·D5). K1 도 6패드가 전부 `pad-` 다.
    응답에 `silk`·`gpio` 를 실어야 R7 · R8 이 성립한다.
@@ -217,7 +228,7 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
 | R01 | 코드가 이 칩에서 쓸 수 없는 핀을 사용 | **차별** | netlist, firmware | 미구현 |
 | R02 | 회로도가 SPI flash 핀에 연결 | 기본 | netlist | 미구현 |
 | R03 | strapping 핀 부팅 상태 오류 | 기본 | netlist | 미구현 |
-| R04 | 외부 부품 출력이 GPIO 입력 최대 정격 초과 | 기본 | netlist, bom | 미구현 |
+| R04 | 외부 부품 출력이 GPIO 입력 최대 정격 초과 | 기본 | netlist, bom | **동작** |
 | R05 | 이 칩이 지원하지 않는 주변장치 조합 | **차별** | firmware | 미구현 |
 | ~~R06~~ | ~~I2C 풀업 누락~~ | — | — | **폐기 — Flux가 이미 함. 번호 재사용 금지** |
 | R07 | 코드가 쓰는 핀이 회로도에 미연결 | **차별** | netlist, firmware | **동작** |
@@ -253,6 +264,7 @@ src/prefab/
   datasheet/extract.py  LLM 추출 + **원문 대조 검증**. 네트워크를 부르는 유일한 자리.
                         규칙은 이 파일을 import 하지 않는다
   rules/            규칙 모듈 + 레지스트리 (여기 등록되면 '구현됨')
+  rules/_clearance.py  규칙 ↔ 사실 DB 사이. 순수 함수다 (러너가 이미 읽어 왔다)
   engine.py         규칙 실행 → Finding 수집 → 정렬
   report.py         계약 응답 dict 조립 (summary · pipeline)
   runner.py         파싱 → 그래프 → 엔진. CLI 와 web 이 같이 쓴다

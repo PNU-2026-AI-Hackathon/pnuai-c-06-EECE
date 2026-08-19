@@ -1,0 +1,69 @@
+{
+  "cases": [
+    {
+      "id": "r12-cross-domain",
+      "kind": "양성",
+      "why": "5V 로 도는 U2 의 출력이 3.3V 로 도는 U1 핀에 직결됐다",
+      "expect": [
+        "R12"
+      ],
+      "netlist": "r12-cross-domain.d356"
+    },
+    {
+      "id": "r12-same-domain",
+      "kind": "음성",
+      "why": "겉모습은 같은데 둘 다 3.3V 다. 경고가 뜨면 오탐이다",
+      "expect": [],
+      "netlist": "r12-same-domain.d356"
+    },
+    {
+      "id": "r11-name-lies",
+      "kind": "양성",
+      "why": "네트 이름은 3V3 인데 구동하는 U2 는 5V 로 돈다",
+      "expect": [
+        "R12"
+      ],
+      "netlist": "r11-name-lies.d356"
+    },
+    {
+      "id": "r11-name-honest",
+      "kind": "음성",
+      "why": "이름과 도메인이 맞다. 이름에 전압 토큰이 있다고 경고하면 오탐이다",
+      "expect": [],
+      "netlist": "r11-name-honest.d356"
+    },
+    {
+      "id": "r04-overvoltage",
+      "kind": "양성",
+      "why": "U2 출력 5V 가 U1 절대 최대 3.6V 를 넘는다. 양쪽 데이터시트가 있다",
+      "expect": [
+        "R04"
+      ],
+      "netlist": "r04-overvoltage.d356",
+      "bom": "r04-overvoltage.bom.csv",
+      "facts": "r04-overvoltage.facts.json"
+    },
+    {
+      "id": "r04-within-limit",
+      "kind": "음성",
+      "why": "같은 배선인데 U2 출력이 3.3V 다. 한도 안이므로 R04 는 조용해야 한다",
+      "expect": [],
+      "netlist": "r04-within-limit.d356",
+      "bom": "r04-within-limit.bom.csv",
+      "facts": "r04-within-limit.facts.json"
+    },
+    {
+      "id": "real-esp32c6-presence",
+      "kind": "실측",
+      "why": "실제 보드 + 실제 펌웨어. 정답표는 EXPECTED.md 에 고정돼 있다",
+      "expect": [
+        "R07",
+        "R08",
+        "R12"
+      ],
+      "netlist": "../esp32-c6-presence-smart-light.d356",
+      "bom": "../esp32-c6-presence-smart-light.bom.csv",
+      "firmware": "../esp32-c6-presence-smart-light.firmware"
+    }
+  ]
+}

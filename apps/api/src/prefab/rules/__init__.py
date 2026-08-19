@@ -9,6 +9,7 @@ from __future__ import annotations
 from types import ModuleType
 
 from . import (
+    r04_input_overvoltage,
     r07_pin_not_connected,
     r08_connected_but_unused,
     r11_net_name_domain,
@@ -17,6 +18,7 @@ from . import (
 
 #: 실행 순서는 규칙 ID 순. 결과 정렬은 engine 이 따로 한다.
 MODULES: tuple[ModuleType, ...] = (
+    r04_input_overvoltage,
     r07_pin_not_connected,
     r08_connected_but_unused,
     r11_net_name_domain,

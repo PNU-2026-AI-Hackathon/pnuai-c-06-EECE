@@ -250,6 +250,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--facts-load", nargs="+", metavar="JSON",
                     help="데이터시트 사실 파일을 부품 DB 에 넣는다")
     ap.add_argument("--facts", action="store_true", help="부품 DB 크기를 본다")
+    ap.add_argument("--measure", metavar="DIR", nargs="?", const="tests/fixtures/injected",
+                    help="라벨된 케이스 폴더에 엔진을 돌려 검출율·오탐율을 낸다")
     ap.add_argument("--extract", metavar="PDF", help="데이터시트 PDF 에서 사실을 뽑는다 (LLM)")
     ap.add_argument("--mpn", help="--extract 대상 부품번호")
     ap.add_argument("--source-url", help="--extract 한 PDF 를 받은 주소")
@@ -259,6 +261,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--db", default=os.getenv("PREFAB_DB", "prefab.db"),
                     help="SQLite 파일 (기본: PREFAB_DB 또는 prefab.db)")
     args = ap.parse_args(argv)
+
+    if args.measure:
+        from .measure import format_report, run
+
+        report = run(args.measure)
+        if args.json:
+            print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
+        else:
+            print(format_report(report))
+        # 읽지 못한 케이스가 있으면 숫자가 불완전하다. 0 으로 끝내지 않는다.
+        return 1 if report.errors else 0
 
     if args.extract:
         if not (args.mpn and args.source_url):

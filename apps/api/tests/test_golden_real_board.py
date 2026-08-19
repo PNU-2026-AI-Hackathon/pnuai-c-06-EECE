@@ -47,19 +47,19 @@ def _result(with_firmware: bool = False):
 
 # ------------------------------------------------------- 넷리스트만 (회귀 방지)
 
-def test_netlist_only_still_finds_exactly_three():
+def test_netlist_only_still_finds_exactly_two():
     """펌웨어를 넣었다고 기존 3건이 사라지면 회귀다 (EXPECTED.md 3절)."""
     findings = _analysis().engine.findings
     assert [(f.rule, f.net) for f in findings] == [
         ("R12", "PRESENCE_3V3"),
         ("R12", "_IN_ACTIVE_LOW"),
-        ("R11", "PRESENCE_3V3"),
-    ]
+            ]
 
 
 def test_netlist_only_summary():
     s = _result()["summary"]
-    assert (s["critical"], s["warning"]) == (2, 1)
+    # dedup 이후 R11 은 R12 에 합쳐진다. 경고는 0 이다.
+    assert (s["critical"], s["warning"]) == (2, 0)
     assert s["rules_run"] == 2
     assert s["rules_run"] + s["rules_skipped"] == s["rules_total"] == catalog.TOTAL
 
@@ -84,17 +84,16 @@ def test_with_firmware_findings_match_the_expected_doc():
         ("R12", "PRESENCE_3V3"),
         ("R12", "_IN_ACTIVE_LOW"),
         ("R08", "_IN_ACTIVE_LOW"),
-        ("R11", "PRESENCE_3V3"),
-    ]
+            ]
     assert [f.severity for f in findings] == [
         Severity.CRITICAL, Severity.CRITICAL, Severity.CRITICAL,
-        Severity.CRITICAL, Severity.WARNING, Severity.WARNING,
+        Severity.CRITICAL, Severity.WARNING,
     ]
 
 
 def test_with_firmware_summary():
     s = _result(with_firmware=True)["summary"]
-    assert (s["critical"], s["warning"]) == (4, 2)
+    assert (s["critical"], s["warning"]) == (4, 1)
     assert s["rules_run"] == 4
     assert s["rules_run"] + s["rules_skipped"] == s["rules_total"]
 
@@ -174,10 +173,29 @@ def test_evidence_has_no_empty_placeholders():
             assert "N/A" not in d.values()
 
 
-@pytest.mark.xfail(
-    reason="알려진 문제 #1 — R11 과 R12 가 같은 네트에 중복으로 뜬다. dedup 미구현.",
-    strict=True,
-)
 def test_no_duplicate_net_across_rules():
-    nets = [f.net for f in _analysis().engine.findings]
-    assert len(nets) == len(set(nets))
+    """같은 근거를 두 번 읽게 하지 않는다.
+
+    **원래 이 테스트는 "네트당 발견 하나" 를 요구했는데 그 전제가 틀렸다.**
+    그대로 구현했더니 `_IN_ACTIVE_LOW` 에서 차별 등급 R08 이 기본 등급 R12 에
+    먹혀 사라졌다 — 둘은 완전히 다른 문제이고 R08 은 펌웨어 근거를 들고 온다.
+
+    기준은 심각도가 아니라 근거다. 넷리스트만 보는 R11 · R12 는 합쳐지고,
+    펌웨어 근거를 가진 R08 은 남는다.
+    """
+    findings = _analysis().engine.findings
+    nets = [f.net for f in findings]
+    assert len(nets) == len(set(nets)), "넷리스트만 보는 규칙끼리는 합쳐져야 한다"
+
+
+def test_firmware_finding_survives_a_netlist_finding_on_the_same_net():
+    """R08 이 R12 에 먹히면 안 된다. 그게 우리 차별점이다."""
+    findings = _analysis(with_firmware=True).engine.findings
+    on_net = {f.rule for f in findings if f.net == "_IN_ACTIVE_LOW"}
+    assert {"R08", "R12"} <= on_net
+
+
+def test_merged_finding_says_what_it_absorbed():
+    """가려진 규칙을 조용히 버리지 않는다 (CLAUDE.md 2-4)."""
+    f = next(x for x in _analysis().engine.findings if x.net == "PRESENCE_3V3")
+    assert "R11" in f.suggestion

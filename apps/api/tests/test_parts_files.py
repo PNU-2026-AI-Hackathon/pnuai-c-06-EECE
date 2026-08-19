@@ -94,10 +94,9 @@ def test_커밋된_파일만으로_PRESENCE_3V3_두_건이_해제된다(tmp_path
     assert not [f for f in before if f.verdict is Verdict.PASS], "넣기 전에 이미 해제돼 있다"
 
     cleared = [f for f in after if f.verdict is Verdict.PASS]
-    assert {(f.rule, f.net) for f in cleared} == {
-        ("R11", "PRESENCE_3V3"),
-        ("R12", "PRESENCE_3V3"),
-    }
+    # R11 은 dedup 으로 R12 에 합쳐진다. 남는 해제는 하나다.
+    assert {(f.rule, f.net) for f in cleared} == {("R12", "PRESENCE_3V3")}
+    assert "R11" in cleared[0].suggestion, "합쳐진 규칙을 조용히 버리지 않는다"
     assert len(after) == len(before), "해제는 발견을 지우는 게 아니라 판정을 바꾸는 것이다"
 
 
@@ -139,5 +138,7 @@ def test_사실이_들어가면_4단계가_미구현이라고_말하지_않는�
     )
     step4, step5 = r["pipeline"][3], r["pipeline"][4]
     assert "미구현" not in step4["detail"]
-    assert "1개 수집" in step4["detail"] and "미수집" in step4["detail"]
-    assert step5["status"] == "done" and "판정 2건에 근거로 사용" in step5["detail"]
+    # 몇 개를 모았고 무엇이 남았는지 둘 다 말해야 한다. 숫자는 parts/ 가 늘면 바뀐다.
+    assert "개 수집" in step4["detail"]
+    assert "미수집: JQC-3FF-S-Z" in step4["detail"], "릴레이는 아직 데이터시트가 없다"
+    assert step5["status"] == "done" and "판정 1건에 근거로 사용" in step5["detail"]

@@ -1,5 +1,8 @@
 {
   "mpn": "ESP32-C6",
+  "applies_to_boards": [
+    "XIAO-ESP32C6"
+  ],
   "source_url": "https://documentation.espressif.com/esp32-c6_datasheet_en.pdf",
   "source_tier": "official",
   "facts": [

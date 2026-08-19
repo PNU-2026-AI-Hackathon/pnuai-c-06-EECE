@@ -34,7 +34,7 @@ CATALOG: tuple[RuleSpec, ...] = (
         "차별",
         Severity.CRITICAL,
         ("netlist", "firmware"),
-        "펌웨어 정적 분석기 · 모듈 핀아웃 DB 미구현",
+        "규칙 로직 미작성 — 선행 조건(펌웨어 파서·핀아웃 DB)은 들어왔다",
     ),
     RuleSpec(
         "R02",
@@ -42,7 +42,7 @@ CATALOG: tuple[RuleSpec, ...] = (
         "기본",
         Severity.CRITICAL,
         ("netlist",),
-        "모듈 핀아웃 DB 미구현",
+        "규칙 로직 미작성 — 칩 표(docs/CHIPS.md)와 pinmap 은 있다",
     ),
     RuleSpec(
         "R03",
@@ -50,7 +50,7 @@ CATALOG: tuple[RuleSpec, ...] = (
         "기본",
         Severity.WARNING,
         ("netlist",),
-        "모듈 핀아웃 DB 미구현",
+        "규칙 로직 미작성 — 칩 표(docs/CHIPS.md)와 pinmap 은 있다",
     ),
     RuleSpec(
         "R04",
@@ -58,7 +58,6 @@ CATALOG: tuple[RuleSpec, ...] = (
         "기본",
         Severity.CRITICAL,
         ("netlist", "bom"),
-        "데이터시트 파이프라인 미구현",
     ),
     RuleSpec(
         "R05",
@@ -66,7 +65,7 @@ CATALOG: tuple[RuleSpec, ...] = (
         "차별",
         Severity.WARNING,
         ("firmware",),
-        "펌웨어 정적 분석기 미구현",
+        "규칙 로직 미작성 — firmware/arduino.py 는 있다. 무엇을 잡을지 정의부터 필요",
     ),
     RuleSpec(
         "R07",
@@ -88,7 +87,7 @@ CATALOG: tuple[RuleSpec, ...] = (
         "기본",
         Severity.WARNING,
         ("netlist",),
-        "모듈 핀아웃 DB 미구현",
+        "규칙 로직 미작성 — 칩 표(docs/CHIPS.md)와 pinmap 은 있다",
     ),
     RuleSpec(
         "R10",
@@ -96,7 +95,7 @@ CATALOG: tuple[RuleSpec, ...] = (
         "차별",
         Severity.WARNING,
         ("netlist", "firmware"),
-        "펌웨어 정적 분석기 · git 이력 연동 미구현",
+        "git 이력 연동 미구현 — 계약에 4번째 입력이 필요하다",
     ),
     RuleSpec(
         "R11",
