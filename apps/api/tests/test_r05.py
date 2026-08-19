@@ -30,7 +30,7 @@ def _board(*pins: str) -> str:
     return board(*lines)
 
 
-BOARD = _board("IO4", "IO25", "IO32", "IO16")
+BOARD = _board("IO4", "IO25", "IO32", "IO18")
 
 
 def _run(code: str, *, bom: bytes = C6_BOM):

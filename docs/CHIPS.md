@@ -33,6 +33,7 @@ def check(ctx):
 | 스트래핑 | GPIO0, 2, 5, 12, 15 | 부팅 시 레벨이 부팅 모드를 결정 |
 | ADC1 | GPIO32 ~ 39 | WiFi와 무관하게 사용 가능 |
 | ADC2 | GPIO0, 2, 4, 12 ~ 15, 25 ~ 27 | **WiFi 구동 중 사용 불가** |
+| 부팅 중 출력 | GPIO1 (U0TXD) | 펌웨어가 돌기 전에 부팅 로그가 나온다 |
 
 ## ESP32-C6
 
@@ -43,6 +44,7 @@ def check(ctx):
 | 스트래핑 | GPIO4, 5, 8, 9, 15 | GPIO8·9는 부팅 모드, GPIO15는 JTAG 소스 선택 |
 | ADC1 | GPIO0 ~ GPIO6 | 7채널 |
 | ADC2 | **없음** | 칩에 ADC2가 존재하지 않음 |
+| 부팅 중 출력 | GPIO16 (U0TXD) | 펌웨어가 돌기 전에 부팅 로그가 나온다 |
 
 ### C6에서 주의할 겹침
 
@@ -58,6 +60,7 @@ GPIO4·5를 아날로그 입력으로 쓰면 부팅 시점의 레벨이 부팅 �
 | **R1** 코드가 쓸 수 없는 핀을 사용 | 입력 전용 핀에 OUTPUT → `CRITICAL` | 플래시 핀 사용 → `CRITICAL`<br>스트래핑 핀 사용 → `WARNING` |
 | **R2** 회로도가 플래시 핀에 배선 | GPIO6~11 배선 → `CRITICAL` | GPIO24~30 배선 → `CRITICAL` |
 | **R3** 스트래핑 핀이 전원·접지 직결 | GPIO0·2·5·12·15 → `WARNING` | GPIO4·5·8·9·15 → `WARNING` |
+| **R9** 부팅 중 출력 핀에 무언가 붙음 | GPIO1 에 연결 → `정보` | GPIO16 에 연결 → `정보` |
 | **R5** 칩이 지원하지 않는 조합 | ADC2 + WiFi 동시 → `CRITICAL` | ADC2 없음 → `skipped`<br>ADC(GPIO4·5) + 스트래핑 겹침 → `WARNING` |
 | **R7·R8·R10** 코드 ↔ 회로도 대조 | 칩 무관 | 칩 무관 |
 
@@ -182,6 +185,8 @@ X 좌표 클러스터링이 실제로 제어부/스위치부를 갈라낸다는 
 
 - [ESP32-C6 Datasheet — Espressif](https://documentation.espressif.com/esp32-c6_datasheet_en.html)
 - [GPIO & RTC GPIO — ESP32-C6, ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-reference/peripherals/gpio.html)
+- [ESP32 Datasheet — Espressif](https://www.espressif.com/sites/default/files/documentation/esp32_datasheet_en.pdf) (U0TXD = GPIO1)
+- [UART — ESP32-C6, ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-reference/peripherals/uart.html) (U0TXD 기본 핀)
 - [Boot Mode Selection — ESP32-C6, esptool](https://docs.espressif.com/projects/esptool/en/latest/esp32c6/advanced-topics/boot-mode-selection.html)
 - [ADC2 / WiFi 충돌 — ESP-IDF](https://github.com/espressif/esp-idf/blob/v4.0.3/docs/en/api-reference/peripherals/adc.rst)
 - [XIAO ESP32C6 핀아웃 — Seeed Studio Wiki](https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/)

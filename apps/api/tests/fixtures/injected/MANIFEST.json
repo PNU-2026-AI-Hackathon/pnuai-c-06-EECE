@@ -181,10 +181,28 @@
     {
       "id": "r03-ordinary-pin-tied",
       "kind": "음성",
-      "why": "스트래핑이 아닌 GPIO16 이 GND 에 묶였다. 표에 없는 핀이므로 조용해야 한다",
+      "why": "스트래핑이 아닌 GPIO18 이 GND 에 묶였다. 표에 없는 핀이므로 조용해야 한다",
       "expect": [],
       "netlist": "r03-ordinary-pin-tied.d356",
       "bom": "r03-ordinary-pin-tied.bom.csv"
+    },
+    {
+      "id": "r09-boot-output-load",
+      "kind": "양성",
+      "why": "GPIO16(U0TXD)에 릴레이가 붙었다. 부팅 로그가 매 부팅마다 그리로 나간다",
+      "expect": [
+        "R09"
+      ],
+      "netlist": "r09-boot-output-load.d356",
+      "bom": "r09-boot-output-load.bom.csv"
+    },
+    {
+      "id": "r09-no-boot-pin",
+      "kind": "음성",
+      "why": "같은 모양인데 TX 를 안 뽑았다. 조용해야 한다",
+      "expect": [],
+      "netlist": "r09-no-boot-pin.d356",
+      "bom": "r09-no-boot-pin.bom.csv"
     },
     {
       "id": "real-esp32c6-presence",

@@ -39,7 +39,7 @@ def _run(netlist: str, *, bom: bytes | None = C6_BOM):
 
 
 def test_플래시_핀이_배선되면_치명이다():
-    f = _run(_bare("IO2", "IO3", "IO16", "IO24"))
+    f = _run(_bare("IO2", "IO3", "IO18", "IO24"))
     assert len(f) == 1
     assert f[0].severity is Severity.CRITICAL
     assert f[0].verdict is Verdict.FAIL
@@ -49,20 +49,20 @@ def test_플래시_핀이_배선되면_치명이다():
 
 def test_펌웨어가_없어도_돈다():
     """R01 과 다른 점이다. 코드를 안 줘도 배선만으로 판정한다."""
-    assert len(_run(_bare("IO2", "IO3", "IO16", "IO25"))) == 1
+    assert len(_run(_bare("IO2", "IO3", "IO18", "IO25"))) == 1
 
 
 # ── 음성 ────────────────────────────────────────────────────────────
 
 
 def test_플래시_핀을_안_건드리면_조용하다():
-    assert _run(_bare("IO2", "IO3", "IO16", "IO17")) == []
+    assert _run(_bare("IO2", "IO3", "IO18", "IO17")) == []
 
 
 def test_안_뽑아놓은_플래시_핀은_정상이다():
     """미연결은 이 규칙의 대상이 아니다. 안 쓰는 게 맞는 동작이다."""
     lines = [rec("N/C", "U1", "IO24", x=0.9)]
-    for i, p in enumerate(("IO2", "IO3", "IO16", "IO17")):
+    for i, p in enumerate(("IO2", "IO3", "IO18", "IO17")):
         lines.append(rec(f"NET_{p}", "U1", p, x=0.1 * i))
         lines.append(rec(f"NET_{p}", "J1", str(i + 1), x=0.1 * i, y=0.5))
     assert _run(board(*lines)) == []
@@ -102,4 +102,4 @@ def test_플래시_IC_가_있어도_샌_가닥은_잡는다():
 
 def test_칩을_모르면_아무_말도_안_한다():
     """어느 핀이 플래시인지는 칩마다 다르다. 추측해서 경고하면 그게 오탐이다."""
-    assert _run(_bare("IO2", "IO3", "IO16", "IO24"), bom=None) == []
+    assert _run(_bare("IO2", "IO3", "IO18", "IO24"), bom=None) == []

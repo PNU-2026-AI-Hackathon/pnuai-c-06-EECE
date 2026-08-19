@@ -19,6 +19,8 @@ export function SummaryTiles({ summary }: { summary: CheckSummary }) {
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
       <Tile label="치명" value={summary.critical} tone="text-crit" />
       <Tile label="경고" value={summary.warning} tone="text-warn" />
+      {/* 정보는 결함이 아니다. 0 이면 타일을 만들지 않는다 — 빈 칸이 늘면 요약이 흐려진다 */}
+      {summary.info > 0 && <Tile label="정보" value={summary.info} tone="text-sub" />}
       <Tile label="해제됨" value={summary.cleared} tone="text-ok" />
       <Tile
         label="실행한 규칙"
