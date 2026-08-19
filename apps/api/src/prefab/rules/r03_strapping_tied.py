@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from ..chips import Chip
 from ..netlist.d356 import Netlist
-from ..netlist.graph import GND_PATTERN
+from ..netlist.graph import GND_PATTERN, local_name
 from ..types import Context, Evidence, Finding, Severity, Verdict
 from .r01_unusable_pin import chip_of
 
@@ -67,7 +67,7 @@ def check(ctx: Context) -> list[Finding]:
 
 def _tie_level(graph, net: str) -> str | None:
     """이 네트가 부팅 레벨을 고정하는가. `"LOW"` · `"HIGH"` · 아니면 None."""
-    if GND_PATTERN.match(net):
+    if GND_PATTERN.match(local_name(net)):
         return "LOW"
     if graph.is_power_rail(net):
         return "HIGH"

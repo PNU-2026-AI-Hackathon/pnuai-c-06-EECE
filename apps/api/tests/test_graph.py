@@ -71,3 +71,52 @@ def test_domain_unknown_when_no_rail_is_visible():
     graph = Graph(parse_text(text))
     assert not graph.domain("U9").known
     assert graph.domain("U9").basis == "unknown"
+
+
+# ── 계층 시트 경로 (A+1) ────────────────────────────────────────────
+
+
+def test_계층_경로가_붙어도_접지는_접지다():
+    """KiCad 는 계층 시트를 쓰면 네트 이름 앞에 경로를 붙인다 — `/GND`.
+
+    이름 패턴이 `^` 로 시작해서 **접지가 접지로 안 보였다.** 실제 오픈소스 보드에서
+    `/GND` 가 신호 네트로 분류되고 있었고, 그러면 그 위에 도는 규칙이 전부 흔들린다.
+    Flux 로 만든 우리 픽스처는 경로가 없어서 이 문제를 한 번도 못 만났다.
+    """
+    from prefab.netlist.graph import GND_PATTERN, local_name
+
+    for net in ("/GND", "/Sensor/GND", "GND", "GND_BUS"):
+        assert GND_PATTERN.match(local_name(net)), net
+    for net in ("/PRESENCE_3V3", "SIG"):
+        assert not GND_PATTERN.match(local_name(net)), net
+
+
+def test_공급핀이_둘_이상이면_이름_없이도_전원_레일이다():
+    """`V_LDO` 처럼 전압 토큰도 `+` 도 없는 레일이 있다. 토폴로지가 말해 준다."""
+    from prefab.netlist.d356 import parse_text
+    from prefab.netlist.graph import Graph
+    from tests._builder import board, rec
+
+    text = board(
+        rec("ANON_RAIL", "U1", "VCC", x=0.0),
+        rec("ANON_RAIL", "U2", "VDD", x=0.1),
+        rec("ANON_RAIL", "U3", "IN", x=0.2),
+        rec("SIG", "U1", "OUT", x=0.3),
+        rec("SIG", "U2", "IN", x=0.4),
+    )
+    g = Graph(parse_text(text))
+    assert g.is_power_rail("ANON_RAIL")
+    assert not g.is_power_rail("SIG")
+
+
+def test_이름이_레일_같아도_증거가_없으면_신호다():
+    """`PRESENCE_3V3` 는 이름에 전압이 있지만 센서 출력이다. 여기서 오탐이 시작된다."""
+    from prefab.netlist.d356 import parse_text
+    from prefab.netlist.graph import Graph
+    from tests._builder import board, rec
+
+    text = board(
+        rec("PRESENCE_3V3", "U2", "OUT", x=0.0),
+        rec("PRESENCE_3V3", "U1", "LP-G", x=0.1),
+    )
+    assert not Graph(parse_text(text)).is_power_rail("PRESENCE_3V3")
