@@ -94,7 +94,7 @@ def test_with_firmware_findings_match_the_expected_doc():
 def test_with_firmware_summary():
     s = _result(with_firmware=True)["summary"]
     assert (s["critical"], s["warning"]) == (4, 1)
-    assert s["rules_run"] == 4
+    assert s["rules_run"] == 5
     assert s["rules_run"] + s["rules_skipped"] == s["rules_total"]
 
 

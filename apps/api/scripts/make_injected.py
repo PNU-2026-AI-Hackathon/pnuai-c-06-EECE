@@ -163,6 +163,81 @@ CASES: list[dict] = [
 ]
 
 
+# ── R01 코드가 이 칩에서 쓸 수 없는 핀을 사용 ──
+#
+# 시연 보드(XIAO)는 스트래핑·플래시 핀을 하나도 안 뽑아서 여기 안 걸린다.
+# 그래서 맨칩 설계로 만든다 — 패드 이름이 곧 핀 이름인 경우.
+
+C6_BOM = "Reference,MPN\nU1,ESP32-C6-WROOM-1\n"
+
+
+def bare(*pins: str) -> str:
+    """맨칩 패드. 최소 4개는 있어야 칩으로 인정한다 (커넥터 오인 방지).
+
+    **각 네트에 상대 패드를 붙인다.** 패드 하나뿐인 네트는 미연결이고
+    (`Netlist.is_dangling`), 그러면 R07 이 정당하게 뜬다. 실제로 그렇게 만들었다가
+    측정에서 오탐 40%로 잡혔다 — 규칙이 아니라 픽스처가 틀렸다.
+    """
+    lines = []
+    for i, p in enumerate(pins):
+        net = f"NET_{p}"
+        lines.append(rec(net, "U1", p, x=0.1 * i))
+        lines.append(rec(net, "J1", str(i + 1), x=0.1 * i, y=0.5))
+    return board(*lines)
+
+
+def sketch(*gpios: int) -> str:
+    """배선된 핀을 **전부** 쓰는 코드.
+
+    일부만 쓰면 나머지에서 R08(배선했는데 코드가 안 씀)이 정당하게 뜬다.
+    이 케이스가 재려는 건 R01 이므로 다른 규칙이 끼어들지 않게 한다.
+    """
+    setup = "\n".join(f"  pinMode({g}, OUTPUT);" for g in gpios)
+    loop = "\n".join(f"  digitalWrite({g}, HIGH);" for g in gpios)
+    return f"void setup() {{\n{setup}\n}}\nvoid loop() {{\n{loop}\n}}\n"
+
+
+CASES += [
+    {
+        "id": "r01-flash-pin",
+        "kind": "양성",
+        "why": "코드가 GPIO24 를 쓴다. C6 에서 내장 플래시 전용이라 부팅이 실패한다",
+        "expect": ["R01"],
+        "bom": C6_BOM,
+        "firmware": sketch(2, 3, 7, 24),
+        "netlist": bare("IO2", "IO3", "IO7", "IO24"),
+    },
+    {
+        "id": "r01-strapping-pin",
+        "kind": "양성",
+        "why": "코드가 GPIO8 을 쓴다. C6 스트래핑이라 부팅 모드가 흔들릴 수 있다",
+        "expect": ["R01"],
+        "bom": C6_BOM,
+        "firmware": sketch(2, 3, 7, 8),
+        "netlist": bare("IO2", "IO3", "IO7", "IO8"),
+    },
+    {
+        "id": "r01-ordinary-pin",
+        "kind": "음성",
+        "why": "같은 모양인데 표에 없는 핀만 쓴다. 조용해야 한다",
+        "expect": [],
+        "bom": C6_BOM,
+        # GPIO9 도 C6 스트래핑이다. 표에 없는 핀만 고른다.
+        "firmware": sketch(2, 3, 7, 16),
+        "netlist": bare("IO2", "IO3", "IO7", "IO16"),
+    },
+    {
+        "id": "r01-unknown-chip",
+        "kind": "음성",
+        "why": "부품번호가 없어 칩을 모른다. 추측해서 경고하면 그게 오탐이다",
+        "expect": [],
+        "bom": "Reference,MPN\nU1,\n",
+        "firmware": sketch(2, 3, 7, 24),
+        "netlist": bare("IO2", "IO3", "IO7", "IO24"),
+    },
+]
+
+
 #: 합성이 아닌 유일한 케이스. 실제 보드이고 정답표가 문서로 고정돼 있다
 #: (`tests/fixtures/esp32-c6-presence-smart-light.EXPECTED.md`).
 #: 합성만으로 재면 "우리가 만든 상황에서만 맞다" 는 소리를 못 벗어난다.

@@ -34,7 +34,6 @@ CATALOG: tuple[RuleSpec, ...] = (
         "차별",
         Severity.CRITICAL,
         ("netlist", "firmware"),
-        "규칙 로직 미작성 — 선행 조건(펌웨어 파서·핀아웃 DB)은 들어왔다",
     ),
     RuleSpec(
         "R02",

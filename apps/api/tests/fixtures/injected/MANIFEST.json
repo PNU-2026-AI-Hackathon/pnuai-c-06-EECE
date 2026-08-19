@@ -53,6 +53,46 @@
       "facts": "r04-within-limit.facts.json"
     },
     {
+      "id": "r01-flash-pin",
+      "kind": "양성",
+      "why": "코드가 GPIO24 를 쓴다. C6 에서 내장 플래시 전용이라 부팅이 실패한다",
+      "expect": [
+        "R01"
+      ],
+      "netlist": "r01-flash-pin.d356",
+      "bom": "r01-flash-pin.bom.csv",
+      "firmware": "r01-flash-pin.firmware"
+    },
+    {
+      "id": "r01-strapping-pin",
+      "kind": "양성",
+      "why": "코드가 GPIO8 을 쓴다. C6 스트래핑이라 부팅 모드가 흔들릴 수 있다",
+      "expect": [
+        "R01"
+      ],
+      "netlist": "r01-strapping-pin.d356",
+      "bom": "r01-strapping-pin.bom.csv",
+      "firmware": "r01-strapping-pin.firmware"
+    },
+    {
+      "id": "r01-ordinary-pin",
+      "kind": "음성",
+      "why": "같은 모양인데 표에 없는 핀만 쓴다. 조용해야 한다",
+      "expect": [],
+      "netlist": "r01-ordinary-pin.d356",
+      "bom": "r01-ordinary-pin.bom.csv",
+      "firmware": "r01-ordinary-pin.firmware"
+    },
+    {
+      "id": "r01-unknown-chip",
+      "kind": "음성",
+      "why": "부품번호가 없어 칩을 모른다. 추측해서 경고하면 그게 오탐이다",
+      "expect": [],
+      "netlist": "r01-unknown-chip.d356",
+      "bom": "r01-unknown-chip.bom.csv",
+      "firmware": "r01-unknown-chip.firmware"
+    },
+    {
       "id": "real-esp32c6-presence",
       "kind": "실측",
       "why": "실제 보드 + 실제 펌웨어. 정답표는 EXPECTED.md 에 고정돼 있다",

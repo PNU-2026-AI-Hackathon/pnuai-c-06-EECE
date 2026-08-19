@@ -11,12 +11,27 @@ IPC-D-356 은 핀 이름을 4자에서 자른다. 그래서 U1 의 물리적으�
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from ..chips import MODULES, ModulePinout
 from .d356 import Netlist, Pad
 
 #: 같은 헤더 열로 볼 X 좌표 허용 오차 (inch). 0.1 inch 피치의 절반보다 작게 잡는다.
+#: 맨칩 패드 이름에서 GPIO 번호를 읽는다.
+#:
+#: 모듈 보드는 헤더 실크(`D5`)로 나오지만 **맨칩 설계는 패드 이름이 곧 핀 이름**이다.
+#: KiCad 의 ESP32 심볼은 `IO24` 처럼 낸다. IPC-D-356 핀 이름은 4자에서 잘리는데
+#: `IO24` 는 정확히 4자라 살아남는다.
+#:
+#: 이게 없으면 R01·R02·R03 이 **영원히 못 뜬다** — 우리가 아는 모듈(XIAO)이
+#: 스트래핑·플래시 핀을 하나도 안 뽑아놨기 때문이다. 규칙 로직이 아니라
+#: 핀 해석 범위가 막힌 곳이었다.
+BARE_PAD_PATTERN = re.compile(r"^(?:IO|GPIO)(\d{1,2})$", re.I)
+
+#: 맨칩으로 인정할 최소 IO 패드 수. 커넥터의 `IO1` 하나를 칩으로 오인하지 않는다.
+MIN_BARE_IO_PADS = 4
+
 COLUMN_TOL_INCH = 0.02
 
 #: 헤더 열로 인정할 최소 패드 수. 두세 개짜리 우연한 정렬을 걸러낸다.
@@ -144,11 +159,36 @@ def resolve(netlist: Netlist) -> PinMap:
     matched: "dict[str, str]" = {}
 
     for ref, pads in pads_by_ref.items():
+        hit = False
         for module in MODULES.values():
             found = _match_part(ref, pads, module)
             if found:
                 identities.extend(found)
                 matched[ref] = module.id
+                hit = True
                 break
+        if not hit:
+            identities.extend(_bare_chip(ref, pads))
 
     return PinMap(identities, matched)
+
+
+def _bare_chip(ref: str, pads: "list[Pad]") -> "list[PadIdentity]":
+    """패드 이름이 곧 핀 이름인 맨칩 설계에서 GPIO 를 읽는다.
+
+    모듈로 못 알아본 부품에만 시도한다. 어느 칩인지는 **여기서 정하지 않는다** —
+    패드 이름은 GPIO 번호만 말해 주고, 그 번호가 스트래핑인지 플래시인지는
+    칩마다 다르다. 칩은 BOM 의 부품번호로 규칙이 정한다.
+    """
+    found: "list[PadIdentity]" = []
+    for pad in pads:
+        m = BARE_PAD_PATTERN.match(pad.pin.strip())
+        if m:
+            found.append(
+                PadIdentity(
+                    ref=ref, pin=pad.pin, x=pad.x, y=pad.y,
+                    silk=pad.pin, gpio=int(m.group(1)), module="",
+                )
+            )
+    # 커넥터에 `IO1` 하나 붙은 것을 칩으로 오인하면 그 뒤가 전부 오탐이다.
+    return found if len(found) >= MIN_BARE_IO_PADS else []
