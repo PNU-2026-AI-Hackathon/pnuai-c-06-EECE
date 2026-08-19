@@ -30,13 +30,13 @@ NEEDS = ["netlist", "firmware"]
 def check(ctx: Context) -> list[Finding]:
     """순수 함수. 네트워크·LLM·파일 IO·시간·난수 금지."""
     pinmap = getattr(ctx.netlist, "pinmap", None)
-    chip = _chip_of(pinmap, ctx.bom)
+    chip = chip_of(pinmap, ctx.bom)
     if chip is None:
         return []  # 어느 칩인지 모르면 못 쓰는 핀도 모른다
 
     findings: list[Finding] = []
     for use in ctx.firmware.pins:
-        gpio = _gpio_of(use, pinmap)
+        gpio = gpio_of(use, pinmap)
         if gpio is None:
             continue  # 실크를 GPIO 로 못 풀면 표와 대조할 수 없다
         verdict = _judge(chip, gpio, use)
@@ -45,7 +45,7 @@ def check(ctx: Context) -> list[Finding]:
     return findings
 
 
-def _gpio_of(use, pinmap) -> int | None:
+def gpio_of(use, pinmap) -> int | None:
     """실크 라벨을 GPIO 번호로 푼다.
 
     펌웨어는 보드 실크(`D5`)를 부르고 칩 표는 GPIO 번호를 쓴다. 그 사이를 잇는 것이
@@ -60,7 +60,7 @@ def _gpio_of(use, pinmap) -> int | None:
     return found.gpio if found else None
 
 
-def _chip_of(pinmap, bom) -> Chip | None:
+def chip_of(pinmap, bom) -> Chip | None:
     """어느 칩인지 정한다. 모듈 매칭이 먼저, 없으면 BOM 부품번호.
 
     모듈 보드는 핀아웃 매칭이 칩까지 말해 준다. **맨칩 설계는 그게 없어서**

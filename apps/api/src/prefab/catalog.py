@@ -62,9 +62,12 @@ CATALOG: tuple[RuleSpec, ...] = (
         "R05",
         "이 칩이 지원하지 않는 주변장치 조합",
         "차별",
-        Severity.WARNING,
-        ("firmware",),
-        "규칙 로직 미작성 — firmware/arduino.py 는 있다. 무엇을 잡을지 정의부터 필요",
+        # 칩 표는 ESP32 의 ADC2+WiFi 를 CRITICAL 로 규정한다. C6 의 ADC∩스트래핑은
+        # WARNING 이다. 카탈로그에는 더 무거운 쪽을 적는다.
+        Severity.CRITICAL,
+        # 펌웨어만으로는 안 된다 — 어느 칩인지 알아야 조합을 판정할 수 있고,
+        # 칩은 넷리스트의 모듈 매칭이나 BOM 부품번호로 정한다.
+        ("netlist", "firmware"),
     ),
     RuleSpec(
         "R07",

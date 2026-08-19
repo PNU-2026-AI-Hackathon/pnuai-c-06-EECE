@@ -34,6 +34,9 @@ PIN_ARGUMENT: dict[str, int] = {
 }
 
 #: 그 함수를 쓴다는 것 자체가 방향을 말해 주는 경우
+#: `#include <WiFi.h>` 또는 `#include "x.h"`.
+INCLUDE_PATTERN = re.compile(r'^\s*#\s*include\s*[<"]([^>"]+)[>"]', re.M)
+
 DIRECTION_BY_FUNCTION: dict[str, str] = {
     "digitalWrite": "output",
     "analogWrite": "output",
@@ -193,6 +196,19 @@ class Firmware:
     pins: tuple[PinUse, ...] = ()
     #: 상수까지 따라갔는데도 값을 확정 못 한 자리. 숨기지 않고 들고 다닌다.
     unresolved: tuple[Unreadable, ...] = ()
+    #: `#include <X.h>` 로 끌어온 헤더 이름 (소문자, `.h` 없이).
+    #: 칩이 지원하지 않는 **조합**을 보려면 어떤 주변장치를 쓰는지 알아야 한다 (R05).
+    includes: tuple[str, ...] = ()
+
+    @property
+    def uses_wifi(self) -> bool:
+        """WiFi 를 쓰는가. ESP32 구형에서 ADC2 와 동시에 못 쓴다.
+
+        헤더 이름만 본다. `WiFi.begin()` 호출까지 따라가지 않는 이유는,
+        헤더를 넣고 안 쓰는 코드보다 **쓰면서 헤더가 없는 코드가 없기** 때문이다.
+        놓치는 쪽보다 넉넉히 잡는 쪽이 안전하다.
+        """
+        return any(h in ("wifi", "esp_wifi", "wifimulti", "wificlient") for h in self.includes)
 
     @property
     def unresolved_summary(self) -> str:
@@ -436,4 +452,15 @@ def analyze(sources: "dict[str, str]") -> Firmware:
         total_lines=sum(len(s.splitlines()) for s in sources.values()),
         pins=pins,
         unresolved=tuple(unresolved),
+        includes=_includes(sources.values()),
     )
+
+
+def _includes(sources) -> tuple[str, ...]:
+    """`#include <WiFi.h>` · `#include "Adafruit_X.h"` 에서 헤더 이름을 뽑는다."""
+    found: set[str] = set()
+    for text in sources:
+        for match in INCLUDE_PATTERN.finditer(text):
+            name = match.group(1).rsplit("/", 1)[-1]
+            found.add(name.removesuffix(".h").removesuffix(".hpp").lower())
+    return tuple(sorted(found))

@@ -11,6 +11,7 @@ from types import ModuleType
 from . import (
     r01_unusable_pin,
     r04_input_overvoltage,
+    r05_unsupported_combo,
     r07_pin_not_connected,
     r08_connected_but_unused,
     r11_net_name_domain,
@@ -21,6 +22,7 @@ from . import (
 MODULES: tuple[ModuleType, ...] = (
     r01_unusable_pin,
     r04_input_overvoltage,
+    r05_unsupported_combo,
     r07_pin_not_connected,
     r08_connected_but_unused,
     r11_net_name_domain,

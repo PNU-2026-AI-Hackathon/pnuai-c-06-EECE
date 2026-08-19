@@ -101,7 +101,7 @@ def test_firmware_zip_runs_the_differentiating_rules():
         firmware_filename="src.zip",
         firmware_bytes=_firmware_zip(),
     )
-    assert result["summary"]["rules_run"] == 5
+    assert result["summary"]["rules_run"] == 6
     assert (result["summary"]["critical"], result["summary"]["warning"]) == (4, 1)
     assert result["pipeline"][2]["status"] == "done"
     assert result["inputs"]["firmware"]["filename"] == "src.zip"

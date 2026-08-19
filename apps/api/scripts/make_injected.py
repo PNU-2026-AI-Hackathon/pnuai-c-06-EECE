@@ -238,6 +238,60 @@ CASES += [
 ]
 
 
+# ── R05 이 칩이 지원하지 않는 주변장치 조합 ──
+
+ESP32_BOM = "Reference,MPN\nU1,ESP32-D0WD-V3\n"
+
+
+def analog(*gpios: int, wifi: bool = False) -> str:
+    """배선된 핀을 전부 아날로그로 읽는 코드."""
+    head = "#include <WiFi.h>\n" if wifi else ""
+    body = "\n".join(f"  analogRead({g});" for g in gpios)
+    return f"{head}void setup() {{}}\nvoid loop() {{\n{body}\n}}\n"
+
+
+CASES += [
+    {
+        "id": "r05-adc2-with-wifi",
+        "kind": "양성",
+        "why": "구형 ESP32 에서 ADC2(GPIO25)와 WiFi 를 같이 쓴다. 읽기가 실패한다",
+        "expect": ["R05"],
+        "bom": ESP32_BOM,
+        "firmware": analog(25, 32, 16, 17, wifi=True),
+        "netlist": bare("IO25", "IO32", "IO16", "IO17"),
+    },
+    {
+        "id": "r05-adc2-without-wifi",
+        "kind": "음성",
+        "why": "같은 핀인데 WiFi 를 안 쓴다. 핀만 보고 경고하면 오탐이다",
+        "expect": [],
+        "bom": ESP32_BOM,
+        "firmware": analog(25, 32, 16, 17),
+        "netlist": bare("IO25", "IO32", "IO16", "IO17"),
+    },
+    {
+        "id": "r05-adc-strapping-overlap",
+        "kind": "양성",
+        "why": "C6 의 GPIO4 는 ADC 채널이면서 스트래핑이다. 부팅이 흔들릴 수 있다",
+        # R01 도 같이 뜬다 — GPIO4 는 스트래핑 핀이니 둘 다 사실이다.
+        # dedup 은 네트 단위라 핀 단위 발견(net=None)은 안 묶인다. 열린 항목이다.
+        "expect": ["R01", "R05"],
+        "bom": C6_BOM,
+        "firmware": analog(4, 2, 16, 17),
+        "netlist": bare("IO4", "IO2", "IO16", "IO17"),
+    },
+    {
+        "id": "r05-adc-no-overlap",
+        "kind": "음성",
+        "why": "같은 모양인데 겹치지 않는 ADC 채널만 쓴다",
+        "expect": [],
+        "bom": C6_BOM,
+        "firmware": analog(2, 3, 16, 17),
+        "netlist": bare("IO2", "IO3", "IO16", "IO17"),
+    },
+]
+
+
 #: 합성이 아닌 유일한 케이스. 실제 보드이고 정답표가 문서로 고정돼 있다
 #: (`tests/fixtures/esp32-c6-presence-smart-light.EXPECTED.md`).
 #: 합성만으로 재면 "우리가 만든 상황에서만 맞다" 는 소리를 못 벗어난다.

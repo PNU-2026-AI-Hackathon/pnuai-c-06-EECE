@@ -93,6 +93,47 @@
       "firmware": "r01-unknown-chip.firmware"
     },
     {
+      "id": "r05-adc2-with-wifi",
+      "kind": "양성",
+      "why": "구형 ESP32 에서 ADC2(GPIO25)와 WiFi 를 같이 쓴다. 읽기가 실패한다",
+      "expect": [
+        "R05"
+      ],
+      "netlist": "r05-adc2-with-wifi.d356",
+      "bom": "r05-adc2-with-wifi.bom.csv",
+      "firmware": "r05-adc2-with-wifi.firmware"
+    },
+    {
+      "id": "r05-adc2-without-wifi",
+      "kind": "음성",
+      "why": "같은 핀인데 WiFi 를 안 쓴다. 핀만 보고 경고하면 오탐이다",
+      "expect": [],
+      "netlist": "r05-adc2-without-wifi.d356",
+      "bom": "r05-adc2-without-wifi.bom.csv",
+      "firmware": "r05-adc2-without-wifi.firmware"
+    },
+    {
+      "id": "r05-adc-strapping-overlap",
+      "kind": "양성",
+      "why": "C6 의 GPIO4 는 ADC 채널이면서 스트래핑이다. 부팅이 흔들릴 수 있다",
+      "expect": [
+        "R01",
+        "R05"
+      ],
+      "netlist": "r05-adc-strapping-overlap.d356",
+      "bom": "r05-adc-strapping-overlap.bom.csv",
+      "firmware": "r05-adc-strapping-overlap.firmware"
+    },
+    {
+      "id": "r05-adc-no-overlap",
+      "kind": "음성",
+      "why": "같은 모양인데 겹치지 않는 ADC 채널만 쓴다",
+      "expect": [],
+      "netlist": "r05-adc-no-overlap.d356",
+      "bom": "r05-adc-no-overlap.bom.csv",
+      "firmware": "r05-adc-no-overlap.firmware"
+    },
+    {
       "id": "real-esp32c6-presence",
       "kind": "실측",
       "why": "실제 보드 + 실제 펌웨어. 정답표는 EXPECTED.md 에 고정돼 있다",
