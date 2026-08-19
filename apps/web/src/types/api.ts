@@ -32,12 +32,17 @@ export interface FirmwareEvidence {
   highlight?: string[];
 }
 
-/** 부품 데이터시트에서 읽은 근거 */
+/**
+ * 부품 데이터시트에서 읽은 근거.
+ *
+ * `page`가 `null`이면 **실측이 근거인 경우**다 — 데이터시트가 없거나 그 항목을
+ * 안 싣는 부품을 직접 재서 얻은 값. 없는 쪽 번호를 지어내지 않기 위해 비운다.
+ */
 export interface DatasheetEvidence {
   kind: "datasheet";
   mpn: string;
   table: string;
-  page: number;
+  page: number | null;
   quote: string;
   highlight?: string[];
 }

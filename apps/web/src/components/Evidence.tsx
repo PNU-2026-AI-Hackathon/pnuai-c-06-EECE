@@ -71,8 +71,9 @@ export function EvidenceBlock({ evidence }: { evidence: Evidence }) {
   return (
     <Frame label={evidence.mpn}>
       <Excerpt>{marked(evidence.quote, evidence.highlight)}</Excerpt>
+      {/* 실측이면 쪽 번호가 없다. 지어내지 않고 표 이름만 적는다 */}
       <p className="mt-1.5 text-[12px] text-mute">
-        {evidence.table} · p.{evidence.page}
+        {evidence.page !== null ? `${evidence.table} · p.${evidence.page}` : evidence.table}
       </p>
     </Frame>
   );

@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Iterable, Iterator
 
-from .facts import CHIP_INHERITED, CONF_NONE, TIER_UNOFFICIAL, Fact, FactSet
+from .facts import CHIP_INHERITED, CONF_NONE, TIER_MEASURED, TIER_UNOFFICIAL, Fact, FactSet
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS part_facts (
@@ -176,7 +176,9 @@ class FactStore:
 
         거절 규칙 두 가지다.
 
-        - **값이 있는데 `page` 나 `quote` 가 없으면 거절한다.** 출처 없는 값은 값이 아니다.
+        - **값이 있는데 출처가 없으면 거절한다.** 출처 없는 값은 값이 아니다.
+          데이터시트면 `page` + `quote`, **실측(`source_tier: measured`)이면 `quote`** 다.
+          측정도 출처다 — 쪽 번호 대신 무엇을 어떻게 쟀는지가 그 자리를 채운다.
         - **값이 없는데 `reason` 이 없으면 거절한다.** "모른다"는 왜 모르는지까지 말해야 한다.
 
         `value: null` 자체는 거절 사유가 아니다. 찾아봤지만 없더라는 것도 사실이고,
@@ -204,9 +206,12 @@ class FactStore:
             quote = raw.get("quote")
             reason = raw.get("reason")
 
-            if value is not None and not (page and quote):
+            measured = tier == TIER_MEASURED
+            has_source = bool(quote) if measured else bool(page and quote)
+            if value is not None and not has_source:
+                want = "quote(측정 기록)" if measured else "page·quote"
                 report.rejected.append(
-                    Rejected(mpn, name, "값은 있는데 출처(page·quote)가 없다")
+                    Rejected(mpn, name, f"값은 있는데 출처({want})가 없다")
                 )
                 continue
             if value is None and not reason:

@@ -169,6 +169,7 @@ GET    /healthz                헬스체크
 | `tier` | `기본` \| `차별` |
 | `evidence[].kind` | `netlist` \| `firmware` \| `datasheet` |
 | `evidence[].line` | `firmware` 근거의 줄 번호. **부재가 근거면 `null`** (아래) |
+| `evidence[].page` | `datasheet` 근거의 쪽 번호. **실측이 근거면 `null`** (아래) |
 | `unresolved_reason` | 없으면 `null` |
 
 > ### 부재도 근거다 — `firmware` 근거의 `line: null`
@@ -183,6 +184,19 @@ GET    /healthz                헬스체크
 > ```
 >
 > **없는 줄 번호를 지어내지 않는다.** `line: 1` 같은 값을 채우면 사용자가 그 줄을 열어본다.
+
+> ### 실측도 근거다 — `datasheet` 근거의 `page: null`
+> 데이터시트가 없거나 그 항목을 안 싣는 부품이 있다. 그때 남는 길이 **실물을 재는 것**이다.
+> 측정도 출처지만 쪽 번호가 없다. `page` 를 비우고 `table` 에 무엇을 어떻게 쟀는지,
+> `quote` 에 측정 기록을 그대로 적는다. 화면은 이때 `표 · p.N` 대신 `표`만 표시한다.
+>
+> ```json
+> { "kind": "datasheet", "mpn": "JQC-3FF-S-Z", "page": null,
+>   "table": "IN↔VCC 저항 측정 (2026-08-19 · 한지양)",
+>   "quote": "20kΩ 및 2MΩ 범위로 측정했는데 모두 OL(1.)이 나왔습니다." }
+> ```
+>
+> **없는 쪽 번호를 지어내지 않는다.** `page: 0` 을 넣으면 화면에 `p.0` 이 뜬다.
 
 - 값이 없으면 `null`. 빈 문자열이나 `"N/A"`로 채우지 않는다.
 - `highlight`는 프론트에서 강조 표시할 토큰 목록.

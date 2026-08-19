@@ -1,0 +1,21 @@
+{
+  "mpn": "JQC-3FF-S-Z",
+  "source_url": "https://github.com/PNU-2026-AI-Hackathon/pnuai-c-06-EECE/blob/main/apps/api/tests/fixtures/NEGATIVE_CASES.md",
+  "source_tier": "measured",
+  "facts": [
+    {
+      "field": "input_pullup_to",
+      "value": "none",
+      "table": "IN↔VCC 저항 측정 (2026-08-19 · 한지양)",
+      "quote": "릴레이 모듈 단독 상태에서 IN-VCC 저항을 20kΩ 및 2MΩ 범위로 측정했는데 모두 OL(1.)이 나왔습니다. 따라서 IN-VCC 사이의 저항성 풀업은 확인되지 않았습니다.",
+      "confidence": "high",
+      "reason": "보드에서 뽑아 모듈 단독으로 쟀다. 보드에 꽂은 채로 재면 회로도의 R3(3V3 풀업)가 같이 잡혀 값이 섞인다 — 처음 측정에서 실제로 1kΩ 이 나왔고 그건 R3 였다. 저항계는 트랜지스터·다이오드 경로를 못 보므로 '저항성 풀업이 없다' 까지가 이 측정이 말하는 전부다."
+    },
+    {
+      "field": "output_type",
+      "value": null,
+      "confidence": "none",
+      "reason": "모듈 보드에 모델명이 인쇄돼 있지 않아 회로도를 못 찾았다. JQC-3FF-S-Z 는 보드에 실린 릴레이 부품 이름이고 모듈 보드 이름이 아니다 — BOM 이 그 이름으로 부르고 있어 그대로 쓴다. 옵토커플러(PC817 4핀 DIP)는 사진으로 없음을 확인했다."
+    }
+  ]
+}

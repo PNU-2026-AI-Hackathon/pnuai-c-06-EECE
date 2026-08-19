@@ -22,6 +22,10 @@ OUTPUT_TYPE = "output_type"            #: push-pull / open-drain
 IO_LEVEL = "io_level"                  #: 모듈 IO 가 도는 로직 레벨
 INPUT_PULLUP_TO = "input_pullup_to"    #: 입력 핀이 내부에서 어디로 풀업되는가
 
+#: `input_pullup_to` 가 이 값이면 **확인 결과 풀업이 없다**는 뜻이다.
+#: `value: null` 은 "모른다" 이고 이건 "없다" 다. 둘을 섞으면 모르는 것을 안다고 말하게 된다.
+NO_PULLUP = "none"
+
 #: 보드가 칩에서 물려받는 항목.
 #:
 #: 핀의 전기 특성은 **칩이 정하고 보드가 바꾸지 못한다.** GPIO 가 몇 V 를 견디는지는
@@ -66,6 +70,10 @@ CONF_LOW = "low"
 CONF_NONE = "none"
 
 #: 출처 등급. 공식이 아니면 규칙이 판정을 낮출 수 있어야 한다.
+#: 데이터시트가 아니라 **실물을 재서** 얻은 값. 쪽 번호 대신 측정 기록이 출처다.
+#: 데이터시트가 없거나 그 항목을 안 싣는 부품이 있다 — 그때 남는 길이 측정이다.
+TIER_MEASURED = "measured"
+
 TIER_OFFICIAL = "official"
 TIER_DISTRIBUTOR = "distributor"
 TIER_UNOFFICIAL = "unofficial"
@@ -92,8 +100,20 @@ class Fact:
     source_tier: str = TIER_UNOFFICIAL
 
     @property
+    def measured(self) -> bool:
+        """데이터시트가 아니라 실물을 재서 얻은 값인가."""
+        return self.source_tier == TIER_MEASURED
+
+    @property
     def has_provenance(self) -> bool:
-        """어느 표 몇 쪽에서 읽었는지 말할 수 있는가."""
+        """이 값이 어디서 왔는지 말할 수 있는가.
+
+        데이터시트면 어느 표 몇 쪽인지, **실측이면 무엇을 어떻게 쟀는지**다.
+        측정도 출처다 — 쪽 번호가 아니라 측정 기록이 그 자리를 채운다.
+        어느 쪽이든 빈손이면 값이 아니다.
+        """
+        if self.measured:
+            return bool(self.quote)
         return self.page is not None and bool(self.quote)
 
     @property
@@ -111,6 +131,8 @@ class Fact:
 
     def cite(self) -> str:
         """사용자에게 보여줄 출처 한 줄."""
+        if self.measured:
+            return " · ".join(b for b in ("실측", self.table) if b)
         bits = [b for b in (self.table, f"p.{self.page}" if self.page else None) if b]
         return " · ".join(bits) or "출처 없음"
 
