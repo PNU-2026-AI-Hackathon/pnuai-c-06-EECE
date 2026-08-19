@@ -92,7 +92,7 @@ class Evidence:
         cls,
         mpn: str,
         table: str,
-        page: int,
+        page: int | None,
         quote: str,
         highlight: tuple[str, ...] | list[str] = (),
     ) -> "Evidence":

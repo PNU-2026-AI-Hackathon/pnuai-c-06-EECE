@@ -42,9 +42,21 @@ class Answer:
         return self.fact is not None
 
     def evidence(self) -> Evidence | None:
-        """화면에 붙일 출처. 사실이 없으면 붙일 것도 없다."""
+        """화면에 붙일 출처. 사실이 없으면 붙일 것도 없다.
+
+        실측에는 쪽 번호가 없다. 그래도 인용문(측정 기록)은 있으므로 그대로 보여준다 —
+        사용자가 "그래서 뭘 근거로 지웠나"를 물을 때 답할 것이 있어야 한다.
+        """
         f = self.fact
-        if f is None or f.page is None or not f.quote:
+        if f is None or not f.quote:
+            return None
+        if f.measured:
+            # 실측에는 쪽 번호가 없다. 0 을 넣으면 화면에 "p.0" 이 뜬다 —
+            # 없는 줄 번호를 지어내지 않는 것과 같은 이유로 비운다.
+            return Evidence.datasheet(
+                mpn=f.mpn, table=f.table or "실측", page=None, quote=f.quote
+            )
+        if f.page is None:
             return None
         return Evidence.datasheet(
             mpn=f.mpn, table=f.table or "", page=f.page, quote=f.quote

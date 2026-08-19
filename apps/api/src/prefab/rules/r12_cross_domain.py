@@ -21,10 +21,10 @@ from ..netlist.graph import (
     Graph,
     format_volts,
 )
-from ..datasheet.facts import label
+from ..datasheet.facts import INPUT_PULLUP_TO, NO_PULLUP, label
 from ..text import eun, gwa, i_ga
 from ..types import Context, Evidence, Finding, Severity, Verdict
-from ._clearance import Answer, ask_output_bound, number
+from ._clearance import Answer, ask, ask_output_bound, number
 
 RULE_ID = "R12"
 TITLE = "상위 전원 도메인이 하위를 직결"
@@ -60,6 +60,15 @@ def check(ctx: Context) -> list[Finding]:
         # 넷리스트에는 핀 방향이 없다. Voh 는 구동하는 쪽에나 물어볼 값이라,
         # 방향을 모르면 Voh 를 알아도 그걸로 해제하면 안 된다 (CLAUDE.md 2-2).
         sure = graph.domain(hi).confidence == CONFIDENCE_HIGH
+
+        # 방향을 모를 때는 Voh 를 물어봐야 소용이 없다. 대신 **다른 질문**이 남는다 —
+        # "그 핀에서 상위 레일로 가는 길이 있는가". 내부 풀업이 없으면 그 부품은
+        # 이 네트에 자기 레일을 올릴 수 없다. 측정 한 번으로 답이 나오는 질문이다.
+        pullup = ask(ctx, hi, INPUT_PULLUP_TO, what="입력 핀의 내부 풀업")
+        if not sure and _no_path_up(pullup):
+            findings.append(_cleared_by_pullup(graph, net, hi, lo, hi_v, lo_v, pullup))
+            continue
+
         answer = ask_output_bound(
             ctx, hi,
             resolve=sure,
@@ -68,6 +77,55 @@ def check(ctx: Context) -> list[Finding]:
         findings.append(_finding(graph, net, hi, lo, hi_v, lo_v, answer))
 
     return findings
+
+
+def _no_path_up(answer: Answer) -> bool:
+    """확인 결과 내부 풀업이 **없다**고 나왔는가.
+
+    `value is None` 은 "모른다" 다. 여기서 필요한 건 "없다" 이고 그건 `NO_PULLUP` 이다.
+    둘을 섞으면 모르는 것을 안다고 말하게 된다.
+    """
+    f = answer.fact
+    return f is not None and f.usable and f.value == NO_PULLUP
+
+
+def _cleared_by_pullup(graph: Graph, net, hi, lo, hi_v, lo_v, answer: Answer) -> Finding:
+    """상위 레일로 가는 길이 없다는 것이 확인된 경우. 발견을 해제한다."""
+    hi_token = graph.ref_pin(hi, net)
+    lo_token = graph.ref_pin(lo, net)
+    f = answer.fact
+
+    evidence = [
+        Evidence.netlist(
+            f"{hi_token} → {net}\n{lo_token} → {net}",
+            [hi_token, lo_token],
+        )
+    ]
+    cite = answer.evidence()
+    if cite is not None:
+        evidence.append(cite)
+
+    return Finding(
+        rule=RULE_ID,
+        title=TITLE,
+        tier=TIER,
+        severity=SEVERITY,
+        verdict=Verdict.PASS,
+        net=net,
+        claim=(
+            f"{format_volts(hi_v)}V 로 도는 {hi} 와 {format_volts(lo_v)}V 로 도는 {lo} 가 "
+            f"같은 네트에 있습니다. 다만 {hi}({answer.mpn}) 의 입력 핀에는 내부 풀업이 "
+            f"없는 것으로 확인돼, 이 핀을 통해 {format_volts(hi_v)}V 가 {lo} 로 올라올 "
+            f"경로가 없습니다."
+        ),
+        evidence=tuple(evidence),
+        suggestion=(
+            f"조치할 것이 없습니다. 근거 — {f.cite() if f else '출처 없음'}. "
+            f"다만 저항계는 트랜지스터·다이오드 경로를 못 봅니다. "
+            f"{answer.mpn} 의 회로도나 모듈 모델명을 알면 완전히 닫힙니다."
+        ),
+        unresolved_reason=None,
+    )
 
 
 def _finding(graph: Graph, net, hi, lo, hi_v, lo_v, answer: Answer) -> Finding:
