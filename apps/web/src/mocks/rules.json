@@ -9,27 +9,27 @@
         "netlist",
         "firmware"
       ],
-      "implemented": false
+      "implemented": true
     },
     {
       "id": "R02",
-      "title": "회로도가 SPI flash 핀에 연결",
+      "title": "회로도가 SPI 플래시 전용 핀에 배선",
       "tier": "기본",
       "severity": "CRITICAL",
       "needs": [
         "netlist"
       ],
-      "implemented": false
+      "implemented": true
     },
     {
       "id": "R03",
-      "title": "strapping 핀 부팅 상태 오류",
+      "title": "스트래핑 핀이 전원·접지에 직결",
       "tier": "기본",
       "severity": "WARNING",
       "needs": [
         "netlist"
       ],
-      "implemented": false
+      "implemented": true
     },
     {
       "id": "R04",
@@ -40,17 +40,18 @@
         "netlist",
         "bom"
       ],
-      "implemented": false
+      "implemented": true
     },
     {
       "id": "R05",
       "title": "이 칩이 지원하지 않는 주변장치 조합",
       "tier": "차별",
-      "severity": "WARNING",
+      "severity": "CRITICAL",
       "needs": [
+        "netlist",
         "firmware"
       ],
-      "implemented": false
+      "implemented": true
     },
     {
       "id": "R07",

@@ -10,6 +10,8 @@ from types import ModuleType
 
 from . import (
     r01_unusable_pin,
+    r02_flash_pin_wired,
+    r03_strapping_tied,
     r04_input_overvoltage,
     r05_unsupported_combo,
     r07_pin_not_connected,
@@ -21,6 +23,8 @@ from . import (
 #: 실행 순서는 규칙 ID 순. 결과 정렬은 engine 이 따로 한다.
 MODULES: tuple[ModuleType, ...] = (
     r01_unusable_pin,
+    r02_flash_pin_wired,
+    r03_strapping_tied,
     r04_input_overvoltage,
     r05_unsupported_combo,
     r07_pin_not_connected,
