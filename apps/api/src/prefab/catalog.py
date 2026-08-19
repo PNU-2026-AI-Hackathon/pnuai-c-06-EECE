@@ -58,7 +58,6 @@ CATALOG: tuple[RuleSpec, ...] = (
         "기본",
         Severity.CRITICAL,
         ("netlist", "bom"),
-        "데이터시트 파이프라인 미구현",
     ),
     RuleSpec(
         "R05",

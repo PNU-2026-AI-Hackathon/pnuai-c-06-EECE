@@ -113,7 +113,7 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
   이식 전후 JSON 이 **바이트 단위로 같다** (규칙 개수 정정분 제외)
 - IPC-D-356 파서 — 실제 보드에서 네트 8 / 부품 10 정확히 추출.
   좌표는 오프셋이 아니라 정규식 `X([+-]\d{6})Y([+-]\d{6})` 로 읽는다
-- 규칙 엔진 — R11 · R12 동작. 실제 보드에서 3건 검출
+- 규칙 엔진 — R04 · R07 · R08 · R11 · R12 동작 (5/11)
 - **데이터시트 해제 경로** (`rules/_clearance.py`) — R11 · R12 가 사실 DB 를 보고
   경고를 **해제(`PASS`)하거나 확정(`FAIL`)**한다. 비교는 결정적 코드가 한다.
   해제에는 **반드시 출처(`Evidence.datasheet`)가 붙는다.**
@@ -134,6 +134,11 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
   저장기가 두 가지를 거절한다: **값이 있는데 출처(page·quote)가 없는 것**,
   **값이 없는데 이유가 없는 것**. `value: null` + `reason` 은 정상적인 사실로 저장한다.
   `confidence: low` 는 저장은 되지만 `usable` 이 아니라 **판정에 못 쓴다**
+- **보드 → 칩 매핑** (`part_aliases` 표) — BOM 에는 보드 이름이 적히고 데이터시트는
+  칩 이름으로 나온다. 사실 파일의 `applies_to_boards` 가 그 둘을 잇는다.
+  **핀 전기 특성만 물려받는다** (`facts.CHIP_INHERITED`) — `vcc_nominal` 은 뺐다.
+  보드에는 레귤레이터가 있어서 (XIAO 는 USB 5V → 칩 3.3V) 칩 전압을 보드 전압이라고
+  하면 틀린 값으로 R11·R12 가 판정한다. 보드가 직접 가진 사실이 칩 것보다 세다
 - **사실 파일 CLI** — `python -m prefab --facts-load parts/*.json`.
   **LLM 없이 사람이 데이터시트를 읽고 채울 수 있다.** 서식과 규칙은 `parts/README.md`
 - **데이터시트 LLM 추출** (`datasheet/extract.py` · `datasheet/pdf.py`) —
@@ -217,7 +222,7 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
 | R01 | 코드가 이 칩에서 쓸 수 없는 핀을 사용 | **차별** | netlist, firmware | 미구현 |
 | R02 | 회로도가 SPI flash 핀에 연결 | 기본 | netlist | 미구현 |
 | R03 | strapping 핀 부팅 상태 오류 | 기본 | netlist | 미구현 |
-| R04 | 외부 부품 출력이 GPIO 입력 최대 정격 초과 | 기본 | netlist, bom | 미구현 |
+| R04 | 외부 부품 출력이 GPIO 입력 최대 정격 초과 | 기본 | netlist, bom | **동작** |
 | R05 | 이 칩이 지원하지 않는 주변장치 조합 | **차별** | firmware | 미구현 |
 | ~~R06~~ | ~~I2C 풀업 누락~~ | — | — | **폐기 — Flux가 이미 함. 번호 재사용 금지** |
 | R07 | 코드가 쓰는 핀이 회로도에 미연결 | **차별** | netlist, firmware | **동작** |
@@ -253,6 +258,7 @@ src/prefab/
   datasheet/extract.py  LLM 추출 + **원문 대조 검증**. 네트워크를 부르는 유일한 자리.
                         규칙은 이 파일을 import 하지 않는다
   rules/            규칙 모듈 + 레지스트리 (여기 등록되면 '구현됨')
+  rules/_clearance.py  규칙 ↔ 사실 DB 사이. 순수 함수다 (러너가 이미 읽어 왔다)
   engine.py         규칙 실행 → Finding 수집 → 정렬
   report.py         계약 응답 dict 조립 (summary · pipeline)
   runner.py         파싱 → 그래프 → 엔진. CLI 와 web 이 같이 쓴다

@@ -17,6 +17,7 @@ from prefab.datasheet.facts import (
     VCC_NOMINAL,
     VIH_MIN,
     VIL_MAX,
+    VIN_ABSOLUTE_MAX,
     VOH_MAX,
     Fact,
     FactSet,
@@ -297,3 +298,67 @@ def test_깨진_JSON은_죽지_않고_보고한다(tmp_path, capsys):
 def test_없는_파일도_죽지_않는다(tmp_path, capsys):
     code, out = _run(["--facts-load", str(tmp_path / "없다.json"), "--db", str(tmp_path / "t.db")], capsys)
     assert code == 1 and "찾지 못했" in out.err
+
+
+# ── 보드 → 칩 ──────────────────────────────────────────────────────
+
+
+def test_보드_이름으로_물어도_칩의_핀_특성이_나온다(store):
+    """BOM 에는 보드 이름이 적히고 데이터시트는 칩 이름으로 나온다.
+    `prefab-datasheet` 스킬이 경고하는 "모듈 vs 칩" 함정이다."""
+    store.save({
+        "mpn": "ESP32-C6",
+        "applies_to_boards": ["XIAO-ESP32C6"],
+        "source_tier": TIER_OFFICIAL,
+        "facts": [{"field": VIN_ABSOLUTE_MAX, "value": 3.6, "unit": "V",
+                   "table": "Table 5-1", "page": 64, "quote": "3.6 V",
+                   "confidence": CONF_HIGH}],
+    })
+    lk = store.lookup(["XIAO-ESP32C6"])
+    assert lk.hits == ["XIAO-ESP32C6"]
+    assert lk.facts.usable("XIAO-ESP32C6", VIN_ABSOLUTE_MAX).value == 3.6
+
+
+def test_공급_전압은_물려받지_않는다(store):
+    """보드에는 레귤레이터가 있다. XIAO ESP32C6 은 USB 5V 를 받아
+    칩에 3.3V 를 준다. 칩의 3.3V 를 보드 공급 전압이라고 하면 틀린 값이다."""
+    store.save({
+        "mpn": "ESP32-C6",
+        "applies_to_boards": ["XIAO-ESP32C6"],
+        "source_tier": TIER_OFFICIAL,
+        "facts": [{"field": VCC_NOMINAL, "value": 3.3, "unit": "V", "table": "T",
+                   "page": 64, "quote": "3.3", "confidence": CONF_HIGH}],
+    })
+    assert store.lookup(["XIAO-ESP32C6"]).facts.get("XIAO-ESP32C6", VCC_NOMINAL) is None
+    assert store.lookup(["ESP32-C6"]).facts.usable("ESP32-C6", VCC_NOMINAL).value == 3.3
+
+
+def test_보드가_직접_가진_사실이_더_세다(store):
+    """보드 데이터시트에 값이 있으면 그게 맞다. 칩 값이 덮으면 안 된다."""
+    store.save({"mpn": "ESP32-C6", "applies_to_boards": ["XIAO-ESP32C6"],
+                "source_tier": TIER_OFFICIAL, "facts": [
+        {"field": VIN_ABSOLUTE_MAX, "value": 3.6, "table": "T", "page": 64,
+         "quote": "칩", "confidence": CONF_HIGH}]})
+    store.save({"mpn": "XIAO-ESP32C6", "source_tier": TIER_OFFICIAL, "facts": [
+        {"field": VIN_ABSOLUTE_MAX, "value": 5.0, "table": "T", "page": 1,
+         "quote": "보드", "confidence": CONF_HIGH}]})
+    f = store.lookup(["XIAO-ESP32C6"]).facts.usable("XIAO-ESP32C6", VIN_ABSOLUTE_MAX)
+    assert f.value == 5.0 and f.quote == "보드"
+
+
+def test_물려받은_사실은_어느_칩에서_왔는지_말한다(store):
+    """화면에 '3.6V' 만 뜨면 사용자는 이게 보드 규격인 줄 안다."""
+    store.save({"mpn": "ESP32-C6", "applies_to_boards": ["XIAO-ESP32C6"],
+                "source_tier": TIER_OFFICIAL, "facts": [
+        {"field": VIN_ABSOLUTE_MAX, "value": 3.6, "table": "T", "page": 64,
+         "quote": "q", "confidence": CONF_HIGH}]})
+    f = store.lookup(["XIAO-ESP32C6"]).facts.get("XIAO-ESP32C6", VIN_ABSOLUTE_MAX)
+    assert "ESP32-C6 칩의 핀 특성" in f.reason
+    assert f.page == 64, "출처는 칩 데이터시트 그대로여야 한다"
+
+
+def test_별칭이_없으면_아무_일도_안_일어난다(store):
+    store.save({"mpn": "ESP32-C6", "source_tier": TIER_OFFICIAL, "facts": [
+        {"field": VIN_ABSOLUTE_MAX, "value": 3.6, "table": "T", "page": 64,
+         "quote": "q", "confidence": CONF_HIGH}]})
+    assert store.lookup(["XIAO-ESP32C6"]).misses == ["XIAO-ESP32C6"]
