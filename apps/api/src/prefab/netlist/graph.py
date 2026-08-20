@@ -163,6 +163,12 @@ class Graph:
         #: 패드마다 확정된 실크·GPIO. 모듈을 못 알아보면 비어 있다.
         self.pinmap: PinMap = resolve_pinmap(netlist)
         self.part_pins: "dict[str, dict[PinKey, str]]" = self._build(netlist)
+        #: 패드 → **사람이 읽는 핀 이름.** 회로도 넷리스트는 `3V3`·`VIN` 처럼 이름을
+        #: 실어 주는데, `part_pins` 의 키는 핀 **번호**라 그 이름이 버려졌다.
+        #: 그 탓에 전원 도메인 추론이 `VIN`·`3V3` 을 하나도 못 알아보고 패드 클러스터로
+        #: 떨어졌고, 5V 를 받아 3.3V 로 도는 개발보드를 **5V 부품으로 판정**했다.
+        #: 실보드 하나에서 그 하나 때문에 R12 오탐이 21건 났다.
+        self._pin_label: "dict[PinKey, str]" = self._build_labels(netlist)
         self._domains: "OrderedDict[str, Domain]" = OrderedDict()
         for ref in sorted(self.part_pins):
             if PASSIVE_REF_PATTERN.match(ref):
@@ -182,6 +188,17 @@ class Graph:
                 part_pins[pad.ref][key] = net
         return dict(part_pins)
 
+    @staticmethod
+    def _build_labels(netlist: Netlist) -> "dict[PinKey, str]":
+        """패드마다 **이름이 있으면 이름, 없으면 번호.** pinmap 과 같은 관습이다."""
+        labels: "dict[PinKey, str]" = {}
+        for pads in netlist.nets.values():
+            for pad in pads:
+                if pad.is_via:
+                    continue
+                labels[(pad.ref, pad.pin, (pad.x, pad.y))] = (pad.name or pad.pin or "").strip()
+        return labels
+
     # ------------------------------------------------------------------ 조회
 
     def domain(self, ref: str) -> Domain:
@@ -191,17 +208,21 @@ class Graph:
         return self._domains
 
     def pins_of(self, ref: str) -> "OrderedDict[str, set[str]]":
-        """핀 이름 → 그 핀이 붙은 네트들. 같은 이름의 패드가 여러 개일 수 있다."""
+        """핀 이름 → 그 핀이 붙은 네트들. 같은 이름의 패드가 여러 개일 수 있다.
+
+        **이름이 있으면 이름을 쓴다.** 번호(`16`)로 돌려주면 `3V3`·`VIN` 같은
+        전원 핀 패턴이 하나도 안 걸려서 도메인 추론이 통째로 빗나간다.
+        """
         named: "OrderedDict[str, set[str]]" = OrderedDict()
-        for (_r, pin, _coord), net in self.part_pins.get(ref, {}).items():
-            named.setdefault(pin, set()).add(net)
+        for key, net in self.part_pins.get(ref, {}).items():
+            named.setdefault(self._pin_label.get(key) or key[1], set()).add(net)
         return named
 
     def pin_on_net(self, ref: str, net: str) -> str | None:
         """부품 ref 가 네트 net 에 붙어 있는 핀 이름 (넷리스트 원본, 4자로 잘린 것)."""
-        for (_r, pin, _coord), n in self.part_pins.get(ref, {}).items():
+        for key, n in self.part_pins.get(ref, {}).items():
             if n == net:
-                return pin
+                return self._pin_label.get(key) or key[1]
         return None
 
     def display_pin(self, ref: str, net: str) -> str | None:
@@ -293,6 +314,11 @@ class Graph:
         for gx, members in self.clusters(ref).items():
             rails = [volts(n) for _p, n in members if volts(n) and not GND_PATTERN.match(local_name(n))]
             has_gnd = any(GND_PATTERN.match(local_name(n)) for _p, n in members)
+            # **레일이 둘 이상이면 어느 쪽이 IO 전압인지 모른다.** 5V 를 받아 3.3V 로
+            # 도는 모듈이 그렇다. 높은 쪽을 고르면 그 부품에서 나가는 신호 네트가
+            # 전부 오탐이 된다 — 실보드에서 21건 났다. 모르면 모른다고 한다 (헌법 2-2).
+            if len(set(rails)) > 1:
+                continue
             if rails and has_gnd:
                 return Domain(
                     max(rails),

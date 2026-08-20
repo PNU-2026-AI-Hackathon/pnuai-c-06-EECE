@@ -20,6 +20,7 @@ from . import (
     r10_schematic_moved,
     r11_net_name_domain,
     r12_cross_domain,
+    r14_pin_name_conflict,
 )
 
 #: 실행 순서는 규칙 ID 순. 결과 정렬은 engine 이 따로 한다.
@@ -35,6 +36,7 @@ MODULES: tuple[ModuleType, ...] = (
     r10_schematic_moved,
     r11_net_name_domain,
     r12_cross_domain,
+    r14_pin_name_conflict,
 )
 
 BY_ID: dict[str, ModuleType] = {m.RULE_ID: m for m in MODULES}
