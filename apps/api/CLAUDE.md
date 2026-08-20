@@ -231,6 +231,19 @@ kicad-cli sch export netlist --format kicadxml -o board.xml board.kicad_sch
   그래서 미리 뽑은 결과를 패키지에 싣고, `tests/test_samples.py` 가 매번 다시 뽑아
   대조해서 낡지 않게 막는다. 못 읽어도 서버는 그냥 뜬다 — 루트 응답에서 빠질 뿐이다
 - 실측 픽스처: `tests/fixtures/esp32-c6-presence-smart-light.d356`
+  **보드가 그 뒤에 또 바뀌었다 (8/20)** — 한지양이 mmWave 센서(U2 · HLK-LD2410C)가
+  너무 민감해서 **카메라 센서로 교체**했다. 픽스처와 `parts/hlk-ld2410c.json` 은
+  **그대로 둔다**: 픽스처는 그 시점의 실측 보드이고 골든 테스트·측정 기준선·샘플 검사가
+  전부 그 위에 서 있다. 사실 파일은 LLM 추출 → 원문 대조가 실제로 돈다는 유일한 실증이다.
+  새 회로도가 오면 **픽스처가 하나 더 생기는 것**이지 이걸 덮어쓰는 게 아니다.
+  → **MCU 도 바뀌었다 (8/20 확인).** 카메라는 **OV3660** 이고 하드웨어 담당이 보드를
+  **ESP32-S3** 로 옮겼다. OV3660 은 병렬(DVP) 카메라라 C6 로는 못 받는다 — S3 에는
+  LCD_CAM 이 있다. **`ESP32S3` 를 칩 표에 넣었다** (`docs/CHIPS.md` 「ESP32-S3」 절,
+  출처 전부 1차). 안 넣었으면 R01·R02·R03·R05·R09 다섯 개가 새 보드에서 통째로 침묵한다.
+  → **아직 못 받은 것: 새 회로도.** 하드웨어 담당이 "PCB 를 안 떠서 넷리스트가 없을 것"
+  이라고 했는데 **그 전제가 틀리다** — `kicad-cli sch export netlist` 는 `.kicad_sch`
+  하나로 돈다. PCB 가 필요 없고, 오히려 그쪽이 정보가 더 많다. 회로도를 어느 도구로
+  그리는지가 우리 입력이 있느냐 없느냐를 가른다.
 - 골든 테스트 — 3건·10부품·8네트·K1 2그룹
 - **펌웨어 소스 — 받았다.** `tests/fixtures/esp32-c6-presence-smart-light.firmware/`
   기대 발견은 `tests/fixtures/esp32-c6-presence-smart-light.EXPECTED.md` 에 고정돼 있다.

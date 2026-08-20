@@ -58,6 +58,41 @@ GPIO4·5를 아날로그 입력으로 쓰면 부팅 시점의 레벨이 부팅 �
 
 ---
 
+## ESP32-S3
+
+**2026-08-20 추가.** 한지양이 카메라 센서(OV3660)로 바꾸면서 보드를 S3 로 옮겼습니다.
+OV3660 은 병렬(DVP) 카메라라 C6 로는 못 받습니다 — S3 에는 LCD_CAM 이 있습니다.
+
+| 분류 | 핀 | 의미 |
+|---|---|---|
+| 입력 전용 | **없음** | 모든 GPIO 가 양방향 |
+| SPI 플래시 | GPIO26 ~ GPIO32 | 내장 플래시·PSRAM 전용. 다른 용도 비권장 |
+| 스트래핑 | GPIO0, 3, 45, 46 | GPIO0·46 이 부팅 모드를 정한다 |
+| ADC1 | GPIO1 ~ GPIO10 | 10채널 |
+| ADC2 | GPIO11 ~ GPIO20 | **WiFi 구동 중 사용 불가** |
+| 부팅 시 출력 | GPIO43 | U0TXD. 부트 ROM 로그가 **115200bps** 로 나간다 |
+
+> **옥타 플래시 핀 GPIO33~37 은 일부러 뺐습니다.**
+> ESP-IDF 는 "Octal flash 또는 PSRAM 을 쓰면 GPIO33~37 이 SPIIO4~SPIIO7·SPIDQS 에
+> 연결되어 다른 용도로 권장되지 않는다" 고 적습니다 — **일부 보드에만 해당합니다.**
+> 표에 넣으면 쿼드 플래시 보드에서 R02 가 오탐을 냅니다 (헌법 2-3).
+> 보드가 옥타인지 확인되면 그때 넣습니다.
+
+> **S3 의 부팅 시 출력 목록도 GPIO43 하나뿐입니다** — C6 와 같은 이유입니다.
+> 구형 ESP32 처럼 부팅 때 PWM 이 나오는 핀 목록을 공식 문서에서 찾지 못했습니다.
+> **"그런 핀이 없다"가 아니라 "아직 못 찾았다"** 입니다.
+
+### S3에서 주의할 겹침
+
+1. **ADC2(GPIO11~20)와 USB-JTAG(GPIO19, 20)이 겹칩니다.**
+   ESP-IDF 는 GPIO19·20 이 기본으로 USB-JTAG 에 쓰이고 다시 설정하면 그 기능이
+   꺼진다고 적습니다. **아직 코드 표에는 안 넣었습니다** — `Chip` 에 USB 핀 항목이
+   없습니다. 넣으려면 C6(GPIO12·13)와 구형 ESP32 도 같이 채워야 합니다.
+2. **스트래핑 GPIO3 이 ADC1 채널과 겹칩니다.** GPIO3 을 아날로그 입력으로 쓰면
+   부팅 시점 레벨이 부팅 모드에 영향을 줄 수 있습니다.
+
+---
+
 ## 규칙이 칩별로 어떻게 갈리나
 
 | 규칙 | ESP32 (구형) | ESP32-C6 |
@@ -202,5 +237,16 @@ X 좌표 클러스터링이 실제로 제어부/스위치부를 갈라낸다는 
   [ESP32 Pinout Reference — Random Nerd Tutorials](https://randomnerdtutorials.com/esp32-pinout-reference-gpios/)
   (2차 출처입니다. **1차 출처로 교체해 주세요** — 하드웨어 담당 검수 항목)
 - [XIAO ESP32C6 핀아웃 — Seeed Studio Wiki](https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/)
+
+**ESP32-S3** (2026-08-20 확인, 전부 1차 출처):
+- [GPIO & RTC GPIO — ESP32-S3, ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/peripherals/gpio.html)
+  — 스트래핑 GPIO0·3·45·46 · SPI 플래시 GPIO26~32 · 옥타 GPIO33~37 · 입력 전용 없음 · USB-JTAG GPIO19·20
+- [Boot Mode Selection — ESP32-S3, esptool](https://docs.espressif.com/projects/esptool/en/latest/esp32s3/advanced-topics/boot-mode-selection.html)
+  — GPIO0 Low 로 시리얼 부트로더 진입 · GPIO46 은 floating 또는 Low · ROM 로그 115200bps
+- [ESP32-S3 Datasheet — Espressif](https://documentation.espressif.com/esp32-s3_datasheet_en.html) — U0TXD = GPIO43
+- [adc_channel.h — esp-idf/components/soc/esp32s3](https://github.com/espressif/esp-idf/blob/release/v5.3/components/soc/esp32s3/include/soc/adc_channel.h)
+  — ADC1 = GPIO1~10 · ADC2 = GPIO11~20 (헤더 정의를 그대로 읽었습니다)
+- [ADC Oneshot — ESP32-S3, ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/peripherals/adc/adc_oneshot.html)
+  — "ADC2 is also used by Wi-Fi"
 
 표를 고칠 때는 **근거 링크를 함께 남깁니다.** 출처 없는 핀 번호는 규칙에 넣지 않습니다.

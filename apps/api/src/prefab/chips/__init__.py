@@ -64,7 +64,23 @@ ESP32C6 = Chip(
     boot_log_tx=16,
 )
 
-CHIPS: dict[str, Chip] = {c.id: c for c in (ESP32, ESP32C6)}
+ESP32S3 = Chip(
+    id="esp32s3",
+    name="ESP32-S3",
+    input_only=(),  # S3 는 입력 전용 핀이 없다 — 모든 GPIO 가 양방향
+    # 내장 플래시·PSRAM 전용. **옥타 플래시 핀 GPIO33~37 은 일부러 뺐다** —
+    # 옥타를 쓰는 보드에만 해당하는데, 표에 넣으면 쿼드 보드에서 R02 가 오탐을 낸다.
+    spi_flash=tuple(range(26, 33)),
+    strapping=(0, 3, 45, 46),
+    adc1=tuple(range(1, 11)),
+    adc2=tuple(range(11, 21)),  # WiFi 구동 중 사용 불가
+    # C6 와 같다 — U0TXD(GPIO43)만 출처가 확실하다. 부팅 글리치 핀 목록은
+    # 공식 문서에서 못 찾았다. **없어서 비운 게 아니라 못 찾아서 비웠다.**
+    boot_output=(43,),
+    boot_log_tx=43,
+)
+
+CHIPS: dict[str, Chip] = {c.id: c for c in (ESP32, ESP32C6, ESP32S3)}
 
 
 # --------------------------------------------------------------------- 모듈
