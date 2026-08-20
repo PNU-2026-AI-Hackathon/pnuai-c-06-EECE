@@ -210,3 +210,68 @@ def test_negative_usb_pin_name_from_schematic_netlist():
     assert "USB_D-" not in nets, "USB 데이터 핀은 코드가 안 만지는 것이 정상이다"
     # 나머지는 그대로 잡아야 한다 — 억제가 규칙 전체를 죽이면 안 된다
     assert nets == {"EXTI", "ADC", "BTN"}
+
+
+def test_negative_chip_table_knows_usb_pins_without_connector_names():
+    """**커넥터가 핀 이름을 안 밝혀도** 칩 표가 알면 억제된다.
+
+    앞의 테스트들은 상대편이 `D-` 라고 스스로 밝히는 경우다. 그런데 커넥터를
+    범용 심볼(`Pin_1`)로 그리면 그 이름이 없다 — 실측한 저장소 하나가 그랬다.
+    칩을 알면 그 경우에도 안다: ESP32-S3 의 GPIO19·20 은 USB Serial/JTAG 다.
+    """
+    from prefab.netlist.kicadxml import parse_text as parse_xml
+
+    xml = """<?xml version="1.0"?><export version="E">
+  <components>
+    <comp ref="U1"><value>ESP32-S3</value>
+      <fields><field name="MPN">ESP32-S3-WROOM-1</field></fields></comp>
+    <comp ref="J1"><value>Conn_01x04</value></comp>
+  </components>
+  <nets>
+    <net code="1" name="N1"><node ref="U1" pin="20" pinfunction="GPIO19_20"/>
+      <node ref="J1" pin="1" pinfunction="Pin_1_1"/></net>
+    <net code="2" name="N2"><node ref="U1" pin="21" pinfunction="GPIO20_21"/>
+      <node ref="J1" pin="2" pinfunction="Pin_2_2"/></net>
+    <net code="3" name="SENSE"><node ref="U1" pin="5" pinfunction="GPIO4_5"/>
+      <node ref="J1" pin="3" pinfunction="Pin_3_3"/></net>
+    <net code="4" name="LED"><node ref="U1" pin="6" pinfunction="GPIO5_6"/>
+      <node ref="J1" pin="4" pinfunction="Pin_4_4"/></net>
+  </nets></export>"""
+    graph = Graph(parse_xml(xml))
+    findings = r08.check(
+        Context(netlist=graph, firmware=analyze_firmware({"a.ino": "void setup(){}"}))
+    )
+
+    nets = {f.net for f in findings}
+    # 커넥터는 `Pin_1` 이라고만 말한다. 칩 표가 아니면 못 걸러낸다
+    assert nets == {"SENSE", "LED"}, nets
+
+
+def test_positive_usb_suppression_needs_the_right_chip():
+    """구형 ESP32 에는 내장 USB 가 없다. GPIO19·20 은 평범한 핀이다.
+
+    칩을 안 가리고 번호만 보면 여기서 미탐이 난다.
+    """
+    from prefab.netlist.kicadxml import parse_text as parse_xml
+
+    xml = """<?xml version="1.0"?><export version="E">
+  <components>
+    <comp ref="U1"><value>ESP32</value>
+      <fields><field name="MPN">ESP32-WROOM-32</field></fields></comp>
+    <comp ref="J1"><value>Conn_01x04</value></comp>
+  </components>
+  <nets>
+    <net code="1" name="N1"><node ref="U1" pin="20" pinfunction="GPIO19_20"/>
+      <node ref="J1" pin="1" pinfunction="Pin_1_1"/></net>
+    <net code="2" name="N2"><node ref="U1" pin="21" pinfunction="GPIO21_21"/>
+      <node ref="J1" pin="2" pinfunction="Pin_2_2"/></net>
+    <net code="3" name="N3"><node ref="U1" pin="23" pinfunction="GPIO22_23"/>
+      <node ref="J1" pin="3" pinfunction="Pin_3_3"/></net>
+    <net code="4" name="N4"><node ref="U1" pin="24" pinfunction="GPIO23_24"/>
+      <node ref="J1" pin="4" pinfunction="Pin_4_4"/></net>
+  </nets></export>"""
+    graph = Graph(parse_xml(xml))
+    findings = r08.check(
+        Context(netlist=graph, firmware=analyze_firmware({"a.ino": "void setup(){}"}))
+    )
+    assert "N1" in {f.net for f in findings}

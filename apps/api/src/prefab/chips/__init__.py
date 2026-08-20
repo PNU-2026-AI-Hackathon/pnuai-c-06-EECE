@@ -34,6 +34,12 @@ class Chip:
     #: 그중 부팅 로그(UART0 TX)가 나가는 핀. `boot_output` 의 부분집합이다.
     #: 사유 문구가 달라서 따로 둔다 — 로그는 수백 밀리초 동안 계속 토글한다.
     boot_log_tx: int | None = None
+    #: 내장 USB(Serial/JTAG)가 쓰는 데이터 핀 (D-, D+).
+    #: **코드가 `pinMode` 로 안 만지는 것이 정상이다** — 주변장치가 직접 몬다.
+    #: 만지면 오히려 USB 가 죽는다. R08 이 이 핀을 "초기화 안 함" 으로 잡으면 오탐이다.
+    #: 비어 있으면 **그 칩에 내장 USB 가 없다는 뜻**이다 (구형 ESP32 가 그렇다) —
+    #: `boot_output` 의 빈 값과 의미가 다르다. 칩마다 주석으로 밝힌다.
+    usb: tuple[int, ...] = ()
 
 
 ESP32 = Chip(
@@ -48,6 +54,7 @@ ESP32 = Chip(
     # 플래시 핀(6~11)도 부팅 때 토글하지만 그건 R02 가 배선 자체를 잡는다.
     boot_output=(0, 1, 3, 5, 14, 15),
     boot_log_tx=1,
+    usb=(),  # 구형 ESP32 에는 내장 USB 가 **없다.** 외부 USB-UART 브리지를 쓴다
 )
 
 ESP32C6 = Chip(
@@ -62,6 +69,7 @@ ESP32C6 = Chip(
     # 못 찾았다 — **없어서 비운 게 아니라 못 찾아서 비웠다.** 지어내지 않는다.
     boot_output=(16,),
     boot_log_tx=16,
+    usb=(12, 13),  # USB Serial/JTAG. ESP-IDF: "GPIO12 and GPIO13 are used by USB-JTAG by default"
 )
 
 ESP32S3 = Chip(
@@ -78,6 +86,9 @@ ESP32S3 = Chip(
     # 공식 문서에서 못 찾았다. **없어서 비운 게 아니라 못 찾아서 비웠다.**
     boot_output=(43,),
     boot_log_tx=43,
+    # USB Serial/JTAG. ESP-IDF: "GPIO19 and GPIO20 are used by USB-JTAG by default".
+    # **ADC2 채널과 겹친다** — 아날로그로 쓰면 USB 가 죽는다.
+    usb=(19, 20),
 )
 
 CHIPS: dict[str, Chip] = {c.id: c for c in (ESP32, ESP32C6, ESP32S3)}

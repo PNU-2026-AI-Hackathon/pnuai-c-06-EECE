@@ -130,8 +130,17 @@ kicad-cli sch export netlist --format kicadxml -o board.xml board.kicad_sch
   이름을 안 자르므로 14자 절단 경고를 내면 안 된다 — `Net-(U3-LNA_IN)` 은 원래 그 이름이다.
   이걸 안 갈랐다가 멀쩡한 이름 21개를 "잘렸을 수 있다"고 말할 뻔했다
 
-**아직 안 이은 것**: kicadxml 이 주는 부품번호 100% 가 사실 DB 조회로 안 들어간다.
-지금 `parts_identified` 는 여전히 BOM 만 센다.
+### 부품번호는 이제 두 길로 온다 (8/20 이음)
+
+`mpn.py` 가 **어디서 알았는지까지** 들고 다닌다 (`PartNumber.source` = `bom` | `schematic`).
+
+- **BOM 이 먼저다** — 사람이 직접 적은 것이 도구가 자동으로 채운 것보다 세다.
+  회로도는 BOM 이 없거나 BOM 이 빠뜨린 부품을 채운다
+- 사실 DB 조회(`runner._lookup_facts`) · 칩 판정(`chip_of`) · 해제 경로(`_clearance.ask`) ·
+  `parts_identified` 가 전부 이 한 자리를 본다
+- **BOM 없이 회로도만으로 데이터시트 해제가 난다** — 확인했다
+- 끊긴 자리마다 **고칠 곳을 말한다.** BOM 을 낸 사람에게 "BOM 을 내세요" 는 거짓말이고,
+  회로도로 올린 사람에게 "BOM 을 내세요" 는 유일한 길이 아니다
 
 ---
 
@@ -287,7 +296,10 @@ kicad-cli sch export netlist --format kicadxml -o board.xml board.kicad_sch
    우리 픽스처에는 USB 를 뽑아 쓰는 보드가 없어서 한 번도 안 만났다 —
    **A++1 · A++2 · GPIO16 과 같은 종류다** (도구·보드가 바뀌면 전제가 바뀐다).
    **네트 이름을 안 믿는다.** 반대쪽 핀이 스스로 밝힌 이름(`D-`)을 본다 (11절 「반대쪽을 본다」).
-   XTAL·UART 등 다른 주변장치 전용 핀은 아직 안 봤다 — `PERIPHERAL_PIN_NAMES` 에 USB 만 있다.
+   **칩 표에도 넣었다 (8/20).** `Chip.usb` — S3 는 GPIO19·20, C6 는 GPIO12·13,
+   구형 ESP32 는 **없다**(외부 브리지를 쓴다. 여기 빈 값은 "못 찾았다"가 아니다).
+   그래서 커넥터를 범용 심볼(`Pin_1`)로 그려 이름이 없어도 억제된다.
+   XTAL·UART 등 다른 주변장치 전용 핀은 아직 안 봤다.
 
 4. ~~**R12 근거 문구가 신호 방향을 단정한다.**~~ **고쳤다 (8/18).**
    도메인을 추론으로만 아는 부품에는 "직결되어 있습니다"라고만 쓰고 방향을 말하지 않는다.
@@ -337,6 +349,7 @@ kicad-cli sch export netlist --format kicadxml -o board.xml board.kicad_sch
 src/prefab/
   types.py          Finding, Severity, Verdict, Evidence, Context
   catalog.py        규칙 카탈로그 — 규칙 개수의 유일한 진실
+  mpn.py            부품번호를 어디서 아는가 (BOM · 회로도). **출처를 잃지 않는다**
   netlist/d356.py   IPC-D-356 파서 (제조용 — 핀 이름 4자 절단, 부품번호 없음)
   netlist/kicadxml.py 회로도 넷리스트 파서 (핀 이름·부품번호·데이터시트 URL 이 온다)
   netlist/detect.py 형식 감지 — 확장자가 아니라 **내용**으로 파서를 고른다
