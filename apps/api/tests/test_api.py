@@ -140,3 +140,26 @@ def test_받지_않는_확장자는_그대로_거절한다(client):
         files={"netlist": ("board.kicad_sch", b"(kicad_sch)", "text/plain")},
     )
     assert res.status_code == 415
+
+
+def test_기동_때_커밋된_부품_사실을_심는다(client):
+    """배포 이미지에는 DB 가 없다. 안 심으면 데이터시트 해제가 조용히 사라진다.
+
+    `prefab.db` 는 `.gitignore` 라서 커밋되는 진실은 `parts/*.json` 뿐이다.
+    그것으로 기동 때 다시 만들기 때문에 **영구 디스크가 필요 없다.**
+    """
+    seeded = client.get("/").json()["seeded_parts"]
+    assert seeded, "부품 사실이 하나도 안 심겼다 — 해제 경로가 죽는다"
+    assert "HLK-LD2410C" in seeded
+
+
+def test_서식_파일은_사실로_안_센다(client):
+    """`_TEMPLATE.json` 은 사람이 채우라고 둔 서식이지 부품이 아니다."""
+    assert all(not s.startswith("_") for s in client.get("/").json()["seeded_parts"])
+
+
+def test_사실_폴더가_없어도_서버는_뜬다(tmp_path, monkeypatch):
+    """사실 하나 때문에 서버가 안 뜨면 그게 훨씬 나쁘다."""
+    from web import service
+    store = service.Store(tmp_path / "t.db")
+    assert service.seed_facts(tmp_path / "없는폴더", store) == []
