@@ -231,6 +231,14 @@ kicad-cli sch export netlist --format kicadxml -o board.xml board.kicad_sch
   그래서 미리 뽑은 결과를 패키지에 싣고, `tests/test_samples.py` 가 매번 다시 뽑아
   대조해서 낡지 않게 막는다. 못 읽어도 서버는 그냥 뜬다 — 루트 응답에서 빠질 뿐이다
 - 실측 픽스처: `tests/fixtures/esp32-c6-presence-smart-light.d356`
+  **보드가 그 뒤에 또 바뀌었다 (8/20)** — 한지양이 mmWave 센서(U2 · HLK-LD2410C)가
+  너무 민감해서 **카메라 센서로 교체**했다. 픽스처와 `parts/hlk-ld2410c.json` 은
+  **그대로 둔다**: 픽스처는 그 시점의 실측 보드이고 골든 테스트·측정 기준선·샘플 검사가
+  전부 그 위에 서 있다. 사실 파일은 LLM 추출 → 원문 대조가 실제로 돈다는 유일한 실증이다.
+  새 회로도가 오면 **픽스처가 하나 더 생기는 것**이지 이걸 덮어쓰는 게 아니다.
+  → 확인해야 할 것: **XIAO ESP32-C6 에 그 카메라를 붙일 수 있는가.** C6 는 S3 와 달리
+  카메라용 병렬 인터페이스(DVP)가 없다. SPI 카메라 모듈이면 되고 DVP 모듈이면 MCU 를
+  바꿔야 한다. 어느 모듈인지 모르므로 단정하지 않는다 — **R05 가 잡아야 할 종류다.**
 - 골든 테스트 — 3건·10부품·8네트·K1 2그룹
 - **펌웨어 소스 — 받았다.** `tests/fixtures/esp32-c6-presence-smart-light.firmware/`
   기대 발견은 `tests/fixtures/esp32-c6-presence-smart-light.EXPECTED.md` 에 고정돼 있다.
