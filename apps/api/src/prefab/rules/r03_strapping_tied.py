@@ -42,7 +42,7 @@ def check(ctx: Context) -> list[Finding]:
     """순수 함수. 네트워크·LLM·파일 IO·시간·난수 금지."""
     graph = ctx.netlist
     pinmap = getattr(graph, "pinmap", None)
-    chip = chip_of(pinmap, ctx.bom)
+    chip = chip_of(ctx)
     if chip is None or not chip.strapping:
         return []  # 어느 칩인지 모르면 어느 핀이 스트래핑인지도 모른다
     if pinmap is None:

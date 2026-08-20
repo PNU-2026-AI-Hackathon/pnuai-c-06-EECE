@@ -35,7 +35,7 @@ ANALOG_READS = ("analogread", "analogreadmillivolts", "adc1_get_raw", "adc2_get_
 def check(ctx: Context) -> list[Finding]:
     """순수 함수. 네트워크·LLM·파일 IO·시간·난수 금지."""
     pinmap = getattr(ctx.netlist, "pinmap", None)
-    chip = chip_of(pinmap, ctx.bom)
+    chip = chip_of(ctx)
     if chip is None:
         return []
 

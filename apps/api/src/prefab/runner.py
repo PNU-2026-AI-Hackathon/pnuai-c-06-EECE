@@ -14,6 +14,7 @@ from .engine import EngineResult, run
 from .firmware import Firmware
 from .firmware import analyze as analyze_firmware
 from .netlist.d356 import Netlist
+from .mpn import known_mpns, part_numbers
 from .netlist.detect import parse_any
 from .netlist.graph import Graph
 from .types import Context
@@ -39,10 +40,11 @@ class Analysis:
 
     @property
     def parts_identified(self) -> int:
-        """부품번호까지 확정된 부품 수. 넷리스트에 있는 것만 센다."""
-        if self.bom is None:
-            return 0
-        return self.bom.match(set(self.netlist.parts)).identified_count
+        """부품번호까지 확정된 부품 수. 넷리스트에 있는 것만 센다.
+
+        BOM 과 회로도를 **합쳐서** 센다 — 둘 다 부품번호를 실어 올 수 있다.
+        """
+        return len(part_numbers(self.netlist, self.bom))
 
 
 def analyze(
@@ -71,7 +73,7 @@ def analyze(
     firmware = analyze_firmware(firmware_sources) if firmware_sources else None
     bom = parse_bom_bytes(bom_bytes) if bom_bytes else None
 
-    lookup = _lookup_facts(fact_store, bom)
+    lookup = _lookup_facts(fact_store, netlist, bom)
     facts: FactSet | None = None
     if lookup is not None and len(lookup.facts) > 0:
         facts = lookup.facts
@@ -93,9 +95,14 @@ def analyze(
     )
 
 
-def _lookup_facts(store: FactStore | None, bom: Bom | None) -> Lookup | None:
-    """BOM 에서 부품번호를 모아 캐시를 한 번만 두드린다."""
-    if store is None or bom is None:
+def _lookup_facts(store: FactStore | None, netlist: Netlist, bom: Bom | None) -> Lookup | None:
+    """부품번호를 모아 캐시를 한 번만 두드린다.
+
+    **BOM 만 보던 것을 회로도까지 본다.** kicadxml 로 들어온 보드는 심볼 필드에
+    부품번호가 실려 오므로, BOM 을 안 낸 사람도 데이터시트 해제를 받을 수 있다.
+    어디서 온 번호인지는 `mpn.part_numbers()` 가 들고 있다.
+    """
+    if store is None:
         return None
-    mpns = bom.mpns
+    mpns = known_mpns(netlist, bom)
     return store.lookup(mpns) if mpns else None
