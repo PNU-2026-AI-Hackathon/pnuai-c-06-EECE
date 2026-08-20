@@ -192,6 +192,38 @@ def rules_catalog() -> dict[str, Any]:
     return build_rules_catalog()
 
 
+def seed_facts(facts_dir: "Path | str", store) -> list[str]:
+    """커밋된 부품 사실 파일을 DB 에 심는다. 넣은 부품번호 목록을 돌려준다.
+
+    **왜 필요한가.** `prefab.db` 는 `.gitignore` 라서 배포 이미지에 DB 가 없다.
+    그러면 데이터시트 해제(R11·R12)가 배포된 서버에서 통째로 안 돈다 —
+    **우리 차별점이 데모에서만 사라진다.**
+
+    커밋된 진실은 `parts/*.json` 뿐이므로(CLAUDE.md 6절) 기동할 때 그것으로 다시 만든다.
+    그래서 **영구 디스크가 필요 없다** — DB 를 이미지에서 되만들 수 있다.
+
+    `seed_sample` 과 같은 규칙을 따른다: **실패해도 조용히 넘어간다.**
+    사실 하나 때문에 서버가 안 뜨면 그게 훨씬 나쁘다. 대신 무엇을 넣었는지 돌려주므로
+    부른 쪽이 그 사실을 노출할 수 있다 (헌법 2-4).
+    """
+    folder = Path(facts_dir)
+    if not folder.is_dir():
+        return []
+    loaded: list[str] = []
+    for path in sorted(folder.glob("*.json")):
+        if path.stem.startswith("_"):
+            continue                      # _TEMPLATE 은 서식이지 사실이 아니다
+        try:
+            text = path.read_text(encoding="utf-8")
+            store.save_json(text)
+            # 부품번호는 파일 안에 있다. 파일명은 소문자라 조회 키와 다르다.
+            mpn = json.loads(text).get("mpn") or path.stem
+        except Exception:  # noqa: BLE001 - 사실 하나 때문에 서버가 죽으면 안 된다
+            continue
+        loaded.append(mpn)
+    return loaded
+
+
 def seed_sample(store: "Store") -> str | None:
     """샘플 검사를 저장소에 넣는다 (F-4). 넣은 ID 또는 None.
 

@@ -59,6 +59,11 @@ SAMPLE_CHECK_ID = service.seed_sample(store)
 #: 부품 사실 DB. **checks 와 같은 파일**을 쓴다 — SQLite 한 개 (CLAUDE.md 9절).
 facts = FactStore(DB_PATH)
 
+#: 커밋된 사실 파일을 기동 때 심는다. 배포 이미지에는 DB 가 없기 때문이다 —
+#: 안 심으면 데이터시트 해제가 배포된 서버에서만 조용히 사라진다.
+#: 이 덕분에 **영구 디스크가 필요 없다.** 못 심으면 빈 목록이고, 루트 응답에 그대로 실린다.
+SEEDED_PARTS = service.seed_facts(os.getenv("PREFAB_PARTS", "parts"), facts)
+
 
 # --------------------------------------------------------------------- 오류
 
@@ -81,12 +86,14 @@ async def healthz() -> dict[str, str]:
 
 
 @app.get("/")
-async def root() -> dict[str, str]:
+async def root() -> dict:
     """서비스 안내. 계약에 없는 엔드포인트라 여기서만 샘플 ID 를 알려준다."""
     out = {"service": "prefab-api", "docs": "/docs", "contract": "/api/v1/rules"}
     if SAMPLE_CHECK_ID:
         # 프론트가 이 값을 읽어 "업로드 없이 예시 보기" 를 띄운다 (F-4).
         out["sample_check"] = f"/api/v1/checks/{SAMPLE_CHECK_ID}"
+    # 몇 개를 심었는지 그대로 싣는다. 0 이면 데이터시트 해제가 안 도는 상태다 (헌법 2-4).
+    out["seeded_parts"] = SEEDED_PARTS
     return out
 
 

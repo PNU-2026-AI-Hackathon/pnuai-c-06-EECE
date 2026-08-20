@@ -9,6 +9,8 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY web ./web
+# 커밋된 부품 사실. 이게 없으면 배포된 서버에서 데이터시트 해제가 안 돈다.
+COPY parts ./parts
 
 RUN pip install --no-cache-dir .
 
