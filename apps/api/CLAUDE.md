@@ -273,7 +273,14 @@ kicad-cli sch export netlist --format kicadxml -o board.xml board.kicad_sch
 - 음성 케이스 기준선: `tests/fixtures/NEGATIVE_CASES.md` — **경고가 뜨면 오탐인 목록**
 
 ### 없다
-- 사실을 채운 부품 — **2개** (`HLK-LD2410C` · `ESP32-C6`). `JQC-3FF-S-Z` 는 아직 없다
+- **배포된 URL 이 저장소 어디에도 기록돼 있지 않다.** 배포 설정(`railway.json` ·
+  `render.yaml`)은 있는데 실제 주소가 없다. 헌법 맨 위가 "그 전에 접속 가능한 URL이
+  있어야 한다" 인데 **아무도 그 URL 을 모른다.** 프론트 `.env.example` 도 여전히
+  `localhost:8000` 뿐이다 → `.github/workflows/deploy-check.yml` 이 이 사실을
+  매일 잡 요약에 적는다. 주소가 정해지면 저장소 변수 `API_BASE_URL` 에 넣는다
+- 사실을 채운 부품 — **3개** (`HLK-LD2410C` · `ESP32-C6` · `JQC-3FF-S-Z`).
+  `OV3660` 은 값 없이 사유만 있다 (IO 가 1.8V/2.8V 선택형 — 회로도의 DOVDD 배선을 봐야 정해진다).
+  새 보드의 `ESP32-S3` 는 아직 없다
 - C6 의 부팅 시 출력 핀 목록 — `GPIO16`(U0TXD) 하나뿐이다. 나머지는 **없어서가 아니라
   출처를 못 찾아서** 비어 있다. R09 는 표에 없는 핀에 대해 아무 말도 하지 않는다
 
@@ -296,12 +303,13 @@ kicad-cli sch export netlist --format kicadxml -o board.xml board.kicad_sch
    **좌표로 풀린다** — `docs/CHIPS.md` 모듈 핀아웃 절에 대조표가 있고 하드웨어 확정을 받았다.
    **IPC-D-356 으로 들어온 보드에만 남은 문제다** (8/19) — 회로도 넷리스트로 올리면
    핀 이름이 안 잘려서 좌표 복원 자체가 필요 없다.
-3. **R12 근거 문구가 풀다운을 "풀업" 이라고 적는다.** `graph.series_candidates()` 가
-   네트의 `R*`·`D*` 를 그대로 돌려주고, `r12_cross_domain.py` 가 그걸 무조건 "풀업"이라 쓴다.
-   **저항 반대쪽 터미널을 보지 않는다.** 판정은 맞고 문구만 틀렸다.
-   재현: `python -m prefab tests/fixtures/synthetic-divider-vs-pulldown.d356` 의 `SIG_A`
-   (저항이 `GND` 로 가는 풀다운인데 "풀업"이라고 나온다).
-   → 반대쪽이 상위 전원이면 풀업, `GND` 면 풀다운, 다른 신호면 직렬이다.
+3. ~~**R12 근거 문구가 풀다운을 "풀업" 이라고 적는다.**~~ **고쳤다 (A-1).**
+   `graph.passive_role()` 이 **반대쪽 터미널을 보고** 가른다 — 상위 전원이면 풀업,
+   `GND` 면 풀다운, 다른 신호면 직렬이다.
+   확인: `python -m prefab tests/fixtures/synthetic-divider-vs-pulldown.d356` 의 `SIG_A` 가
+   이제 "R1은 GND_BUS 로 끌어내리는 풀다운" 이라고 정확히 말한다.
+   `test_r12.py` 가 양쪽을 다 고정한다 — 합성 보드의 풀다운과 실측 보드 R3 의 **진짜 풀업**.
+   한쪽만 보면 고치다가 반대로 뒤집는다.
 5. ~~**R08 이 USB 데이터 핀을 "코드가 초기화 안 함"으로 잡는다.**~~ **고쳤다 (8/19).**
    오픈소스 ESP32-C3 보드 4개 리비전에서 리비전마다 2건씩 떴다 (`USB_D+` · `USB_D-`).
    USB 는 전용 주변장치가 몰기 때문에 코드에 `pinMode` 가 없는 것이 **정상**이다.
