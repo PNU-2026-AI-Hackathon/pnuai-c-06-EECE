@@ -10,7 +10,7 @@
 |---|---|
 | 상태 | 개발 중 · 규칙 **11/11** 구현 |
 | 화면 | 로컬에서 동작 · **실제 API 로 업로드→검사→리포트 연결됨** |
-| 배포 | 아직. 설정만 있습니다 — 규칙과 검증이 먼저입니다 |
+| 배포 | ✅ 양쪽 다 살아 있습니다 — [화면](https://prefab-web.onrender.com) · [API](https://pnuai-c-06-eece-prefab.onrender.com) |
 
 ---
 
@@ -310,7 +310,7 @@ R7·R8을 R1·R5보다 먼저 합니다. 칩과 무관해서 우리 보드에서
 | 데이터시트 **수집** (PDF · LLM 추출) | ⬜ 미구현 — **LLM 호출 0건** |
 | 부품 사실 DB | **0 부품** (스키마·저장소만 있음) |
 | 검증 측정 | ⬜ 미측정 — 표본 **81쌍** 확보 |
-| 배포 | ⬜ 미배포 — 설정 3개(Dockerfile · railway · render)만 |
+| 배포 | ✅ Render 양쪽 (화면 `prefab-web` · API `pnuai-c-06-EECE-prefab`) |
 
 실제 보드(`esp32-c6-presence-smart-light`) 검사 결과입니다. **입력을 더 줄수록 더 봅니다.**
 
