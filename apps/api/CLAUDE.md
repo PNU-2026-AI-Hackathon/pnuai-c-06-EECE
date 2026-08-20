@@ -398,7 +398,15 @@ tests/              규칙당 3개 + 실제 보드 골든 테스트 + 카탈로�
 - SQLite 한 개 (checks, part_facts). **Postgres 금지**
 - PDF: pdfplumber 또는 PyMuPDF
 - LLM: Claude API, JSON 스키마 강제
-- 배포: Railway 또는 Render
+- 배포: **Render** (2026-08-21 부터 양쪽 다 떠 있다)
+  - 화면 https://prefab-web.onrender.com
+  - API  https://pnuai-c-06-eece-prefab.onrender.com
+  - Railway 는 **못 쓴다** — 조직 저장소에 GitHub App 을 설치할 권한이 우리에게 없다.
+    Render 는 공개 저장소를 App 설치 없이 읽어서 그 벽을 안 만난다.
+  - **영구 디스크가 없다.** 커밋된 `parts/*.json` 을 기동 때 DB 로 다시 심는다
+    (`service.seed_facts`). 그래서 무료 플랜에서도 데이터시트 해제가 돈다.
+  - `ALLOWED_ORIGINS` 는 대시보드 값이다. `onrender.com` 은 `app.py` 의
+    `*.vercel.app` 정규식에 **안 걸린다** — 비우면 화면은 뜨는데 검사만 조용히 막힌다
 
 ---
 

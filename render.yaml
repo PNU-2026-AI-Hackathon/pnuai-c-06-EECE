@@ -25,8 +25,9 @@ services:
     name: prefab-web
     runtime: static
     rootDir: apps/web
-    # corepack 버전을 못 박으면 Render 쪽 Node 가 바뀔 때 깨진다. 그냥 설치한다.
-    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm build
+    # Render 가 pnpm-lock.yaml 을 보고 **의존성 설치를 알아서 먼저 한다.**
+    # 여기에 `npm install -g pnpm` 을 넣으면 /usr/lib 가 읽기 전용이라 EROFS 로 죽는다.
+    buildCommand: pnpm build
     staticPublishPath: dist
     envVars:
       # **비우면 빌드가 선다** (vite.config.ts). 목 데이터가 배포로 나가는 것보다 낫다.

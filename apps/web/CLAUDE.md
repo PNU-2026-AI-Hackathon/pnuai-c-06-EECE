@@ -4,8 +4,9 @@
 
 **저장소 역할**: 화면만. 판정 로직은 전부 `prefab-api`에 있다.
 **마감**: 2026-08-28 최종 발표.
-**배포는 최우선이 아니다.** 화면과 규칙이 먼저고, 배포는 붙일 준비만 해둔다
-(`VITE_API_BASE`가 비면 목 데이터로 돈다).
+**배포됨** (2026-08-21) — https://prefab-web.onrender.com · API 는 https://pnuai-c-06-eece-prefab.onrender.com
+`VITE_API_BASE` 가 비면 목 데이터로 도는데, **production 빌드는 그때 선다**
+(`vite.config.ts`). 목이 배포로 나가는 것보다 배포가 실패하는 편이 낫다.
 
 ---
 
@@ -152,7 +153,9 @@ ok   #087A57 / ok-weak   #E6F7F1   PASS · cleared · done
 ## 7. 스택
 
 - Vite + React + TypeScript + Tailwind
-- 배포: 나중에 (Vercel 예정). 지금 화면 작업을 막지 않는다
+- 배포: **Render 정적 사이트** (Vercel 아니다 — 조직 GitHub App 권한이 없어서 막혔다).
+  `/*` → `/index.html` 리라이트가 대시보드에 있어야 한다. BrowserRouter 라서
+  없으면 리포트 링크(`/r/chk_...`)를 새로고침하거나 남에게 보냈을 때 404 가 난다
 - API 베이스는 `VITE_API_BASE` 환경변수
 - 백엔드가 준비되기 전에는 `src/mocks/check.json`으로 개발한다. **기다리지 않는다.**
 
