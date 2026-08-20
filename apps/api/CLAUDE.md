@@ -239,6 +239,18 @@ kicad-cli sch export netlist --format kicadxml -o board.xml board.kicad_sch
   배포 이미지에 `tests/` 가 없어서(`.dockerignore`) 켜질 때 엔진을 못 돌린다.
   그래서 미리 뽑은 결과를 패키지에 싣고, `tests/test_samples.py` 가 매번 다시 뽑아
   대조해서 낡지 않게 막는다. 못 읽어도 서버는 그냥 뜬다 — 루트 응답에서 빠질 뿐이다
+- **진단** (`diagnose.py` · `--why`) — **"이상 없음"과 "못 봤음"을 가른다.**
+  발견 0건일 때 재료(넷리스트·좌표·부품번호·칩·핀맵·펌웨어·사실)가 갖춰져 있었는지 보고,
+  **돌긴 돌았는데 아무 말도 못 한 규칙**을 짐작되는 사유와 함께 적는다.
+  건너뛴 규칙은 파이프라인이 이미 싣지만 조용한 규칙은 어디에도 안 남아 있었다.
+  **방향을 구분한다** — 칩을 모르면 R02·R03·R09 는 조용해지고 R08 은 **오탐이 는다**
+  (USB 억제가 안 된다). 손으로 적은 표가 낡지 않도록 `tests/test_diagnose.py` 가
+  **규칙 소스를 읽어서** 대조한다. 처음 적었을 때 R08 이 실제로 잘못 들어가 있었고
+  그 테스트가 잡았다. 계약은 안 건드린다 — CLI 전용이다
+- **새 보드 받는 절차** (`docs/새보드_받는_절차.md` · `tests/fixtures/EXPECTED.template.md`)
+  — 회로도가 오는 날 반나절 안에 끝내기 위한 순서와 정답표 서식.
+  **`EXPECTED.md` 는 엔진 출력을 베끼는 게 아니라 사람이 먼저 쓴다** — 베끼면
+  엔진이 틀렸을 때 정답표도 같이 틀려서 골든 테스트가 아무것도 안 지킨다
 - 실측 픽스처: `tests/fixtures/esp32-c6-presence-smart-light.d356`
   **보드가 그 뒤에 또 바뀌었다 (8/20)** — 한지양이 mmWave 센서(U2 · HLK-LD2410C)가
   너무 민감해서 **카메라 센서로 교체**했다. 픽스처와 `parts/hlk-ld2410c.json` 은
@@ -370,6 +382,7 @@ src/prefab/
   diff.py           검사 결과 커밋 간 비교 (F-1). 순수 함수 — git 도 네트워크도 모른다
   samples/          업로드 없이 보여줄 실측 보드 결과 하나 (F-4)
   measure.py        검출율 · 오탐율 측정 (E-3)
+  diagnose.py       왜 아무 말도 못 했는지 — 재료 점검 (`--why`). CLI 전용, 계약 밖
   report.py         계약 응답 dict 조립 (summary · pipeline)
   runner.py         파싱 → 그래프 → 엔진. CLI 와 web 이 같이 쓴다
   __main__.py       python -m prefab <파일> [--json|--rules-json|--facts-load]

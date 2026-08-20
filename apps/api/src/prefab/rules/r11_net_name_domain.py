@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 from ..netlist.d356 import NET_NAME_WIDTH
+from ..text import eun
 from ..netlist.graph import (
     DOMAIN_EPSILON_V,
     Graph,
@@ -68,7 +69,7 @@ def check(ctx: Context) -> list[Finding]:
 
             claim = (
                 f"네트 이름은 {format_volts(claimed)}V라고 말하는데, "
-                f"이 네트를 구동하는 {ref}는 {format_volts(domain.volts)}V로 동작합니다."
+                f"이 네트를 구동하는 {eun(ref)} {format_volts(domain.volts)}V로 동작합니다."
             )
             if clipped:
                 claim += (

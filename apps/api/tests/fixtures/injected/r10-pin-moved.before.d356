@@ -1,0 +1,12 @@
+P  CODE 00
+P  UNITS CUST 0
+327SENSOR           U1    -IO2           X+000000Y+000000
+327N/C              U1    -IO4           X+009000Y+000000
+327SENSOR           U2    -OUT           X+000000Y+004000
+327NET_IO3          U1    -IO3           X+001000Y+000000
+327NET_IO3          J1    -1             X+001000Y+005000
+327NET_IO16         U1    -IO16          X+002000Y+000000
+327NET_IO16         J1    -2             X+002000Y+005000
+327NET_IO17         U1    -IO17          X+003000Y+000000
+327NET_IO17         J1    -3             X+003000Y+005000
+999

@@ -83,6 +83,9 @@ uv sync                     # 또는 pip install -e ".[dev]"
 pytest -q
 python -m prefab --measure  # 검출율 · 오탐율
 
+# 발견이 0건일 때 — "이상 없음" 인지 "못 봤음" 인지
+python -m prefab tests/fixtures/schematic-gpio-named.net.xml --why
+
 # 실제 보드 — 넷리스트만 (치명 2 · 경고 1)
 python -m prefab tests/fixtures/esp32-c6-presence-smart-light.d356
 

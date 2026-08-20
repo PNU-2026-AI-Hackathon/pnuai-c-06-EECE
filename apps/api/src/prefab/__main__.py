@@ -103,7 +103,11 @@ def _load_env(start: Path | None = None) -> str | None:
         env = folder / ".env"
         if not env.is_file():
             continue
-        for raw in env.read_text(encoding="utf-8", errors="replace").splitlines():
+        # `utf-8-sig` 로 읽는다. 윈도우 PowerShell 5.1 의 `Out-File -Encoding utf8` 은
+        # **BOM 을 붙인다.** 그냥 `utf-8` 로 읽으면 첫 줄 이름이 `\ufeffANTHROPIC_API_KEY`
+        # 가 되어, 파일은 찾았는데 키는 없는 상태가 된다 — 화면에는 "환경 파일: ...\.env"
+        # 와 "키를 찾지 못했습니다" 가 같이 떠서 무엇이 잘못됐는지 안 보인다.
+        for raw in env.read_text(encoding="utf-8-sig", errors="replace").splitlines():
             line = raw.strip()
             if not line or line.startswith("#") or "=" not in line:
                 continue
@@ -289,6 +293,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--facts", action="store_true", help="부품 DB 크기를 본다")
     ap.add_argument("--measure", metavar="DIR", nargs="?", const="tests/fixtures/injected",
                     help="라벨된 케이스 폴더에 엔진을 돌려 검출율·오탐율을 낸다")
+    ap.add_argument("--why", action="store_true",
+                    help="왜 이 결과인지 — 재료 점검과 조용한 규칙의 사유 (0건일 때 보세요)")
     ap.add_argument("--diff", nargs=2, metavar=("BEFORE.json", "AFTER.json"),
                     help="검사 결과 두 개를 비교한다 (F-1 — 커밋 간 드리프트)")
     ap.add_argument("--labels", nargs=2, metavar=("BEFORE", "AFTER"), default=["base", "head"],
@@ -381,6 +387,12 @@ def main(argv: list[str] | None = None) -> int:
     except (NetlistParseError, BomParseError) as exc:
         print(str(exc), file=sys.stderr)
         return 2
+
+    if args.why:
+        from .diagnose import diagnose, format_diagnosis
+
+        print(format_diagnosis(diagnose(analysis), path.name))
+        return 0
 
     if args.json:
         result = build_result(

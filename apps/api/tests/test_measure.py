@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -108,3 +109,37 @@ def test_읽지_못한_케이스가_있으면_0이_아닌_코드로_끝난다(tm
         {"id": "x", "expect": [], "netlist": "없다.d356"},
     ]}), encoding="utf-8")
     assert main(["--measure", str(tmp_path)]) == 1
+
+
+# ── 측정에서 빠진 규칙이 없는가 ─────────────────────────────────────
+#
+# **이게 없어서 두 규칙이 조용히 빠져 있었다.** R10 은 `measure` 가 이전 넷리스트를
+# 안 넘겨서 아예 안 돌았고, R11 은 dedupe 로 R12 가 되는 케이스뿐이라 한 번도
+# 안 세어졌다. 그런데 보고서는 "검출 17/17 (100%)" 이라고 적고 있었다 —
+# **12개 규칙 중 10개만 잰 숫자였다.**
+
+
+def test_모든_규칙에_양성_케이스가_있다():
+    """규칙을 새로 만들면 케이스도 같이 만들어야 한다. 안 그러면 안 재진다.
+
+    100% 라는 숫자가 '전부 잡았다'가 아니라 '잰 것만 잡았다'가 되는 것을 막는다.
+    """
+    from prefab import catalog
+
+    manifest = json.loads(
+        (Path(FOLDER) / "MANIFEST.json").read_text(encoding="utf-8")
+    )["cases"]
+    covered = {rule for case in manifest for rule in case.get("expect", [])}
+    missing = [s.id for s in catalog.CATALOG if s.id not in covered]
+    assert not missing, (
+        f"양성 케이스가 없는 규칙: {missing}. "
+        "scripts/make_injected.py 에 양성·음성 짝을 추가하세요 — "
+        "케이스가 없으면 그 규칙은 검출율에 안 들어갑니다."
+    )
+
+
+def test_이전_넷리스트가_필요한_케이스를_실제로_넘긴다(report):
+    """`before` 를 안 넘기면 R10 은 아무 말도 안 하고 조용히 미검출이 된다."""
+    drift = next(c for c in report.cases if c.id == "r10-pin-moved")
+    assert "R10" in drift.fired, "이전 넷리스트가 규칙까지 안 갔다"
+    assert not drift.missed

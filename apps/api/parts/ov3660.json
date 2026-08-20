@@ -1,0 +1,28 @@
+{
+  "mpn": "OV3660",
+  "source_url": "https://uelectronics.com/wp-content/uploads/2025/05/OV3660-Datasheet.pdf",
+  "source_tier": "unofficial",
+  "facts": [
+    {
+      "field": "io_level",
+      "value": null,
+      "unit": "V",
+      "reason": "데이터시트가 IO 레일을 한 값으로 규정하지 않습니다 — 사양 요약이 'I/O: 1.8V / 2.8V (1.8V recommended)' 라고 적습니다. 둘 중 어느 쪽인지는 이 보드가 DOVDD 를 무엇에 물렸는지를 봐야 정해지므로, 회로도의 DOVDD 배선을 확인한 뒤 값을 채워 주세요. 확실한 것은 **3.3V 가 아니라는 것**입니다.",
+      "confidence": "none"
+    },
+    {
+      "field": "vin_absolute_max",
+      "value": null,
+      "unit": "V",
+      "reason": "이 PDF 에서 Absolute Maximum Ratings 표를 확인하지 못했습니다. DC characteristics 는 'table 8-3 DC characteristics (-20°C < TJ < 70°C)' 로 존재하지만 본문 추출로는 행 값을 읽지 못했습니다 — `--extract` 로 PDF 를 직접 읽어 채워야 합니다.",
+      "confidence": "none"
+    },
+    {
+      "field": "voh_max",
+      "value": null,
+      "unit": "V",
+      "reason": "위와 같은 이유로 table 8-3 의 VOH 행을 확인하지 못했습니다. **추정값을 넣지 않습니다** (parts/README.md 절대 원칙).",
+      "confidence": "none"
+    }
+  ]
+}

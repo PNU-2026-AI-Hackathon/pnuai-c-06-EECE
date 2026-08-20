@@ -138,12 +138,19 @@ def _run_case(folder: Path, case: dict[str, Any], db_path: str | Path | None) ->
         for payload in json.loads((folder / case["facts"]).read_text(encoding="utf-8")):
             store.save(payload)
 
+    # 이전 넷리스트. **없으면 R10 은 아무 말도 안 하고, 그러면 측정에서 통째로 빠진다.**
+    # 실제로 그랬다 — 검출 17/17 이 12개 규칙 중 10개만 잰 숫자였다.
+    previous = None
+    if case.get("before"):
+        previous = (folder / case["before"]).read_text(encoding="utf-8", errors="replace")
+
     analysis = analyze(
         netlist,
         filename=case["netlist"],
         bom_bytes=bom_bytes,
         firmware_sources=sources,
         fact_store=store,
+        previous_netlist_text=previous,
     )
     # 해제(PASS)는 경고가 아니다. 뜬 것으로 세지 않는다.
     fired = sorted({f.rule for f in analysis.engine.findings if f.verdict.value != "PASS"})

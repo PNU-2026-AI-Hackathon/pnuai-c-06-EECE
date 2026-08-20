@@ -275,6 +275,24 @@ def test_env_파일을_찾아_올린다(tmp_path, monkeypatch):
     assert os.environ["ANTHROPIC_API_KEY"] == "가짜"
 
 
+def test_BOM_이_붙은_env_도_읽는다(tmp_path, monkeypatch):
+    """윈도우 PowerShell 5.1 의 `Out-File -Encoding utf8` 은 **BOM 을 붙인다.**
+
+    그냥 `utf-8` 로 읽으면 첫 줄 이름이 `\ufeffANTHROPIC_API_KEY` 가 되어,
+    화면에는 "환경 파일: ...\.env" 와 "키를 찾지 못했습니다" 가 **같이** 뜬다.
+    파일은 찾았다고 하는데 키는 없다고 하니 무엇이 잘못됐는지 안 보인다.
+    실제로 한 번 여기서 막혔다.
+    """
+    from prefab.__main__ import _load_env
+
+    (tmp_path / ".env").write_bytes("\ufeffANTHROPIC_API_KEY=가짜\n".encode("utf-8"))
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    assert _load_env(tmp_path) is not None
+    import os
+    assert os.environ["ANTHROPIC_API_KEY"] == "가짜", "BOM 이 이름에 붙어 있다"
+
+
 def test_이미_있는_환경변수는_덮어쓰지_않는다(tmp_path, monkeypatch):
     """배포 환경변수가 파일보다 세야 한다. 안 그러면 배포가 조용히 개발 키를 쓴다."""
     from prefab.__main__ import _load_env

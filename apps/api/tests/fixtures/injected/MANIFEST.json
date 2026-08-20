@@ -231,6 +231,63 @@
       "bom": "r09-ordinary-pin-drives-relay.bom.csv"
     },
     {
+      "id": "r10-pin-moved",
+      "kind": "양성",
+      "why": "회로도가 SENSOR 를 GPIO2 에서 GPIO4 로 옮겼는데 코드는 그대로 GPIO2 를 쓴다",
+      "expect": [
+        "R07",
+        "R10"
+      ],
+      "netlist": "r10-pin-moved.d356",
+      "bom": "r10-pin-moved.bom.csv",
+      "firmware": "r10-pin-moved.firmware",
+      "before": "r10-pin-moved.before.d356"
+    },
+    {
+      "id": "r10-nothing-moved",
+      "kind": "음성",
+      "why": "이전과 지금이 같은 회로도다. 드리프트가 없는데 R10 이 뜨면 오탐이다",
+      "expect": [],
+      "netlist": "r10-nothing-moved.d356",
+      "bom": "r10-nothing-moved.bom.csv",
+      "firmware": "r10-nothing-moved.firmware",
+      "before": "r10-nothing-moved.before.d356"
+    },
+    {
+      "id": "r11-name-overstates",
+      "kind": "양성",
+      "why": "이름은 5V 라는데 양쪽 다 3.3V 로 돈다. 도메인 교차가 아니라 이름만 틀렸다",
+      "expect": [
+        "R11"
+      ],
+      "netlist": "r11-name-overstates.d356"
+    },
+    {
+      "id": "r11-name-matches",
+      "kind": "음성",
+      "why": "같은 모양인데 이름이 맞다. 전압 토큰이 있다고 경고하면 오탐이다",
+      "expect": [],
+      "netlist": "r11-name-matches.d356"
+    },
+    {
+      "id": "r14-same-name-same-pin",
+      "kind": "음성",
+      "why": "같은 이름이 두 파일에 있지만 번호가 같다. 중복 정의는 문제가 아니다",
+      "expect": [],
+      "netlist": "r14-same-name-same-pin.d356",
+      "bom": "r14-same-name-same-pin.bom.csv",
+      "firmware": "r14-same-name-same-pin.firmware"
+    },
+    {
+      "id": "r14-similar-names",
+      "kind": "음성",
+      "why": "TFT_BL 과 TFT_BLK 는 다른 이름이다. 비슷하다고 묶으면 오탐이다",
+      "expect": [],
+      "netlist": "r14-similar-names.d356",
+      "bom": "r14-similar-names.bom.csv",
+      "firmware": "r14-similar-names.firmware"
+    },
+    {
       "id": "real-esp32c6-presence",
       "kind": "실측",
       "why": "실제 보드 + 실제 펌웨어. 정답표는 EXPECTED.md 에 고정돼 있다",

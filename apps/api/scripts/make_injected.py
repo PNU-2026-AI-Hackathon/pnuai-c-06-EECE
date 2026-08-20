@@ -516,6 +516,163 @@ CASES += [
 ]
 
 
+# ── R10 드리프트 · R11 단독 · R14 음성 ──────────────────────────────
+#
+# **여기 있는 것들은 측정에서 통째로 빠져 있던 자리다.**
+# 만들기 전에 세어 봤더니 이랬다:
+#
+#   R10  양성 0건   ← measure 가 이전 넷리스트를 안 넘겨서 규칙이 조용했다
+#   R11  양성 0건   ← r11-name-lies 는 dedupe 로 R12 가 되어 R11 이 안 세어졌다
+#   R14  음성 0건   ← 오탐율이 안 재졌다
+#
+# "검출 17/17 (100%)" 이 실은 12개 규칙 중 10개만 잰 숫자였다.
+
+
+def moved(pin_before: str, pin_after: str, *others: str) -> tuple[str, str]:
+    """같은 보드에서 `SENSOR` 네트만 한 핀에서 다른 핀으로 옮긴다.
+
+    **좌표는 두 판이 똑같아야 한다.** 패드는 그 자리에 그대로 있고 배선만 바뀌는 것이
+    회로도 수정이다. 좌표까지 바꾸면 R10 이 이전 판에서 같은 패드를 못 찾아 조용해진다 —
+    실제로 그렇게 만들었다가 규칙이 아니라 픽스처가 틀린 것이었다.
+    (실측 `moved-to-d4.d356` 도 네트 이름 두 줄만 다르다.)
+    """
+    def one(sensor_pin: str, idle_pin: str) -> str:
+        lines = [
+            rec("SENSOR", "U1", sensor_pin, x=0.0),
+            rec("SENSOR", "U2", "OUT", x=0.0, y=0.4),
+            rec("N/C", "U1", idle_pin, x=0.9),
+        ]
+        for i, p in enumerate(others):
+            net = f"NET_{p}"
+            lines.append(rec(net, "U1", p, x=0.1 * (i + 1)))
+            lines.append(rec(net, "J1", str(i + 1), x=0.1 * (i + 1), y=0.5))
+        return board(*lines)
+
+    # 좌표를 고정한다 — 옮겨간 핀이 **원래 있던 자리**를 그대로 쓴다.
+    def fixed(sensor_pin: str) -> str:
+        lines = []
+        for pin, x in ((pin_before, 0.0), (pin_after, 0.9)):
+            net = "SENSOR" if pin == sensor_pin else "N/C"
+            lines.append(rec(net, "U1", pin, x=x))
+        lines.append(rec("SENSOR", "U2", "OUT", x=0.0, y=0.4))
+        for i, p in enumerate(others):
+            net = f"NET_{p}"
+            lines.append(rec(net, "U1", p, x=0.1 * (i + 1)))
+            lines.append(rec(net, "J1", str(i + 1), x=0.1 * (i + 1), y=0.5))
+        return board(*lines)
+
+    return fixed(pin_before), fixed(pin_after)
+
+
+_BEFORE, _AFTER = moved("IO2", "IO4", "IO3", "IO16", "IO17")
+
+CASES += [
+    {
+        "id": "r10-pin-moved",
+        "kind": "양성",
+        "why": "회로도가 SENSOR 를 GPIO2 에서 GPIO4 로 옮겼는데 코드는 그대로 GPIO2 를 쓴다",
+        # R08("GPIO4 가 배선됐는데 코드가 안 쓴다")은 R10 으로 합쳐진다 — 같은 네트에서
+        # R10 이 더 많은 것을 말하기 때문이다(어디서 어디로 옮겨갔는지). 그게 R10 을
+        # 만든 이유다. R07 은 net 이 없는 발견이라 네트 단위 dedup 에 안 걸린다.
+        "expect": ["R07", "R10"],
+        "bom": C6_BOM,
+        "before": _BEFORE,
+        "netlist": _AFTER,
+        "firmware": sketch(2, 3, 16, 17),
+    },
+    {
+        "id": "r10-nothing-moved",
+        "kind": "음성",
+        "why": "이전과 지금이 같은 회로도다. 드리프트가 없는데 R10 이 뜨면 오탐이다",
+        "expect": [],
+        "bom": C6_BOM,
+        "before": _BEFORE,
+        "netlist": _BEFORE,
+        "firmware": sketch(2, 3, 16, 17),
+    },
+]
+
+
+# ── R11 이 단독으로 뜨는 자리 ───────────────────────────────────────
+#
+# `r11-name-lies` 는 이름과 도메인이 어긋나면서 **동시에** 상위→하위 직결이라
+# dedupe 가 R11 을 R12 로 합친다. 그래서 R11 은 한 번도 안 세어졌다.
+# 이름이 **위로** 거짓말하면(3.3V 부품인데 이름은 5V) R12 는 조용하고 R11 만 남는다.
+
+def name_claims(net_name: str, rail: str) -> str:
+    return board(
+        rec(rail, "U2", "VCC"), rec(rail, "C1", "P1", x=0.1),
+        rec(rail, "C2", "P1", x=0.2), rec(rail, "J1", "VBUS", x=0.3),
+        rec(net_name, "U2", "OUT", y=0.1),
+        rec(rail, "U1", "3V3", x=0.5), rec(rail, "C3", "P1", x=0.6),
+        rec(rail, "C4", "P1", x=0.7), rec(rail, "R9", "P1", x=0.8),
+        rec(net_name, "U1", "D2", x=0.5, y=0.1),
+    )
+
+
+CASES += [
+    {
+        "id": "r11-name-overstates",
+        "kind": "양성",
+        "why": "이름은 5V 라는데 양쪽 다 3.3V 로 돈다. 도메인 교차가 아니라 이름만 틀렸다",
+        "expect": ["R11"],
+        "netlist": name_claims("SENSOR_5V", "3V3"),
+    },
+    {
+        "id": "r11-name-matches",
+        "kind": "음성",
+        "why": "같은 모양인데 이름이 맞다. 전압 토큰이 있다고 경고하면 오탐이다",
+        "expect": [],
+        "netlist": name_claims("SENSOR_3V3", "3V3"),
+    },
+]
+
+
+# ── R14 음성 — 같은 이름 같은 핀은 정상이다 ─────────────────────────
+#
+# R14 는 **이름이 완전히 같은데 번호가 다를 때만** 낸다. 그 경계가 픽스처로
+# 안 고정돼 있었다 — 실측 케이스 하나뿐이라 오탐율이 0/0 이었다.
+
+def two_headers(a_name: str, a_pin: int, b_name: str, b_pin: int, *rest: int) -> dict:
+    """상수를 두 파일에 나눠 정의하고, 코드는 둘 다 쓴다.
+
+    `rest` 는 **배선은 됐는데 상수로 안 부르는 핀들**이다. 코드가 이 핀들을 안 쓰면
+    R08 이 정당하게 뜨고, 그러면 이 케이스는 R14 가 아니라 R08 을 재게 된다.
+    """
+    extra = "".join(f"  pinMode({g}, OUTPUT);\n" for g in rest)
+    return {
+        "config_a.h": f"#define {a_name} {a_pin}\n",
+        "config_b.h": f"#define {b_name} {b_pin}\n",
+        "sketch.ino": (
+            '#include "config_a.h"\n#include "config_b.h"\n'
+            f"void setup(){{\n  pinMode({a_name}, OUTPUT);\n"
+            f"  pinMode({b_name}, OUTPUT);\n{extra}}}\n"
+        ),
+    }
+
+
+CASES += [
+    {
+        "id": "r14-same-name-same-pin",
+        "kind": "음성",
+        "why": "같은 이름이 두 파일에 있지만 번호가 같다. 중복 정의는 문제가 아니다",
+        "expect": [],
+        "bom": C6_BOM,
+        "netlist": bare("IO2", "IO3", "IO16", "IO17"),
+        "firmware_files": two_headers("LED_PIN", 2, "LED_PIN", 2, 3, 16, 17),
+    },
+    {
+        "id": "r14-similar-names",
+        "kind": "음성",
+        "why": "TFT_BL 과 TFT_BLK 는 다른 이름이다. 비슷하다고 묶으면 오탐이다",
+        "expect": [],
+        "bom": C6_BOM,
+        "netlist": bare("IO2", "IO3", "IO16", "IO17"),
+        "firmware_files": two_headers("TFT_BL", 2, "TFT_BLK", 3, 16, 17),
+    },
+]
+
+
 #: 합성이 아닌 유일한 케이스. 실제 보드이고 정답표가 문서로 고정돼 있다
 #: (`tests/fixtures/esp32-c6-presence-smart-light.EXPECTED.md`).
 #: 합성만으로 재면 "우리가 만든 상황에서만 맞다" 는 소리를 못 벗어난다.
@@ -586,11 +743,17 @@ def main() -> int:
         if case.get("bom"):
             (OUT / f"{stem}.bom.csv").write_text(case["bom"], encoding="utf-8")
             entry["bom"] = f"{stem}.bom.csv"
-        if case.get("firmware"):
+        if case.get("firmware") or case.get("firmware_files"):
             folder = OUT / f"{stem}.firmware"
             folder.mkdir(exist_ok=True)
-            (folder / "sketch.ino").write_text(case["firmware"], encoding="utf-8")
+            # 상수가 **다른 파일**에 있는 경우를 재려면 파일이 여러 개여야 한다 (R14).
+            files = case.get("firmware_files") or {"sketch.ino": case["firmware"]}
+            for name, text in files.items():
+                (folder / name).write_text(text, encoding="utf-8")
             entry["firmware"] = f"{stem}.firmware"
+        if case.get("before"):
+            (OUT / f"{stem}.before.d356").write_text(case["before"], encoding="utf-8")
+            entry["before"] = f"{stem}.before.d356"
         if case.get("facts"):
             (OUT / f"{stem}.facts.json").write_text(
                 json.dumps(case["facts"], ensure_ascii=False, indent=2), encoding="utf-8"
