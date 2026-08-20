@@ -163,3 +163,67 @@ def test_사실_폴더가_없어도_서버는_뜬다(tmp_path, monkeypatch):
     from web import service
     store = service.Store(tmp_path / "t.db")
     assert service.seed_facts(tmp_path / "없는폴더", store) == []
+
+
+# ── CORS — 배포 주소를 넣어도 개발이 안 막혀야 한다 ──────────────────
+#
+# 실제로 밟았다. Render 에 `ALLOWED_ORIGINS=https://prefab-web.onrender.com` 을
+# 넣는 순간 로컬 개발이 통째로 막혔다. 증상이 고약하다 — **화면은 멀쩡히 뜨고
+# 검사만 조용히 실패한다.** 배포한 사람은 자기가 무엇을 껐는지 모른다.
+
+
+@pytest.fixture()
+def deployed_client(tmp_path, monkeypatch):
+    """배포 상태를 그대로 흉내낸다 — 환경변수에 배포 주소만 들어 있다."""
+    monkeypatch.setenv("PREFAB_DB", str(tmp_path / "deployed.db"))
+    monkeypatch.setenv("ALLOWED_ORIGINS", "https://prefab-web.onrender.com")
+    import importlib
+
+    from web import app as app_module
+
+    importlib.reload(app_module)
+    return TestClient(app_module.app)
+
+
+def _preflight(client, origin: str):
+    return client.options(
+        "/api/v1/checks",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+
+
+def test_배포_주소를_넣어도_개발_포트가_살아_있다(deployed_client):
+    """`ALLOWED_ORIGINS` 는 **더하는 것**이지 대체하는 것이 아니다."""
+    for port in (5173, 5174, 5175):
+        for host in ("localhost", "127.0.0.1"):
+            origin = f"http://{host}:{port}"
+            res = _preflight(deployed_client, origin)
+            assert res.headers.get("access-control-allow-origin") == origin, origin
+
+
+def test_배포_주소가_허용된다(deployed_client):
+    origin = "https://prefab-web.onrender.com"
+    assert _preflight(deployed_client, origin).headers.get("access-control-allow-origin") == origin
+
+
+def test_환경변수가_없어도_개발_포트는_열려_있다(tmp_path, monkeypatch):
+    """아무것도 안 넣은 상태가 곧 로컬 개발 상태다."""
+    monkeypatch.setenv("PREFAB_DB", str(tmp_path / "bare.db"))
+    monkeypatch.delenv("ALLOWED_ORIGINS", raising=False)
+    import importlib
+
+    from web import app as app_module
+
+    importlib.reload(app_module)
+    client = TestClient(app_module.app)
+    assert _preflight(client, LOCAL_ORIGIN).headers.get("access-control-allow-origin") == LOCAL_ORIGIN
+
+
+def test_아무_주소나_열리지는_않는다(deployed_client):
+    """개발 포트를 더 연다고 문이 통째로 열리면 안 된다."""
+    res = _preflight(deployed_client, "https://evil.example.com")
+    assert res.headers.get("access-control-allow-origin") is None

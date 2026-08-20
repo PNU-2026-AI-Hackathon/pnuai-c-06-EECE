@@ -259,19 +259,23 @@ export function UploadPage() {
           {busy ? "시작하는 중" : "검사 실행"}
         </button>
         {/*
-          샘플은 목이 아는 검사다. 서버가 붙으면 서버는 이 id 를 모르므로 404 가 난다.
-          누른 적도 없는 "주소를 확인해 주세요"를 사용자에게 보이느니 버튼을 내린다.
-          서버가 샘플 검사를 직접 만들어 주면 그때 되살린다 (백엔드_요청서 F-4).
+          **파일이 없는 사람에게 유일한 입구다.**
+
+          한동안 `usingMock` 으로 가려 뒀다. 서버가 이 id 를 몰라서 404 가 났기 때문이고,
+          "서버가 샘플을 직접 만들어 주면 되살린다" 고 적어 뒀다 (백엔드_요청서 F-4).
+          **그 F-4 가 끝났는데 이 조건이 안 따라왔다** — 정확히 우리가 잡으려는 종류의
+          드리프트였고, 배포된 화면에서만 버튼이 사라져 있었다.
+
+          양쪽 id 가 `chk_sample01` 로 같아서 목이든 서버든 그대로 열린다.
+          `tests/test_samples.py` 와 `scripts/smoke.sh` 6단계가 그 사실을 지킨다.
         */}
-        {usingMock && (
-          <button
-            type="button"
-            onClick={() => navigate(`/r/${sampleCheck.check_id}`)}
-            className="btn-ghost"
-          >
-            샘플 보드로 실행
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => navigate(`/r/${sampleCheck.check_id}`)}
+          className="btn-ghost"
+        >
+          예시 보드 결과 보기
+        </button>
       </div>
 
       {usingMock && (

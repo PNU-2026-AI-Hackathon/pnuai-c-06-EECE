@@ -66,6 +66,15 @@ r = json.load(open(sys.argv[1], encoding="utf-8"))
 rules = {f["rule"] for f in r["findings"]}
 assert {"R07", "R08"} <= rules, f"  !! 차별 규칙이 샘플에 없다: {rules}"
 assert r["inputs"]["firmware"] and r["inputs"]["bom"], r["inputs"]
-print(f"  발견 {len(r['findings'])}건 · 차별 규칙 포함 · 업로드 0회")
+
+# **해제가 살아 있는지 본다.** 이 샘플이 파일 없는 방문자의 유일한 입구다.
+# 사실 DB 없이 뽑으면 해제가 0건이 되는데, 그러면 첫 화면에서만 차별점이 사라진다.
+cleared = [f for f in r["findings"] if f["verdict"] == "PASS"]
+assert cleared, "  !! 샘플에 해제된 판정이 없다 — 사실 DB 없이 뽑힌 JSON 이다"
+for f in cleared:
+    kinds = {e["kind"] for e in f["evidence"]}
+    assert "datasheet" in kinds, f"  !! {f['rule']} 해제에 데이터시트 근거가 없다: {kinds}"
+
+print(f"  발견 {len(r['findings'])}건 · 차별 규칙 포함 · 해제 {len(cleared)}건(근거 붙음) · 업로드 0회")
 print("  통과")
 PYEOF
