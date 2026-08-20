@@ -16,6 +16,7 @@ from __future__ import annotations
 from ..netlist.d356 import Netlist
 from ..text import eul, eun
 from ..types import Context, Evidence, Finding, Severity, Verdict
+from .r01_unusable_pin import chip_of
 
 RULE_ID = "R08"
 TITLE = "회로도에 연결됐는데 코드가 초기화 안 함"
@@ -49,6 +50,9 @@ def check(ctx: Context) -> list[Finding]:
     # 전원·접지 레일은 신호가 아니다. 코드가 만질 대상이 아니므로 대상에서 뺀다.
     signal_nets = set(graph.signal_nets())
 
+    # 칩을 알면 **커넥터 핀 이름이 없어도** USB 핀을 안다. 모르면 아래 상대편 이름으로 본다.
+    chip = chip_of(ctx)
+
     findings: list[Finding] = []
 
     for pad in pinmap.gpio_pads():
@@ -57,8 +61,10 @@ def check(ctx: Context) -> list[Finding]:
             continue  # 배선이 없으면 이 규칙의 대상이 아니다 (R07 이 본다)
         if net not in signal_nets:
             continue  # 전원·접지에 물린 핀은 코드가 만질 것이 아니다
+        if chip is not None and pad.gpio in chip.usb:
+            continue  # 칩이 이 핀을 USB 로 쓴다. 코드가 안 만지는 것이 정상이다
         if _peripheral_driven(netlist, net or "", pad.ref):
-            continue  # 주변장치가 모는 핀이다. 코드가 안 만지는 것이 정상이다
+            continue  # 상대편이 USB 커넥터다. 위와 같은 이유
 
         if firmware.find(silk=pad.silk, gpio=pad.gpio) is not None:
             continue  # 코드가 이미 쓴다

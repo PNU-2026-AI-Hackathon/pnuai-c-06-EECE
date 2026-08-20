@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from prefab.chips import CHIPS, ESP32S3
+from prefab.chips import CHIPS, ESP32, ESP32C6, ESP32S3
 from prefab.rules.r01_unusable_pin import _chip_from_mpn
 
 # ── 표끼리 모순이 없는가 (모든 칩) ──────────────────────────────────
@@ -114,3 +114,37 @@ def test_S3_가_구형_ESP32_로_잘못_걸리지_않는다():
     assert _chip_from_mpn("ESP32-S3-WROOM-1").id == "esp32s3"
     assert _chip_from_mpn("ESP32-C6-WROOM-1").id == "esp32c6"
     assert _chip_from_mpn("ESP32-WROOM-32").id == "esp32"
+
+
+# ── 내장 USB 핀 ─────────────────────────────────────────────────────
+#
+# R08 이 이 핀을 "코드가 초기화 안 함" 으로 잡으면 오탐이다 — 주변장치가 직접 몬다.
+# 빈 값의 뜻이 `boot_output` 과 **다르다**: 여기서는 "그 칩에 내장 USB 가 없다" 이다.
+
+
+def test_S3_의_USB_핀():
+    """ESP-IDF: "GPIO19 and GPIO20 are used by USB-JTAG by default"."""
+    assert ESP32S3.usb == (19, 20)
+
+
+def test_C6_의_USB_핀():
+    """ESP-IDF: "GPIO12 and GPIO13 are used by USB-JTAG by default"."""
+    assert ESP32C6.usb == (12, 13)
+
+
+def test_구형_ESP32_는_내장_USB_가_없다():
+    """비어 있는 것이 "못 찾았다"가 아니라 **"없다"** 인 경우다.
+
+    구형 ESP32 는 외부 USB-UART 브리지(CP2102 등)를 쓴다.
+    """
+    assert ESP32.usb == ()
+
+
+def test_S3_의_USB_핀이_ADC2_와_겹친다는_것을_알고_있다():
+    """GPIO19·20 을 아날로그로 쓰면 USB 가 죽는다. 겹침 자체가 정보다."""
+    assert set(ESP32S3.usb) < set(ESP32S3.adc2)
+
+
+@pytest.mark.parametrize("chip", CHIPS.values(), ids=list(CHIPS))
+def test_USB_핀은_플래시_핀과_겹치지_않는다(chip):
+    assert not set(chip.usb) & set(chip.spi_flash)

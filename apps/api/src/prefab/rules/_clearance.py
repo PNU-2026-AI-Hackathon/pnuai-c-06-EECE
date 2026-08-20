@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ..mpn import part_numbers
 from ..datasheet.facts import IO_LEVEL, VOH_MAX, Fact, FactSet, label
 from ..types import Context, Evidence
 
@@ -73,8 +74,10 @@ def ask(
 ) -> Answer:
     """부품기호 하나에 대해 항목 하나를 묻는다.
 
-    부품기호(`K1`)는 BOM 을 거쳐야 부품번호가 되고, 부품번호가 있어야 사실을 찾는다.
-    끊긴 자리마다 다른 말을 해야 사용자가 다음에 뭘 할지 안다.
+    부품기호(`K1`)는 **부품번호로 바뀌어야** 사실을 찾을 수 있다. 그 번호는 BOM 에서
+    올 수도 있고 회로도 심볼 필드에서 올 수도 있다 (`mpn.part_numbers`).
+    끊긴 자리마다 다른 말을 해야 사용자가 다음에 뭘 할지 안다 —
+    **어느 쪽에서 왔는지도 말한다.** BOM 이 틀리면 BOM 을, 회로도가 틀리면 심볼을 고친다.
 
     `resolve=False` 는 **답이 있어도 쓰지 않는다.** 질문이 맞는지 자체가 불확실할 때
     쓴다 — 예를 들어 그 부품이 이 네트를 구동하는지도 모르면 출력 전압은
@@ -83,15 +86,25 @@ def ask(
     """
     what = what or label(field)
 
-    bom = ctx.bom
-    if bom is None:
-        return Answer(missing=f"{ref} 미식별 — BOM 을 제출하면 {what}을 확인합니다")
-
-    mpn = bom.mpn_of(ref)
-    if not mpn:
+    numbers = part_numbers(getattr(ctx.netlist, "netlist", None) or ctx.netlist, ctx.bom)
+    known = numbers.get(ref)
+    if known is None:
+        # **고칠 자리가 어디인지 말한다.** BOM 을 낸 사람에게 "BOM 을 내세요" 는 거짓말이고,
+        # 회로도로 올린 사람에게 "BOM 을 내세요" 는 유일한 길이 아니다.
+        if ctx.bom is not None:
+            return Answer(
+                missing=f"{ref} 이 BOM 에 없거나 부품번호가 비어 있습니다 — "
+                f"부품번호가 있어야 {what}을 찾습니다"
+            )
+        if numbers:
+            return Answer(
+                missing=f"{ref} 에는 회로도가 부품번호를 안 실어 줬습니다 — "
+                f"심볼의 부품번호 필드를 채우거나 BOM 을 제출하면 {what}을 확인합니다"
+            )
         return Answer(
-            missing=f"{ref} 이 BOM 에 없거나 부품번호가 비어 있습니다 — 부품번호가 있어야 {what}을 찾습니다"
+            missing=f"{ref} 미식별 — BOM 을 제출하거나 회로도 넷리스트로 올리면 {what}을 확인합니다"
         )
+    mpn = known.mpn
 
     if not resolve:
         return Answer(mpn=mpn, missing=f"{mpn} — {what}을 확인해야 합니다")

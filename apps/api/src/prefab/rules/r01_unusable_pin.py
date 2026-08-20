@@ -18,6 +18,7 @@ R02 는 같은 것을 **회로도 쪽에서** 본다. 여기는 **코드 쪽**�
 from __future__ import annotations
 
 from ..chips import CHIPS, MODULES, Chip
+from ..mpn import known_mpns
 from ..types import Context, Evidence, Finding, Severity, Verdict
 
 RULE_ID = "R01"
@@ -30,7 +31,7 @@ NEEDS = ["netlist", "firmware"]
 def check(ctx: Context) -> list[Finding]:
     """순수 함수. 네트워크·LLM·파일 IO·시간·난수 금지."""
     pinmap = getattr(ctx.netlist, "pinmap", None)
-    chip = chip_of(pinmap, ctx.bom)
+    chip = chip_of(ctx)
     if chip is None:
         return []  # 어느 칩인지 모르면 못 쓰는 핀도 모른다
 
@@ -60,22 +61,29 @@ def gpio_of(use, pinmap) -> int | None:
     return found.gpio if found else None
 
 
-def chip_of(pinmap, bom) -> Chip | None:
-    """어느 칩인지 정한다. 모듈 매칭이 먼저, 없으면 BOM 부품번호.
+def chip_of(ctx) -> Chip | None:
+    """어느 칩인지 정한다. 모듈 매칭이 먼저, 없으면 부품번호.
 
     모듈 보드는 핀아웃 매칭이 칩까지 말해 준다. **맨칩 설계는 그게 없어서**
     부품번호로 알아내야 한다 — 패드 이름은 GPIO 번호만 말해 주고, 그 번호가
     스트래핑인지 플래시인지는 칩마다 다르다.
+
+    부품번호는 BOM 과 **회로도 둘 다**에서 온다 (`mpn.known_mpns`).
+    회로도 넷리스트(kicadxml)는 심볼 필드에 부품번호를 실어 오므로,
+    BOM 을 안 낸 사람의 보드에서도 칩이 정해진다.
     """
+    graph = ctx.netlist
+    pinmap = getattr(graph, "pinmap", None)
     if pinmap is not None:
         for module_id in getattr(pinmap, "modules_matched", {}).values():
             module = MODULES.get(module_id)
             if module is not None:
                 return CHIPS.get(module.chip)
 
-    if bom is None:
+    netlist = getattr(graph, "netlist", None)
+    if netlist is None:
         return None
-    for mpn in bom.mpns:
+    for mpn in known_mpns(netlist, ctx.bom):
         chip = _chip_from_mpn(mpn)
         if chip is not None:
             return chip

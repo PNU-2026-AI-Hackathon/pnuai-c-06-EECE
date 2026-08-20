@@ -51,7 +51,7 @@
       "step": 4,
       "name": "데이터시트 수집",
       "status": "skipped",
-      "detail": "부품 3개 중 0개 수집 — 조회 대상 HLK-LD2410C · JQC-3FF-S-Z · XIAO-ESP32C6"
+      "detail": "부품번호 3개(BOM 3) 중 0개 수집 — 조회 대상 HLK-LD2410C · JQC-3FF-S-Z · XIAO-ESP32C6"
     },
     {
       "step": 5,

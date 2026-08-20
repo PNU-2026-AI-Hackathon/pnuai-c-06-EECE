@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 from . import catalog
+from .mpn import SOURCE_NAMES, part_numbers, sources_used
 from .bom import Bom
 from .engine import EngineResult
 from .netlist.d356 import Netlist
@@ -45,8 +46,21 @@ def build_summary(netlist: Netlist, engine: EngineResult, parts_identified: int 
     }
 
 
-def _identify_step(has_bom: bool, pinmap, bom=None, refs=None) -> tuple[str, str]:
-    """2단계 — 부품 식별. 무엇까지 알아냈는지 정확히 적는다."""
+def _identify_step(has_bom: bool, pinmap, numbers, bom=None, refs=None) -> tuple[str, str]:
+    """2단계 — 부품 식별. 무엇까지 알아냈는지, **어디서 알았는지** 정확히 적는다.
+
+    BOM 이 틀리면 BOM 을 고치고 회로도가 틀리면 심볼 필드를 고친다.
+    출처를 안 적으면 사용자가 어디를 봐야 할지 모른다.
+    """
+    from_sch = [p for p in numbers.values() if p.source == "schematic"]
+    if bom is None and from_sch:
+        counts = sources_used(numbers)
+        detail = (
+            f"BOM 없음 · 회로도가 실어 준 부품번호로 {counts['schematic']}개 식별"
+            f" ({' · '.join(p.refdes for p in from_sch[:4])})"
+        )
+        # BOM 이 없으면 여전히 부분이다 — 사람이 확정한 목록이 아니다
+        return "partial", detail
     if bom is not None:
         m = bom.match(refs or set())
         # 넷리스트에 있는데 BOM 에 없거나, 있어도 부품번호가 빈 행 — 둘 다 "모르는 것"이다
@@ -55,9 +69,13 @@ def _identify_step(has_bom: bool, pinmap, bom=None, refs=None) -> tuple[str, str
         detail = f"BOM {len(bom)}행 · 부품번호 확인 {len(m.identified)}/{total}"
         if unknown:
             detail += f" · 미식별 {', '.join(sorted(unknown)[:5])}"
+        if from_sch:
+            detail += f" · 회로도가 {len(from_sch)}개 보탬"
         for note in bom.parse_notes():
             detail += f" · {note}"
-        return ("done" if not unknown else "partial"), detail
+        # 회로도가 빈자리를 다 메웠으면 모르는 부품이 없는 것이다
+        still_unknown = [r for r in unknown if r not in numbers]
+        return ("done" if not still_unknown else "partial"), detail
     if has_bom:
         return "done", "BOM 으로 부품번호 확인"
     if pinmap:
@@ -102,10 +120,13 @@ def build_pipeline(
 ) -> list[dict[str, Any]]:
     step = dict(PIPELINE_NAMES)
 
-    identify = _identify_step(has_bom, pinmap, bom, set(netlist.parts))
+    # 부품번호는 BOM 과 회로도 두 길로 온다. **어디서 왔는지까지** 들고 다닌다.
+    numbers = part_numbers(netlist, bom)
+
+    identify = _identify_step(has_bom, pinmap, numbers, bom, set(netlist.parts))
     firmware_step = _firmware_step(firmware, pinmap)
 
-    datasheet, extract = _datasheet_steps(has_bom, bom, facts, engine)
+    datasheet, extract = _datasheet_steps(numbers, facts, engine)
 
     engine_detail = (
         f"{catalog.TOTAL}개 중 {len(engine.ran)}개 실행 · "
@@ -130,29 +151,32 @@ def build_pipeline(
     ]
 
 
-def _datasheet_steps(has_bom, bom, facts, engine) -> tuple[tuple[str, str], tuple[str, str]]:
+def _datasheet_steps(numbers, facts, engine) -> tuple[tuple[str, str], tuple[str, str]]:
     """4·5 단계 — 데이터시트를 얼마나 읽었나.
 
     **한 일을 안 했다고 적지 않는다.** 사실을 실제로 읽어서 판정에 썼는데도
     "미구현" 이라고 적으면 4-2 와 똑같은 종류의 거짓말이다 (CLAUDE.md 2-4).
     반대로 하나 읽었다고 `done` 이라고 하지도 않는다. 못 읽은 부품을 그대로 센다.
     """
-    if not has_bom or bom is None or not bom.mpns:
+    mpns = sorted({p.mpn for p in numbers.values()})
+    if not mpns:
         return (
-            ("skipped", "BOM 없음 · 부품번호를 알 수 없음"),
+            ("skipped", "부품번호를 아는 길이 없음 — BOM 도 회로도 부품번호도 없음"),
             ("skipped", "조회할 부품번호가 없음"),
         )
 
-    total = len(bom.mpns)
+    total = len(mpns)
+    # 어디서 온 번호로 조회했는지 밝힌다
+    origin = " · ".join(f"{SOURCE_NAMES[k]} {v}" for k, v in sources_used(numbers).items())
     if facts is None or not facts.hits:
-        missing = " · ".join(sorted(bom.mpns)[:3])
+        missing = " · ".join(mpns[:3])
         return (
-            ("skipped", f"부품 {total}개 중 0개 수집 — 조회 대상 {missing}"),
+            ("skipped", f"부품번호 {total}개({origin}) 중 0개 수집 — 조회 대상 {missing}"),
             ("skipped", "읽어 둔 사실 없음"),
         )
 
     hits = len(facts.hits)
-    collect = [f"부품 {total}개 중 {hits}개 수집"]
+    collect = [f"부품번호 {total}개({origin}) 중 {hits}개 수집"]
     if facts.misses:
         collect.append("미수집: " + " · ".join(sorted(facts.misses)[:6]))
     # 전부 모으기 전에는 done 이 아니다. 부분 수집을 완료라고 적지 않는다.
