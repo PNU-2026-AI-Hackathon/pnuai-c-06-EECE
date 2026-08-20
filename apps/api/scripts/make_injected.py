@@ -530,6 +530,25 @@ REAL_BOARD = {
 }
 
 
+#: **두 번째 실측 케이스.** 우리 보드가 아니라 남의 오픈소스 프로젝트다
+#: (`FForzano/xgsail-e1`, Apache-2.0). 배선이 바뀌며 `User_Setup.h` 는 고쳐지고
+#: `config.h` 는 안 따라온 자리이고, **라벨이 없던 진짜 결함**이다.
+#:
+#: 합성 케이스만 보던 동안에는 이 모양이 있는 줄도 몰랐다. LLM baseline 이 먼저
+#: 지적했고 코드로 확인한 뒤 R14 로 옮겼다 (`_docs/규모_실험.md`).
+#: 넷리스트는 안 쓴다 — R14 는 코드 안의 모순만으로 성립한다.
+REAL_XGSAIL = {
+    "id": "real-xgsail-tft-bl",
+    "kind": "실측",
+    "why": "남의 오픈소스 보드에서 나온 라벨 없는 결함. TFT_BL 이 19 와 25 두 핀에 앉아 있다",
+    "expect": ["R14"],
+    # R14 는 넷리스트를 안 본다. 우리 보드를 짝지었더니 짝이 안 맞아 R01·R07·R08·R12 가
+    # 딸려 왔다 — 그래서 **아무 규칙도 안 걸리는 최소 보드**를 따로 뒀다.
+    "netlist_src": "xgsail-e1-tft-bl.d356",
+    "firmware_src": "xgsail-e1-tft-bl.firmware",
+}
+
+
 def _link_real(manifest: list[dict]) -> None:
     """실측 픽스처는 복사하지 않고 상대경로로 가리킨다. 두 벌이 되면 갈라진다."""
     manifest.append({
@@ -540,6 +559,14 @@ def _link_real(manifest: list[dict]) -> None:
         "netlist": f"../{REAL_BOARD['netlist_src']}",
         "bom": f"../{REAL_BOARD['bom_src']}",
         "firmware": f"../{REAL_BOARD['firmware_src']}",
+    })
+    manifest.append({
+        "id": REAL_XGSAIL["id"],
+        "kind": REAL_XGSAIL["kind"],
+        "why": REAL_XGSAIL["why"],
+        "expect": REAL_XGSAIL["expect"],
+        "netlist": f"../{REAL_XGSAIL['netlist_src']}",
+        "firmware": f"../{REAL_XGSAIL['firmware_src']}",
     })
 
 

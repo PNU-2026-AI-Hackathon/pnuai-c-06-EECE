@@ -127,6 +127,14 @@ def test_negative_kicad_pseudo_net_is_not_a_wire():
 # 여기 고정해서 다시는 못 돌아오게 한다.
 
 
+#: **핀을 하나는 쓰는** 펌웨어. 보드에 없는 GPIO40 을 쓴다.
+#:
+#: R08 은 코드에서 핀을 0개 읽으면 아무 말도 하지 않는다 — "다 읽어봤는데 없더라" 가
+#: 성립하지 않기 때문이다. 그래서 억제 로직을 시험하려면 **파서가 뭔가는 읽은** 상태여야
+#: 한다. 보드와 무관한 핀을 쓰는 이유는 그것이 판정 대상에 끼지 않게 하기 위해서다.
+FW_UNRELATED = {"a.ino": "void setup(){ pinMode(40, OUTPUT); }"}
+
+
 def _board_with_counterpart(net: str, other_ref: str, other_pin: str) -> str:
     """XIAO 헤더의 D2 를 `net` 에 물리고, 그 반대편 패드 이름을 지정한다."""
     lines = [
@@ -147,30 +155,33 @@ def test_positive_control_ordinary_counterpart_still_warns():
     이게 없으면 아래 음성 테스트가 '원래 안 뜨는 것' 을 확인한 셈이 된다.
     """
     text = _board_with_counterpart("SENSE", "X1", "1")
-    assert len(_run(text, {"a.ino": "void setup(){}"})) == 1
+    assert len(_run(text, FW_UNRELATED)) == 1
 
 
 def test_negative_usb_data_pin_is_not_a_finding():
     """상대편이 USB 커넥터의 `D-` 다. **반대쪽 핀이 스스로 밝힌다.**"""
     text = _board_with_counterpart("USB_DM", "J1", "D-")
-    assert _run(text, {"a.ino": "void setup(){}"}) == []
+    # 무관한 핀을 쓰는 펌웨어다 — 0핀 가드가 아니라 **억제 로직**이 일해야 한다
+    assert _run(text, FW_UNRELATED) == []
 
 
 def test_negative_usb_suppression_does_not_depend_on_net_name():
     """네트 이름은 아무렇게나 붙을 수 있다. 판정 근거는 상대편 핀 이름이다."""
     text = _board_with_counterpart("NET_42", "J1", "D+")
-    assert _run(text, {"a.ino": "void setup(){}"}) == []
+    # 무관한 핀을 쓰는 펌웨어다 — 0핀 가드가 아니라 **억제 로직**이 일해야 한다
+    assert _run(text, FW_UNRELATED) == []
 
 
 def test_negative_lowercase_pin_name_also_counts():
     text = _board_with_counterpart("USB_DP", "J1", "d+")
-    assert _run(text, {"a.ino": "void setup(){}"}) == []
+    # 무관한 핀을 쓰는 펌웨어다 — 0핀 가드가 아니라 **억제 로직**이 일해야 한다
+    assert _run(text, FW_UNRELATED) == []
 
 
 def test_positive_similar_looking_pin_name_still_warns():
     """`D2` 는 USB 데이터 핀이 아니라 그냥 2번 핀이다. 넓게 잡으면 미탐이 된다."""
     text = _board_with_counterpart("SENSE", "J1", "D2")
-    assert len(_run(text, {"a.ino": "void setup(){}"})) == 1
+    assert len(_run(text, FW_UNRELATED)) == 1
 
 
 def test_negative_usb_pin_name_from_schematic_netlist():
@@ -204,7 +215,7 @@ def test_negative_usb_pin_name_from_schematic_netlist():
   </nets>
 </export>"""
     graph = Graph(parse_xml(xml))
-    findings = r08.check(Context(netlist=graph, firmware=analyze_firmware({"a.ino": "void setup(){}"})))
+    findings = r08.check(Context(netlist=graph, firmware=analyze_firmware(FW_UNRELATED)))
 
     nets = {f.net for f in findings}
     assert "USB_D-" not in nets, "USB 데이터 핀은 코드가 안 만지는 것이 정상이다"
@@ -239,7 +250,7 @@ def test_negative_chip_table_knows_usb_pins_without_connector_names():
   </nets></export>"""
     graph = Graph(parse_xml(xml))
     findings = r08.check(
-        Context(netlist=graph, firmware=analyze_firmware({"a.ino": "void setup(){}"}))
+        Context(netlist=graph, firmware=analyze_firmware(FW_UNRELATED))
     )
 
     nets = {f.net for f in findings}
@@ -272,6 +283,22 @@ def test_positive_usb_suppression_needs_the_right_chip():
   </nets></export>"""
     graph = Graph(parse_xml(xml))
     findings = r08.check(
-        Context(netlist=graph, firmware=analyze_firmware({"a.ino": "void setup(){}"}))
+        Context(netlist=graph, firmware=analyze_firmware(FW_UNRELATED))
     )
     assert "N1" in {f.net for f in findings}
+
+
+def test_negative_firmware_with_no_pins_reported_says_nothing():
+    """**핀을 하나도 못 읽었으면 아무 말도 하지 않는다.**
+
+    이 규칙의 주장은 "다 읽어봤는데 이 핀이 없더라" 다. 0개를 읽은 상태에서는
+    코드가 안 쓰는 게 아니라 **우리가 못 읽은 것**이다 (헌법 2-2).
+
+    실보드에서 이걸로 오탐이 쏟아졌다 — ESPHome 보드는 핀을 YAML 로 정하고
+    (우리 파서는 C/C++ 만 안다) 라이브러리만 든 zip 도 마찬가지다.
+    각각 9건 · 13건이 떴다.
+    """
+    text = _board_with_counterpart("SENSE", "X1", "1")
+    assert _run(text, {"a.ino": "// 핀을 안 쓰는 코드"}) == []
+    # 대조군 — 하나라도 읽으면 원래대로 경고한다
+    assert len(_run(text, FW_UNRELATED)) == 1

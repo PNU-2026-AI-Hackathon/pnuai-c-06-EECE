@@ -55,8 +55,14 @@ def test_unimplemented_rules_are_exposed_not_hidden():
     assert {r["id"] for r in payload if r["implemented"]} == set(rules.IMPLEMENTED_IDS)
 
 
-def test_catalog_total_is_eleven():
-    assert catalog.TOTAL == 11
+def test_catalog_total_matches_the_registry():
+    """개수를 손으로 못 박지 않는다. 규칙이 늘 때마다 세 곳을 고치게 된다.
+
+    지키려는 것은 개수가 아니라 **카탈로그와 레지스트리가 어긋나지 않는 것**이다.
+    (R14 가 들어오면서 11 → 12 가 됐고, 그때 이 테스트가 개수만 지키고 있었다.)
+    """
+    assert catalog.TOTAL == len(catalog.CATALOG)
+    assert set(rules.IMPLEMENTED_IDS) <= set(catalog.BY_ID)
 
 
 def test_proposed_rules_are_not_counted_in_the_catalog():

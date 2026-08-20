@@ -117,6 +117,15 @@ CATALOG: tuple[RuleSpec, ...] = (
         Severity.CRITICAL,
         ("netlist",),
     ),
+    RuleSpec(
+        # 실제 오픈소스 보드에서 찾은 결함으로 만든 규칙이다. 합성 케이스로는
+        # 이 모양이 있는 줄도 몰랐다 (`_docs/규모_실험.md`).
+        "R14",
+        "같은 이름의 핀 상수가 서로 다른 핀을 가리킴",
+        "차별",
+        Severity.CRITICAL,
+        ("firmware",),
+    ),
 )
 
 #: 채택 대기 중인 제안. **카탈로그가 아니다** — rules_total 에 들어가지 않는다.

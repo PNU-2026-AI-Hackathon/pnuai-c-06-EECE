@@ -315,7 +315,8 @@ kicad-cli sch export netlist --format kicadxml -o board.xml board.kicad_sch
 
 > **이 표는 사본이다. 진실은 `src/prefab/catalog.py` 하나다.**
 > 표와 코드가 어긋나면 코드가 맞다. 실제로 한 번 어긋났다 (여기 12개, 카탈로그 11개).
-> `tests/test_catalog.py` 가 재발을 막는다. 규칙 ID 는 세 자리 고정이다 (`R01`…`R12`).
+> `tests/test_catalog.py` 가 재발을 막는다. 규칙 ID 는 세 자리 고정이다 (`R01`…`R14`).
+> **개수를 테스트에 손으로 못 박지 않는다** — 규칙이 늘 때마다 세 곳을 고치게 된다.
 
 | ID | 규칙 | 등급 | NEEDS | 상태 |
 |---|---|---|---|---|
@@ -332,8 +333,9 @@ kicad-cli sch export netlist --format kicadxml -o board.xml board.kicad_sch
 | R11 | 네트명이 주장하는 전압 ≠ 소스 부품 전원 도메인 | 기본 | netlist | **동작** |
 | R12 | 상위 전원 도메인이 하위를 직결 | 기본 | netlist | **동작** |
 | ~~R13~~ | ~~코드가 출력으로 구동하는 핀에 다른 출력이 연결~~ | — | — | **기각 — 하드웨어 판정 "문제 안 됨"** |
+| R14 | 같은 이름의 핀 상수가 서로 다른 핀을 가리킴 | **차별** | firmware | **동작** — 남의 실제 보드에서 찾은 결함으로 만들었다 |
 
-카탈로그 전체 **11개** · 구현 **11개**. `NEEDS` 어휘는 계약과 같은 `netlist` / `bom` / `firmware` 세 개뿐이다.
+카탈로그 전체 **12개** · 구현 **12개**. `NEEDS` 어휘는 계약과 같은 `netlist` / `bom` / `firmware` 세 개뿐이다.
 
 > 엔진 내부(`INPUT_NAMES`)는 `datasheet` 까지 안다. 사실 DB 조회 결과를 규칙에 넘겨야 해서다.
 > 하지만 **카탈로그의 `needs` 에 쓰면 프론트가 모르는 값이 나간다.**
