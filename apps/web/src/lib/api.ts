@@ -3,7 +3,10 @@ import type { CheckCreated, CheckResult, RuleInfo } from "../types/api";
 // 목표 응답은 docs/examples 에 있는 파일을 그대로 읽는다. 사본을 만들지 않는다 —
 // 계약 예시가 두 벌이 되는 순간 한쪽은 반드시 거짓이 된다.
 import spec from "../../../../docs/examples/check.target-with-firmware.json";
-import sample from "../mocks/check.json";
+// **사본을 만들지 않는다.** 백엔드가 배포 서버에 싣는 바로 그 파일을 읽는다.
+// 복사해 뒀더니 규칙 11개 시절 결과가 목 모드에 그대로 남아, 목과 서버가
+// 같은 id(`chk_sample01`)로 **다른 숫자**를 보여줬다.
+import sample from "../../../api/src/prefab/samples/check.sample.json";
 import ruleCatalog from "../mocks/rules.json";
 
 /**

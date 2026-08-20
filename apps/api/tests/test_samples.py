@@ -12,6 +12,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from prefab.datasheet.seed import seed_facts
+from prefab.datasheet.store import FactStore
 from prefab.firmware import load_directory
 from prefab.report import build_result
 from prefab.runner import analyze
@@ -23,17 +25,32 @@ BOM = FIXTURES / "esp32-c6-presence-smart-light.bom.csv"
 FIRMWARE = FIXTURES / "esp32-c6-presence-smart-light.firmware"
 
 
-def _regenerate() -> dict:
-    """샘플을 만든 것과 **똑같은** 입력으로 다시 뽑는다.
+PARTS = Path(__file__).parent.parent / "parts"
 
-    부품 사실 DB 는 일부러 안 쓴다 — 로컬 DB 상태에 따라 결과가 달라지면
-    커밋된 파일만으로 재현할 수 없게 된다.
+
+def _seeded_store(tmp_path) -> FactStore:
+    """커밋된 `parts/*.json` 만으로 만든 사실 DB. **서버가 기동 때 하는 것과 같다.**
+
+    한동안 샘플을 사실 없이 뽑았다. 이유는 "로컬 DB 상태가 섞이면 커밋된 파일만으로
+    재현할 수 없다" 였고, 그때는 맞는 말이었다. **지금은 사실이 커밋돼 있다** —
+    입력이 `parts/*.json` 뿐이고 정렬된 순서로 읽으므로 결과가 결정적이다.
+
+    낡은 근거를 그대로 두었더니 **업로드 없이 보는 첫 화면에서만 해제가 0건**이었다.
+    같은 보드를 직접 올리면 2건이 해제되는데도 그랬다.
     """
+    store = FactStore(tmp_path / "sample-facts.db")
+    seed_facts(PARTS, store)
+    return store
+
+
+def _regenerate(tmp_path) -> dict:
+    """샘플을 만든 것과 **똑같은** 입력으로 다시 뽑는다."""
     a = analyze(
         NETLIST.read_text(encoding="utf-8", errors="replace"),
         filename=NETLIST.name,
         bom_bytes=BOM.read_bytes(),
         firmware_sources=load_directory(FIRMWARE),
+        fact_store=_seeded_store(tmp_path),
     )
     sample = load_sample()
     return build_result(
@@ -49,13 +66,14 @@ def _regenerate() -> dict:
 # ── 낡지 않는가 ─────────────────────────────────────────────────────
 
 
-def test_실려_있는_샘플이_지금_엔진과_같다():
+def test_실려_있는_샘플이_지금_엔진과_같다(tmp_path):
     """어긋나면 다시 뽑아야 한다 — 명령은 `src/prefab/samples/__init__.py` 에 있다."""
-    assert load_sample() == _regenerate(), (
-        "샘플이 엔진보다 낡았습니다. 아래로 다시 뽑으세요 —\n"
-        "  PREFAB_DB=/tmp/empty-prefab.db python -m prefab tests/fixtures/esp32-c6-presence-smart-light.d356 --bom tests/fixtures/esp32-c6-presence-smart-light.bom.csv --firmware tests/fixtures/esp32-c6-presence-smart-light.firmware --json > src/prefab/samples/check.sample.json\n"
-        "**PREFAB_DB 를 빈 파일로 두는 것이 핵심입니다.** 로컬 사실 DB 가 섞이면 "
-        "커밋된 파일만으로 재현할 수 없고, 이 테스트가 계속 빨간불입니다."
+    assert load_sample() == _regenerate(tmp_path), (
+        "샘플이 엔진보다 낡았습니다. 두 줄로 다시 뽑으세요 —\n"
+        "  PREFAB_DB=/tmp/sample-facts.db python -m prefab --facts-load parts/*.json\n"
+        "  PREFAB_DB=/tmp/sample-facts.db python -m prefab tests/fixtures/esp32-c6-presence-smart-light.d356 --bom tests/fixtures/esp32-c6-presence-smart-light.bom.csv --firmware tests/fixtures/esp32-c6-presence-smart-light.firmware --json > src/prefab/samples/check.sample.json\n"
+        "**사실 DB 를 먼저 심는 것이 핵심입니다.** 서버가 기동할 때 하는 것과 같습니다. "
+        "빈 DB 로 뽑으면 해제가 0건이 되어, 업로드 없이 보는 첫 화면에서만 차별점이 사라집니다."
     )
 
 
@@ -88,6 +106,29 @@ def test_샘플이_실제로_보여줄_게_있다():
     assert s["summary"]["critical"] > 0
     assert s["inputs"]["firmware"] is not None
     assert s["inputs"]["bom"] is not None
+
+
+def test_샘플이_데이터시트_해제를_보여준다():
+    """**업로드 없이 보는 첫 화면이다.** 여기서 해제가 0건이면 차별점이 안 보인다.
+
+    한 번 그랬다 — 샘플만 사실 없이 뽑혀서, 같은 보드를 직접 올리면 2건이 해제되는데
+    샘플에서는 0건이었다. 그 조용한 어긋남을 여기서 막는다.
+    """
+    s = load_sample()
+    assert s["summary"]["cleared"] > 0, (
+        "샘플에 해제된 판정이 없습니다. 사실 DB 를 심지 않고 뽑았을 때 이렇게 됩니다 — "
+        "`src/prefab/samples/__init__.py` 의 명령을 확인하세요."
+    )
+
+
+def test_해제된_판정에는_데이터시트_근거가_붙어_있다():
+    """해제는 **출처가 붙어야만** 성립한다. 근거 없이 지우면 그냥 놓친 것이다."""
+    s = load_sample()
+    cleared = [f for f in s["findings"] if f["verdict"] == "PASS"]
+    assert cleared, "해제된 판정이 없습니다"
+    for f in cleared:
+        kinds = {e["kind"] for e in f["evidence"]}
+        assert "datasheet" in kinds, f"{f['rule']}: 근거 종류 {kinds}"
 
 
 # ── 저장소에 들어가는가 ─────────────────────────────────────────────

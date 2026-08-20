@@ -19,18 +19,27 @@ from .service import ApiError
 
 # --------------------------------------------------------------------- 설정
 
-#: 배포 시 ALLOWED_ORIGINS 환경변수로 Vercel URL 을 넣는다. 쉼표로 여러 개.
+#: 개발 포트는 **항상** 열어 둔다.
 #:
-#: 5173 만 열어두면 안 된다 — vite 는 5173 이 점유돼 있으면 **말없이 5174 로 올린다.**
+#: 5173 만 열면 안 된다 — vite 는 5173 이 점유돼 있으면 **말없이 5174 로 올린다.**
 #: 그러면 CORS 가 조용히 막히고 화면은 이유를 모른 채 기능을 잃는다. 실제로 한 번 밟았다.
-#: 개발 포트라 넓게 열어도 위험이 없다.
 DEV_PORTS = (5173, 5174, 5175)
-DEFAULT_ORIGINS = ",".join(
+DEV_ORIGINS = [
     f"http://{host}:{port}" for port in DEV_PORTS for host in ("localhost", "127.0.0.1")
-)
+]
 
-ALLOWED_ORIGINS = [
-    o.strip() for o in os.getenv("ALLOWED_ORIGINS", DEFAULT_ORIGINS).split(",") if o.strip()
+#: 배포 주소는 `ALLOWED_ORIGINS` 로 **더한다. 대체하지 않는다.**
+#:
+#: 대체하게 만들었더니 Render 에 배포 주소를 넣는 순간 로컬 개발이 통째로 막혔다.
+#: 증상이 고약하다 — 화면은 멀쩡히 뜨고 검사만 조용히 실패한다. 배포한 사람은
+#: 자기가 무엇을 껐는지 모르고, 다른 사람은 자기 코드를 의심한다.
+#:
+#: **여기서 CORS 는 보안 경계가 아니다.** 이 API 는 인증이 없어서 `curl` 로는
+#: 어차피 누구나 부른다. CORS 가 막는 것은 *브라우저*뿐이고, 브라우저는 페이지가
+#: `Origin` 을 `localhost` 로 위조하게 두지 않는다. 개발 포트를 더 여는 것으로
+#: 늘어나는 위험이 없다 (헌법 2-3 — 조용한 실패가 더 비싸다).
+ALLOWED_ORIGINS = DEV_ORIGINS + [
+    o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()
 ]
 
 #: Vercel 프리뷰 배포는 URL 이 매번 바뀐다. 정규식으로 함께 허용한다.

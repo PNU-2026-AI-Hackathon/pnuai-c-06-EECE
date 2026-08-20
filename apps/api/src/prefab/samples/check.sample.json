@@ -18,10 +18,10 @@
     }
   },
   "summary": {
-    "critical": 4,
+    "critical": 2,
     "warning": 1,
     "info": 0,
-    "cleared": 0,
+    "cleared": 2,
     "rules_run": 12,
     "rules_skipped": 0,
     "rules_total": 12,
@@ -50,14 +50,14 @@
     {
       "step": 4,
       "name": "데이터시트 수집",
-      "status": "skipped",
-      "detail": "부품번호 3개(BOM 3) 중 0개 수집 — 조회 대상 HLK-LD2410C · JQC-3FF-S-Z · XIAO-ESP32C6"
+      "status": "done",
+      "detail": "부품번호 3개(BOM 3) 중 3개 수집"
     },
     {
       "step": 5,
       "name": "전기적 사실 추출",
-      "status": "skipped",
-      "detail": "읽어 둔 사실 없음"
+      "status": "done",
+      "detail": "사실 14건 확보 · 판정 2건에 근거로 사용"
     },
     {
       "step": 6,
@@ -156,9 +156,9 @@
       "title": "상위 전원 도메인이 하위를 직결",
       "tier": "기본",
       "severity": "CRITICAL",
-      "verdict": "FAIL",
+      "verdict": "PASS",
       "net": "PRESENCE_3V3",
-      "claim": "5V로 동작하는 U2의 출력(U2.OUT)이 3.3V로 동작하는 U1.D2에 직결되어 있습니다. 사이에 직렬 저항도 분압도 레벨 시프터도 없습니다.",
+      "claim": "5V로 동작하는 U2의 출력(U2.OUT)이 3.3V로 동작하는 U1.D2에 직결되어 있습니다. 다만 U2(HLK-LD2410C)의 IO 로직 레벨이 3.3V로 확인되어 U1의 3.3V 입력이 견딥니다. 전원이 5V일 뿐 출력은 그렇지 않습니다.",
       "evidence": [
         {
           "kind": "netlist",
@@ -168,32 +168,45 @@
             "U2.OUT",
             "U1.D2"
           ]
+        },
+        {
+          "kind": "datasheet",
+          "mpn": "HLK-LD2410C",
+          "table": "Table 2 Performance and electrical parameters table (Interface)",
+          "page": 17,
+          "quote": "A GPIO, IO level 3.3V"
         }
       ],
-      "suggestion": "U2(HLK-LD2410C)의 데이터시트를 읽으면 판정합니다. Voh가 3.6V 이하면 이 항목은 해제됩니다. 이 네트에는 R11(네트명이 주장하는 전압과 소스 부품의 전원 도메인이 다름) 도 함께 해당합니다.",
-      "unresolved_reason": "HLK-LD2410C 의 데이터시트를 아직 읽지 않았습니다 — 출력 하이 전압(Voh)이 필요합니다"
+      "suggestion": "조치할 것이 없습니다. 데이터시트에서 확인했습니다 — Table 2 Performance and electrical parameters table (Interface) · p.17. U2의 부품번호가 바뀌면 이 판정도 다시 해야 합니다. 이 네트에는 R11(네트명이 주장하는 전압과 소스 부품의 전원 도메인이 다름) 도 함께 해당합니다.",
+      "unresolved_reason": null
     },
     {
       "rule": "R12",
       "title": "상위 전원 도메인이 하위를 직결",
       "tier": "기본",
       "severity": "CRITICAL",
-      "verdict": "FAIL",
+      "verdict": "PASS",
       "net": "_IN_ACTIVE_LOW",
-      "claim": "5V로 추정되는 K1과 3.3V로 동작하는 U1이 같은 네트에 직결되어 있습니다 (K1.pad- · U1.D5). 이 네트의 R3은 3V3 로 끌어올리는 풀업이라 직렬 보호가 되지 않습니다.",
+      "claim": "5V 로 도는 K1 와 3.3V 로 도는 U1 가 같은 네트에 있습니다. 다만 K1(JQC-3FF-S-Z) 의 입력 핀에는 내부 풀업이 없는 것으로 확인돼, 이 핀을 통해 5V 가 U1 로 올라올 경로가 없습니다.",
       "evidence": [
         {
           "kind": "netlist",
-          "text": "K1.pad- → _IN_ACTIVE_LOW\nR3.P1 → _IN_ACTIVE_LOW\nR3 반대쪽 → 3V3   (풀업)\nU1.D5 → _IN_ACTIVE_LOW",
+          "text": "K1.pad- → _IN_ACTIVE_LOW\nU1.D5 → _IN_ACTIVE_LOW",
           "highlight": [
             "K1.pad-",
-            "3V3",
             "U1.D5"
           ]
+        },
+        {
+          "kind": "datasheet",
+          "mpn": "JQC-3FF-S-Z",
+          "table": "IN↔VCC 저항 측정 (2026-08-19 · 한지양)",
+          "page": null,
+          "quote": "릴레이 모듈 단독 상태에서 IN-VCC 저항을 20kΩ 및 2MΩ 범위로 측정했는데 모두 OL(1.)이 나왔습니다. 따라서 IN-VCC 사이의 저항성 풀업은 확인되지 않았습니다."
         }
       ],
-      "suggestion": "K1(JQC-3FF-S-Z)의 데이터시트를 읽으면 판정합니다. 이 네트의 저항은 풀업이라 직렬로 옮기지 않는 한 보호가 되지 않습니다.",
-      "unresolved_reason": "K1이 이 네트를 구동하는지 입력으로 받는지 넷리스트만으로는 알 수 없습니다. JQC-3FF-S-Z — 핀 방향과 내부 풀업을 확인해야 합니다"
+      "suggestion": "조치할 것이 없습니다. 근거 — 실측 · IN↔VCC 저항 측정 (2026-08-19 · 한지양). 다만 저항계는 트랜지스터·다이오드 경로를 못 봅니다. JQC-3FF-S-Z 의 회로도나 모듈 모델명을 알면 완전히 닫힙니다.",
+      "unresolved_reason": null
     },
     {
       "rule": "R08",
