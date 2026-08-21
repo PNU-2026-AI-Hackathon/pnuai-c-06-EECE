@@ -164,3 +164,24 @@ def test_사실이_들어가면_4단계가_미구현이라고_말하지_않는�
     # 몇 건인지는 사실이 늘면 바뀐다. 개수를 여기 박지 않는다
     assert step5["status"] == "done"
     assert "판정" in step5["detail"] and "근거로 사용" in step5["detail"]
+
+
+# ── 글롭으로 넣어도 죽지 않는다 ──────────────────────────────────────
+
+
+def test_서식_파일은_건너뛴다(tmp_path, capsys):
+    """`parts/*.json` 으로 글롭하면 `_TEMPLATE.json` 이 딸려 온다.
+
+    그걸 거절로 세면 종료 코드가 1 이 되고 `bash -e` 로 도는 CI 스텝이 통째로 죽는다.
+    **실제로 드리프트 워크플로가 그렇게 죽었다.** 심는 쪽은 원래 `_` 를 건너뛰고
+    있었는데 CLI 만 그 규약을 안 따랐다.
+    """
+    from prefab.__main__ import _facts_load
+
+    folder = Path(__file__).parent.parent / "parts"
+    paths = sorted(str(p) for p in folder.glob("*.json"))
+    assert any(Path(p).stem.startswith("_") for p in paths), "서식 파일이 없으면 이 검사가 무의미하다"
+
+    code = _facts_load(paths, str(tmp_path / "facts.db"))
+    assert code == 0, capsys.readouterr().out
+    assert "서식 파일이라 건너뜁니다" in capsys.readouterr().out

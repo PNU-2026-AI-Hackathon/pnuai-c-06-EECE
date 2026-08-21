@@ -28,6 +28,7 @@ import sys
 from pathlib import Path
 
 from .bom import BomParseError
+from .datasheet.seed import TEMPLATE_PREFIX
 from .datasheet.store import FactStore
 from .firmware import load_directory, load_zip
 from .netlist.d356 import NetlistParseError
@@ -214,6 +215,14 @@ def _facts_load(paths: list[str], db: str) -> int:
         if not path.exists():
             print(f"파일을 찾지 못했습니다: {path}", file=sys.stderr)
             bad += 1
+            continue
+        # **서식 파일은 사실이 아니다.** `parts/*.json` 으로 글롭하면 `_TEMPLATE.json`
+        # 이 딸려 온다. 그걸 거절로 세면 종료 코드가 1 이 되고, `bash -e` 로 도는
+        # CI 스텝이 통째로 죽는다. 실제로 드리프트 워크플로가 그렇게 죽었다.
+        # 심는 쪽(`datasheet.seed.seed_facts`)은 원래 `_` 를 건너뛰고 있었다 —
+        # **CLI 만 그 규약을 안 따르고 있었다.**
+        if path.stem.startswith(TEMPLATE_PREFIX):
+            print(f"{path.name}: 서식 파일이라 건너뜁니다")
             continue
         try:
             report = store.save_json(path.read_text(encoding="utf-8"))
