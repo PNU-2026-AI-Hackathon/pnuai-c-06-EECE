@@ -206,3 +206,35 @@ def test_서식_파일은_건너뛴다(tmp_path, capsys):
     code = _facts_load(paths, str(tmp_path / "facts.db"))
     assert code == 0, capsys.readouterr().out
     assert "서식 파일이라 건너뜁니다" in capsys.readouterr().out
+
+
+# ── TP4056 — 데이터시트 한 장이 오탐 2건을 지웠다 ────────────────────
+
+
+def test_TP4056_은_오픈드레인이_상수로_저장돼_있다():
+    """데이터시트는 문장으로 적고 규칙은 상수를 본다. 그 사이가 비면 조용히 실패한다.
+
+    `Open Drain Charge Status Output ... otherwise pin is in high impedance state`
+    → `open-drain` 으로 옮겨져 있어야 한다.
+    """
+    import json
+
+    d = json.loads((PARTS / "tp4056.json").read_text(encoding="utf-8"))
+    fields = {f["field"]: f for f in d["facts"]}
+    assert fields["output_type"]["value"] == "open-drain"
+    assert fields["output_type"]["confidence"] == "high"
+    # 원문이 남아 있어야 사용자가 "무엇을 근거로" 를 물을 때 답할 수 있다
+    assert "Open Drain" in fields["output_type"]["quote"]
+    assert fields["output_type"]["page"] == 2
+
+
+def test_TP4056_별칭이_선언돼_있다():
+    """BOM 은 `TP4056-42-ESOP8` 로 부른다. **접두어로 자동 매칭하지 않는다.**
+
+    `ESP32-C6`(칩)과 `ESP32-C6-WROOM-1`(모듈)처럼 접두어가 같아도 다른 문서인
+    경우가 있어서, 같다는 판단은 사람이 적는다.
+    """
+    import json
+
+    d = json.loads((PARTS / "tp4056.json").read_text(encoding="utf-8"))
+    assert "TP4056-42-ESOP8" in d["applies_to_boards"]
