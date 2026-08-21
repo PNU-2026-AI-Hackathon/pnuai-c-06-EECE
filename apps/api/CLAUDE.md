@@ -160,7 +160,7 @@ kicad-cli sch export netlist --format kicadxml -o board.xml board.kicad_sch
 - **형식 감지** (`netlist/detect.py`) — `parse_any()` 가 내용의 첫 글자로 파서를 고른다.
   XML 로 보이는데 kicadxml 이 아니면 d356 으로 **안 되돌린다** — 그러면 엉뚱한 오류가 나서
   사용자가 진짜 원인을 못 찾는다
-- 규칙 엔진 — **카탈로그 11개 전부 동작 (11/11).**
+- 규칙 엔진 — **카탈로그 12개 전부 동작 (12/12).**
   R10 은 이전 넷리스트를 **선택 입력**으로 받는다 (`ctx.git`) — `datasheet` 와 같은 자리다.
   계약 어휘를 넓히지 않았다: 웹으로 파일 셋을 올리는 사람에게는 이전 상태가 없고, 있는 곳은 CI 다
 - **데이터시트 해제 경로** (`rules/_clearance.py`) — R11 · R12 가 사실 DB 를 보고
@@ -261,7 +261,11 @@ kicad-cli sch export netlist --format kicadxml -o board.xml board.kicad_sch
 - 음성 케이스 기준선: `tests/fixtures/NEGATIVE_CASES.md` — **경고가 뜨면 오탐인 목록**
 
 ### 없다
-- 사실을 채운 부품 — **2개** (`HLK-LD2410C` · `ESP32-C6`). `JQC-3FF-S-Z` 는 아직 없다
+- 사실을 채운 부품 — **3개** (`HLK-LD2410C` · `ESP32-C6` · `JQC-3FF-S-Z`).
+  실측 보드 BOM 에서 부품번호가 있는 행이 정확히 이 셋이다 — 나머지 7행은 수동소자·커넥터라
+  애초에 물어볼 사실이 없다. **이 보드에서는 더 늘릴 것이 없다.** 다음은 새 보드(S3·OV3660)다
+- 새 보드 부품의 사실 — `ESP32-S3` · `OV3660` **둘 다 없다.** 칩 표에는 S3 를 넣었지만
+  데이터시트 해제는 사실이 있어야 돈다
 - C6 의 부팅 시 출력 핀 목록 — `GPIO16`(U0TXD) 하나뿐이다. 나머지는 **없어서가 아니라
   출처를 못 찾아서** 비어 있다. R09 는 표에 없는 핀에 대해 아무 말도 하지 않는다
 
@@ -284,12 +288,18 @@ kicad-cli sch export netlist --format kicadxml -o board.xml board.kicad_sch
    **좌표로 풀린다** — `docs/CHIPS.md` 모듈 핀아웃 절에 대조표가 있고 하드웨어 확정을 받았다.
    **IPC-D-356 으로 들어온 보드에만 남은 문제다** (8/19) — 회로도 넷리스트로 올리면
    핀 이름이 안 잘려서 좌표 복원 자체가 필요 없다.
-3. **R12 근거 문구가 풀다운을 "풀업" 이라고 적는다.** `graph.series_candidates()` 가
-   네트의 `R*`·`D*` 를 그대로 돌려주고, `r12_cross_domain.py` 가 그걸 무조건 "풀업"이라 쓴다.
-   **저항 반대쪽 터미널을 보지 않는다.** 판정은 맞고 문구만 틀렸다.
-   재현: `python -m prefab tests/fixtures/synthetic-divider-vs-pulldown.d356` 의 `SIG_A`
-   (저항이 `GND` 로 가는 풀다운인데 "풀업"이라고 나온다).
-   → 반대쪽이 상위 전원이면 풀업, `GND` 면 풀다운, 다른 신호면 직렬이다.
+3. ~~**R12 근거 문구가 풀다운을 "풀업" 이라고 적는다.**~~ **고쳤다.**
+   `graph.passive_role()` 이 **반대쪽 터미널을 보고** 가른다 —
+   `GND` 면 풀다운, 상위 전원이면 풀업, 다른 신호면 분기다.
+   확인: `python -m prefab tests/fixtures/synthetic-divider-vs-pulldown.d356` 의 `SIG_A` 가
+   `R1 반대쪽 → GND_BUS (풀다운)` 으로 나온다.
+
+   **같은 종류의 문구 버그를 하나 더 찾아서 같이 닫았다 (8/21).** 헌법 11절이
+   `K1와` 를 하지 말라는 **예시로 들고 있는데 샘플 화면에 그대로 나가고 있었다** —
+   `5V 로 도는 K1 와 3.3V 로 도는 U1 가`. 규칙 9개에서 18자리를 `text.py` 도우미로
+   바꿨고, `tests/test_josa_in_claims.py` 가 **소스에서** 보간 뒤에 박힌 조사를 잡는다.
+   렌더 결과를 훑는 방식은 우리 픽스처에서 안 뜨는 규칙을 못 지킨다.
+
 5. ~~**R08 이 USB 데이터 핀을 "코드가 초기화 안 함"으로 잡는다.**~~ **고쳤다 (8/19).**
    오픈소스 ESP32-C3 보드 4개 리비전에서 리비전마다 2건씩 떴다 (`USB_D+` · `USB_D-`).
    USB 는 전용 주변장치가 몰기 때문에 코드에 `pinMode` 가 없는 것이 **정상**이다.
