@@ -23,7 +23,7 @@ from ..netlist.graph import (
     format_volts,
     volts,
 )
-from ..datasheet.facts import INPUT_PULLUP_TO, NO_PULLUP, label
+from ..datasheet.facts import INPUT_PULLUP_TO, NO_PULLUP, OPEN_DRAIN, OUTPUT_TYPE, label
 from ..text import eul, eun, gwa, i_ga
 from ..types import Context, Evidence, Finding, Severity, Verdict
 from ._clearance import Answer, ask, ask_output_bound, number
@@ -71,16 +71,36 @@ def check(ctx: Context) -> list[Finding]:
             findings.append(_cleared_by_pullup(graph, net, hi, lo, hi_v, lo_v, pullup))
             continue
 
+        bounded_to = _pullup_bound(graph, net, lo_v)
+
+        # **오픈드레인 + 낮은 쪽 레일 풀업 = 올라올 길이 없다.**
+        #
+        # 오픈드레인 출력은 로우로 끌어내리기만 하고, 하이일 때는 고임피던스다.
+        # 그러면 이 네트의 하이 레벨을 정하는 것은 상위 부품이 아니라 **풀업**이고,
+        # 풀업이 3.3V 로 가면 3.3V 를 넘지 않는다.
+        #
+        # 풀업 하나만으로는 이걸 못 말한다 — 푸시풀이면 풀업과 무관하게 5V 를 낸다.
+        # 그래서 팀이 "풀업이 있다고 안전해지지 않는다" 로 정했었다. **데이터시트가
+        # 오픈드레인이라고 말해 주면 그때 나머지 절반이 채워진다.**
+        #
+        # 실측에서 나온 자리다: TP4056 의 `~CHRG`·`~STDBY` 가 +3.3V 로 풀업된 채
+        # 3.3V MCU 와 만나 치명 2건으로 떴는데, 데이터시트 2쪽이
+        # "Open Drain Charge Status Output ... otherwise pin is in high impedance state"
+        # 라고 적고 있었다.
+        drive = ask(ctx, hi, OUTPUT_TYPE, what="출력 방식")
+        if bounded_to and _is_open_drain(drive):
+            findings.append(
+                _cleared_by_open_drain(graph, net, hi, lo, hi_v, lo_v, drive, bounded_to)
+            )
+            continue
+
         answer = ask_output_bound(
             ctx, hi,
             resolve=sure,
             what=None if sure else "핀 방향과 내부 풀업",
         )
         findings.append(
-            _finding(
-                graph, net, hi, lo, hi_v, lo_v, answer,
-                bounded_to=_pullup_bound(graph, net, lo_v),
-            )
+            _finding(graph, net, hi, lo, hi_v, lo_v, answer, bounded_to=bounded_to)
         )
 
     return findings
@@ -107,6 +127,51 @@ def _pullup_bound(graph: Graph, net: str, lo_v: float) -> str | None:
         if rail is not None and rail <= lo_v + DOMAIN_EPSILON_V:
             return role.other_net
     return None
+
+
+def _is_open_drain(answer: Answer) -> bool:
+    """확인 결과 **오픈드레인이라고 나왔는가.** 모르면 False.
+
+    `value` 는 `facts.normalize_output_type` 이 상수로 옮겨 둔 것이다 —
+    데이터시트는 문장으로 적고(`Open Drain Charge Status Output`) 규칙은 상수를 본다.
+    """
+    f = answer.fact
+    return f is not None and f.usable and f.value == OPEN_DRAIN
+
+
+def _cleared_by_open_drain(
+    graph: Graph, net, hi, lo, hi_v, lo_v, answer: Answer, bounded_to: str
+) -> Finding:
+    """오픈드레인이라 하이 레벨을 풀업이 정하는 경우. 발견을 해제한다."""
+    hi_token = graph.ref_pin(hi, net)
+    lo_token = graph.ref_pin(lo, net)
+
+    evidence = [
+        Evidence.netlist(
+            f"{hi_token} → {net}\n{lo_token} → {net}\n{net} → {bounded_to} (풀업)",
+            [hi_token, lo_token, bounded_to],
+        )
+    ]
+    cite = answer.evidence()
+    if cite is not None:
+        evidence.append(cite)
+
+    return Finding(
+        rule=RULE_ID, title=TITLE, tier=TIER, severity=SEVERITY,
+        verdict=Verdict.PASS, net=net,
+        claim=(
+            f"{format_volts(hi_v)}V 로 도는 {gwa(hi)} {format_volts(lo_v)}V 로 도는 "
+            f"{i_ga(lo)} 같은 네트에 있습니다. 다만 {hi}({answer.mpn}) 의 이 핀이 "
+            f"오픈드레인으로 확인돼, 하이 레벨은 {i_ga(hi)} 아니라 {bounded_to} 풀업이 "
+            f"정합니다 — {format_volts(lo_v)}V 를 넘지 않습니다."
+        ),
+        evidence=tuple(evidence),
+        suggestion=(
+            f"조치할 것이 없습니다. 다만 {bounded_to} 풀업이 사라지면 이 핀은 뜨게 되므로 "
+            f"그 저항을 빼지 마세요. {hi} 의 부품번호가 바뀌면 이 판정도 다시 해야 합니다."
+        ),
+        unresolved_reason=None,
+    )
 
 
 def _no_path_up(answer: Answer) -> bool:

@@ -1,0 +1,101 @@
+{
+  "mpn": "TP4056",
+  "applies_to_boards": [
+    "TP4056-42-ESOP8"
+  ],
+  "_applies_to_boards_note": "BOM·회로도가 부르는 이름이 패키지까지 붙은 `TP4056-42-ESOP8` 이다. 같은 실리콘이라 이 데이터시트가 그대로 적용된다. **접두어로 자동 매칭하지 않는다** — `ESP32-C6`(칩)과 `ESP32-C6-WROOM-1`(모듈)처럼 접두어가 같아도 다른 문서인 경우가 있어서, 같다는 판단은 사람이 적는다.",
+  "source_url": "https://dlnmh9ip6v2uc.cloudfront.net/datasheets/Prototyping/TP4056.pdf",
+  "source_tier": "distributor",
+  "facts": [
+    {
+      "field": "input_pullup_to",
+      "value": null,
+      "unit": null,
+      "table": null,
+      "page": null,
+      "quote": null,
+      "confidence": "none",
+      "reason": "데이터시트 어디에도 CE/TEMP 등 입력 핀의 내부 풀업(및 풀업 대상 전원)에 대한 언급이 없음. 핀 설명(2쪽)과 전기적 특성 표에도 풀업 저항 항목이 없음."
+    },
+    {
+      "field": "io_level",
+      "value": "CE 입력은 TTL 또는 CMOS 로직 레벨로 구동 가능 (구체적 전압 문턱 미규정)",
+      "unit": null,
+      "table": "본문 핀 설명 (CE(Pin8): Chip Enable Input)",
+      "page": 2,
+      "quote": "TTL or CMOS logic level.",
+      "confidence": "low",
+      "reason": "정격 표가 아닌 본문 서술에서만 확인됨. 전기적 특성 표에 로직 레벨 관련 min/max 수치가 없어 수치화 불가."
+    },
+    {
+      "field": "output_type",
+      "value": "open-drain",
+      "unit": null,
+      "table": "본문 핀 설명 (Pin6/Pin7)",
+      "page": 2,
+      "quote": "(Pin6): Open Drain Charge Status Output When the battery Charge Termination, the",
+      "confidence": "high",
+      "reason": "6번, 7번 상태 출력 핀이 모두 Open Drain으로 명시됨(내부 스위치로 low로 당기고 그 외에는 high impedance)."
+    },
+    {
+      "field": "vcc_nominal",
+      "value": 5,
+      "unit": "V",
+      "table": "ELECTRICAL CHARACTERISTICS (Vcc Input Supply Voltage, MIN 4.0 / TYP 5 / MAX 8.0)",
+      "page": 2,
+      "quote": "V Input Supply Voltage ● 4.0 5 8.0 V",
+      "confidence": "high",
+      "reason": "전기적 특성 표의 TYP 값이 5V이며, 표 조건에도 VCC=5V가 기준으로 명시됨(권장 동작 범위 4.0~8.0V)."
+    },
+    {
+      "field": "vih_min",
+      "value": null,
+      "unit": null,
+      "table": null,
+      "page": null,
+      "quote": null,
+      "confidence": "none",
+      "reason": "CE 핀의 입력 하이 문턱 전압에 대한 수치 규격이 전기적 특성 표에 없음. 본문은 'A high input will put the device in the normal operating mode' 정도의 서술만 있어 수치를 특정할 수 없음."
+    },
+    {
+      "field": "vil_max",
+      "value": null,
+      "unit": null,
+      "table": null,
+      "page": null,
+      "quote": null,
+      "confidence": "none",
+      "reason": "CE 핀의 입력 로우 문턱 전압 수치 규격이 문서에 없음. 전기적 특성 표에 해당 항목 자체가 존재하지 않음."
+    },
+    {
+      "field": "vin_absolute_max",
+      "value": 8,
+      "unit": "V",
+      "table": "ABSOLUTE MAXIMUM RATINGS (Input Supply Voltage Vcc)",
+      "page": 1,
+      "quote": "·Input Supply Voltage(V )：-0.3V～8V",
+      "confidence": "high",
+      "reason": "절대 최대 정격 항목에서 입력 공급 전압(Vcc)의 최대값이 8V로 명시됨(최소 -0.3V). 참고로 TEMP 및 CE 핀은 별도로 -0.3V~10V로 규정됨."
+    },
+    {
+      "field": "voh_max",
+      "value": null,
+      "unit": null,
+      "table": null,
+      "page": null,
+      "quote": null,
+      "confidence": "none",
+      "reason": "상태 출력이 Open Drain이라 하이 상태는 high impedance이며, 전기적 특성 표에 VOH 규격이 없음."
+    },
+    {
+      "field": "vol_max",
+      "value": null,
+      "unit": null,
+      "table": null,
+      "page": null,
+      "quote": null,
+      "confidence": "none",
+      "reason": "CHRG/STDBY 출력의 로우 출력 전압(VOL) 수치 규격이 전기적 특성 표에 기재되어 있지 않음."
+    }
+  ]
+}

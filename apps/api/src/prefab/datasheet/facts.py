@@ -24,6 +24,32 @@ OUTPUT_TYPE = "output_type"            #: push-pull / open-drain
 #: 규칙이 `"open-drain"` 을 오타로 쓰면 조용히 아무것도 해제 안 된다.
 OPEN_DRAIN = "open-drain"
 PUSH_PULL = "push-pull"
+
+#: 사람이 쓰는 표기를 위 상수로 옮긴다. **LLM 이 읽고 코드가 정규화한다.**
+#:
+#: 데이터시트는 `Open Drain Charge Status Output` 처럼 문장으로 적는다. 추출기는
+#: 그걸 그대로 실어 오는데(자유 텍스트라 스키마가 못 막는다), 규칙은 상수와 비교한다.
+#: 그러면 **사실이 DB 에 있는데도 아무것도 해제되지 않는다** — 조용한 실패다.
+#:
+#: `open collector` 도 같이 본다. 전기적으로 우리 판정에는 같은 뜻이다.
+_OUTPUT_TYPE_HINTS: "tuple[tuple[str, tuple[str, ...]], ...]" = (
+    (OPEN_DRAIN, ("open drain", "open-drain", "opendrain", "open collector",
+                  "open-collector", "오픈드레인", "오픈 드레인")),
+    (PUSH_PULL, ("push pull", "push-pull", "pushpull", "푸시풀", "totem pole")),
+)
+
+
+def normalize_output_type(value: object) -> object:
+    """`Open Drain Charge Status Output` → `open-drain`. 애매하면 **그대로 둔다.**
+
+    둘 다 나오면 손대지 않는다 — `핀6은 오픈드레인, CE 는 푸시풀` 같은 문장을
+    한쪽으로 뭉개면 없는 사실을 만드는 것이다 (헌법 2-2).
+    """
+    if not isinstance(value, str):
+        return value
+    low = value.lower()
+    hit = [canon for canon, words in _OUTPUT_TYPE_HINTS if any(w in low for w in words)]
+    return hit[0] if len(hit) == 1 else value
 IO_LEVEL = "io_level"                  #: 모듈 IO 가 도는 로직 레벨
 INPUT_PULLUP_TO = "input_pullup_to"    #: 입력 핀이 내부에서 어디로 풀업되는가
 

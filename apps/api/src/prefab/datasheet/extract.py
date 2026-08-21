@@ -30,9 +30,11 @@ from .facts import (
     CONF_MEDIUM,
     CONF_NONE,
     FIELD_LABELS,
+    OUTPUT_TYPE,
     TIER_DISTRIBUTOR,
     TIER_OFFICIAL,
     TIER_UNOFFICIAL,
+    normalize_output_type,
 )
 
 #: 추출에 쓸 모델. 스키마를 강제할 수 있는 모델이어야 한다.
@@ -287,9 +289,12 @@ def _verify(
 
 def _fact(item: dict[str, Any], *, value: Any) -> dict[str, Any]:
     """`store.save()` 가 받는 모양으로 옮긴다."""
+    field = item["field"]
     return {
-        "field": item["field"],
-        "value": value,
+        "field": field,
+        # **읽은 것을 그대로 두지 않고 상수로 옮긴다.** 원문 표기는 `quote` 에 남아 있다.
+        # 안 하면 사실이 DB 에 있는데도 규칙이 못 알아봐서 아무것도 해제되지 않는다.
+        "value": normalize_output_type(value) if field == OUTPUT_TYPE else value,
         "unit": item.get("unit"),
         "table": item.get("table"),
         "page": item.get("page"),
