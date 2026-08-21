@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from ..datasheet.facts import VIN_ABSOLUTE_MAX, label
 from ..netlist.graph import Graph, format_volts
+from ..text import eun, i_ga
 from ..types import Context, Evidence, Finding, Severity, Verdict
 from ._clearance import ask, ask_output_bound, number
 
@@ -81,14 +82,14 @@ def _finding(graph, net, source, sink, out, lim, volts, ceiling) -> Finding:
         verdict=Verdict.FAIL,
         net=net,
         claim=(
-            f"{source}({out.mpn})의 {what}은 {format_volts(volts)}V인데, "
+            f"{source}({out.mpn})의 {eun(what)} {format_volts(volts)}V인데, "
             f"같은 네트에 물린 {sink}({lim.mpn})가 견디는 절대 최대 입력은 "
             f"{format_volts(ceiling)}V입니다. {format_volts(volts - ceiling)}V 초과입니다."
         ),
         evidence=tuple(evidence),
         suggestion=(
             f"레벨 시프터나 분압으로 {format_volts(ceiling)}V 이하로 낮추세요. "
-            f"절대 최대 정격을 넘으면 {sink}가 파손됩니다 — 동작 이상이 아니라 고장입니다. "
+            f"절대 최대 정격을 넘으면 {i_ga(sink)} 파손됩니다 — 동작 이상이 아니라 고장입니다. "
             f"추정이 아니라 양쪽 데이터시트 값입니다 ({out.fact.cite()} · {lim.fact.cite()})."
         ),
         unresolved_reason=None,

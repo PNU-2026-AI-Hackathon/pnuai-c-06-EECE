@@ -39,7 +39,7 @@ import re
 from ..chips import Chip
 from ..netlist.d356 import Netlist
 from ..netlist.graph import GND_PATTERN, local_name
-from ..text import i_ga
+from ..text import eun, i_ga
 from ..types import Context, Evidence, Finding, Severity, Verdict
 from .r01_unusable_pin import chip_of
 
@@ -125,7 +125,7 @@ def _finding(chip: Chip, pad, net: str, loads: list[str], graph, bom) -> Finding
     # 조사는 마지막 부품기호에 맞춘다 (헌법 11절).
     named_ja = i_ga(named) if len(loads) == 1 else named + " 이(가)"
 
-    lines = [f"{chip.name} — {token} 는 부팅 때 출력이 나오는 핀이다", f"{where} → {net}"]
+    lines = [f"{chip.name} — {eun(token)} 부팅 때 출력이 나오는 핀이다", f"{where} → {net}"]
     for ref in loads:
         pin = graph.ref_pin(ref, net)
         lines.append(f"{pin} → {net}   ({_actuator_name(ref)})")

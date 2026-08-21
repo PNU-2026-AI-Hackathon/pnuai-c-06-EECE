@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from ..chips import CHIPS, MODULES, Chip
 from ..mpn import known_mpns
+from ..text import eul, eun
 from ..types import Context, Evidence, Finding, Severity, Verdict
 
 RULE_ID = "R01"
@@ -132,7 +133,7 @@ def _judge(chip: Chip, gpio: int, use) -> tuple[Severity, str, str] | None:
 def _finding(chip: Chip, gpio: int, use, severity: Severity, what: str, why: str) -> Finding:
     where = f"{use.silk}(GPIO{gpio})" if use.silk else f"GPIO{gpio}"
 
-    lines = [f"{chip.name} — {where} 는 {what}이다"]
+    lines = [f"{chip.name} — {eun(where)} {what}이다"]
     evidence: list[Evidence] = [Evidence.netlist("\n".join(lines), [where])]
     for call in use.calls[:3]:
         evidence.append(
@@ -148,7 +149,7 @@ def _finding(chip: Chip, gpio: int, use, severity: Severity, what: str, why: str
         severity=severity,
         verdict=Verdict.FAIL,
         net=None,  # 핀 단위 발견이다. 네트가 없을 수도 있다
-        claim=f"코드가 {where} 를 사용합니다. {chip.name} 에서 이 핀은 {what}입니다. {why}",
+        claim=f"코드가 {eul(where)} 사용합니다. {chip.name} 에서 이 핀은 {what}입니다. {why}",
         evidence=tuple(evidence),
         suggestion=(
             f"다른 GPIO 로 옮기세요. {chip.name} 에서 쓸 수 없는 핀은 "

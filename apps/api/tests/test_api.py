@@ -227,3 +227,88 @@ def test_아무_주소나_열리지는_않는다(deployed_client):
     """개발 포트를 더 연다고 문이 통째로 열리면 안 된다."""
     res = _preflight(deployed_client, "https://evil.example.com")
     assert res.headers.get("access-control-allow-origin") is None
+
+
+# ── 이전 회로도 (드리프트) ──────────────────────────────────────────
+#
+# R10 은 이 제품의 이름이 붙은 규칙인데, 이전 회로도가 없으면 아무 말도 못 한다.
+# 그런데 그 입력이 `NEEDS` 에 없어서 엔진은 R10 을 **실행함**으로 센다.
+# 못 한 일을 실행했다고 적는 것이라, 리포트가 그 사실을 말하는지까지 본다 (헌법 2-4).
+
+MOVED = Path(__file__).parent / "fixtures" / "esp32-c6-presence-smart-light.moved-to-d4.d356"
+FIRMWARE_DIR = Path(__file__).parent / "fixtures" / "esp32-c6-presence-smart-light.firmware"
+
+
+def _firmware_zip() -> bytes:
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        for f in sorted(FIRMWARE_DIR.iterdir()):
+            if f.is_file():
+                z.writestr(f.name, f.read_text(encoding="utf-8"))
+    return buf.getvalue()
+
+
+def _upload(client, *, previous: bytes | None = None):
+    files = {
+        "netlist": ("now.d356", MOVED.read_bytes(), "text/plain"),
+        "firmware": ("fw.zip", _firmware_zip(), "application/zip"),
+    }
+    if previous is not None:
+        files["previous_netlist"] = ("before.d356", previous, "text/plain")
+    created = client.post("/api/v1/checks", files=files)
+    assert created.status_code == 201, created.text
+    return client.get(f"/api/v1/checks/{created.json()['check_id']}").json()
+
+
+def _engine_step(result) -> str:
+    return next(p["detail"] for p in result["pipeline"] if "규칙" in p["name"])
+
+
+def test_이전_회로도를_주면_드리프트가_잡힌다(client):
+    r = _upload(client, previous=FIXTURE.read_bytes())
+    r10 = [f for f in r["findings"] if f["rule"] == "R10"]
+    assert r10, [f["rule"] for f in r["findings"]]
+    # 어디서 어디로 옮겼는지 문구에 그대로 있어야 사용자가 고칠 자리를 안다
+    assert "D2" in r10[0]["claim"] and "D4" in r10[0]["claim"], r10[0]["claim"]
+
+
+def test_이전_회로도가_없으면_R10_이_조용하다(client):
+    r = _upload(client)
+    assert not [f for f in r["findings"] if f["rule"] == "R10"]
+
+
+def test_이전_회로도가_없으면_리포트가_그_사실을_말한다(client):
+    """**"12개 중 12개 실행" 만 적으면 R10 이 볼 것도 없이 돈 것을 숨기는 것이다.**"""
+    r = _upload(client)
+    assert "이전 회로도가 없어" in _engine_step(r), _engine_step(r)
+
+
+def test_이전_회로도를_주면_그_문구가_사라진다(client):
+    r = _upload(client, previous=FIXTURE.read_bytes())
+    assert "이전 회로도가 없어" not in _engine_step(r)
+
+
+def test_깨진_이전_회로도는_조용히_버리지_않는다(client):
+    """조용히 버리면 사용자가 "드리프트 없음" 으로 읽는다. 실제로는 비교를 안 한 것이다."""
+    res = client.post(
+        "/api/v1/checks",
+        files={
+            "netlist": ("now.d356", MOVED.read_bytes(), "text/plain"),
+            "previous_netlist": ("before.xml", b"<not-a-netlist/>", "text/xml"),
+        },
+    )
+    assert res.status_code == 422, res.text
+    body = res.json()["error"]
+    assert body["code"] == "PREVIOUS_NETLIST_PARSE_FAILED", body
+    # 어느 파일을 고쳐야 하는지 말해 준다 — 둘 다 넷리스트라 구분이 없으면 못 찾는다
+    assert "before.xml" in body["message"], body["message"]
+
+
+def test_이전_회로도_없이도_검사는_그대로_된다(client):
+    """선택 입력이다. 안 줬다고 실패하면 안 된다."""
+    r = _upload(client)
+    assert r["status"] == "done"
+    assert r["summary"]["rules_run"] > 0

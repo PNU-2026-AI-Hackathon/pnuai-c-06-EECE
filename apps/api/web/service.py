@@ -19,6 +19,7 @@ from typing import Any, Iterator
 from prefab.bom import BomParseError
 from prefab.firmware import load_zip
 from prefab.netlist.d356 import NetlistParseError
+from prefab.netlist.detect import parse_any
 from prefab.report import build_result, build_rules_catalog
 from prefab.datasheet.seed import seed_facts as _seed_facts
 from prefab.datasheet.store import FactStore
@@ -35,12 +36,20 @@ ALLOWED_EXTENSIONS: dict[str, tuple[str, ...]] = {
     # **내용으로** 가른다 (`netlist.detect`) — 여기 목록은 실수로 엉뚱한 파일을
     # 올리는 것을 막는 1차 방어일 뿐이다.
     "netlist": (".d356", ".ipc", ".txt", ".xml", ".net"),
+    # 이전 회로도도 넷리스트다. **형식이 같을 필요는 없다** — 예전에는 IPC-D-356 으로
+    # 뽑았고 지금은 회로도 넷리스트로 뽑는 경우가 실제로 생긴다.
+    "previous_netlist": (".d356", ".ipc", ".txt", ".xml", ".net"),
     "bom": (".csv",),
     "firmware": (".zip",),
 }
 
 #: 오류 메시지는 사용자에게 그대로 보인다. 필드 이름도 한국어로 부른다.
-FIELD_LABELS = {"netlist": "넷리스트", "bom": "BOM", "firmware": "펌웨어 zip"}
+FIELD_LABELS = {
+    "netlist": "넷리스트",
+    "previous_netlist": "이전 회로도",
+    "bom": "BOM",
+    "firmware": "펌웨어 zip",
+}
 
 CHECK_ID_PREFIX = "chk_"
 CHECK_ID_BYTES = 3  # → 16진수 6자리
@@ -69,6 +78,20 @@ def netlist_required() -> ApiError:
 
 def netlist_parse_failed(detail: str) -> ApiError:
     return ApiError("NETLIST_PARSE_FAILED", detail, 422)
+
+
+def previous_netlist_parse_failed(filename: str, detail: str) -> ApiError:
+    """이전 회로도만 못 읽었을 때. **지금 회로도 오류와 구분해서 말한다.**
+
+    둘 다 넷리스트라 오류 문구가 똑같이 생겼다. 어느 파일을 고쳐야 하는지
+    말해 주지 않으면 사용자는 멀쩡한 파일을 뜯어본다.
+    """
+    return ApiError(
+        "PREVIOUS_NETLIST_PARSE_FAILED",
+        f"이전 회로도({filename})를 읽지 못했습니다 — {detail} "
+        "이 파일을 빼고 다시 올리면 지금 회로도만으로 검사합니다.",
+        422,
+    )
 
 
 def bom_parse_failed(detail: str) -> ApiError:
@@ -142,6 +165,8 @@ def run_check(
     bom_filename: str | None = None,
     firmware_filename: str | None = None,
     firmware_bytes: bytes | None = None,
+    previous_netlist_bytes: bytes | None = None,
+    previous_netlist_filename: str | None = None,
     check_id: str | None = None,
     created_at: str | None = None,
     fact_store: "FactStore | None" = None,
@@ -165,6 +190,25 @@ def run_check(
 
 
     text = netlist_bytes.decode("utf-8", errors="replace")
+
+    # **이전 회로도는 선택이다.** 안 주면 R10 이 조용하고, 리포트가 그 사실을 적는다.
+    #
+    # 다만 **주고서 실패하는 것과 안 주는 것은 다르다.** 깨진 파일을 조용히 버리면
+    # 사용자는 드리프트를 검사한 줄 알고 "변화 없음" 을 읽는다. 그게 이 제품에서
+    # 제일 나쁜 거짓말이라 여기서 세운다 (헌법 2-4).
+    #
+    # 어느 쪽이 깨졌는지도 말해 준다 — `analyze` 는 둘 다 파싱해서 오류만으로는
+    # 사용자가 어느 파일을 고쳐야 할지 모른다.
+    previous_text: str | None = None
+    if previous_netlist_bytes:
+        previous_text = previous_netlist_bytes.decode("utf-8", errors="replace")
+        try:
+            parse_any(previous_text)
+        except NetlistParseError as exc:
+            raise previous_netlist_parse_failed(
+                previous_netlist_filename or "이전 회로도", str(exc)
+            ) from exc
+
     try:
         analysis = analyze(
             text,
@@ -172,6 +216,7 @@ def run_check(
             bom_bytes=bom_bytes,
             firmware_sources=sources,
             fact_store=fact_store,
+            previous_netlist_text=previous_text,
         )
     except NetlistParseError as exc:
         raise netlist_parse_failed(str(exc)) from exc

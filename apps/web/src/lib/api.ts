@@ -98,6 +98,8 @@ export async function createCheck(files: {
   netlist: File;
   bom?: File | null;
   firmware?: File | null;
+  /** 바뀌기 전 회로도. 이게 있어야 R10(드리프트)이 돈다 */
+  previousNetlist?: File | null;
 }): Promise<CheckCreated> {
   if (!BASE) {
     // 목 모드에서는 파일을 보내지 않고 샘플 결과로 바로 넘어간다
@@ -108,6 +110,7 @@ export async function createCheck(files: {
   form.append("netlist", files.netlist);
   if (files.bom) form.append("bom", files.bom);
   if (files.firmware) form.append("firmware", files.firmware);
+  if (files.previousNetlist) form.append("previous_netlist", files.previousNetlist);
 
   return request("/api/v1/checks", { method: "POST", body: form });
 }
