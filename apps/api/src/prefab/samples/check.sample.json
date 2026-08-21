@@ -18,10 +18,10 @@
     }
   },
   "summary": {
-    "critical": 2,
+    "critical": 3,
     "warning": 1,
     "info": 0,
-    "cleared": 2,
+    "cleared": 1,
     "rules_run": 13,
     "rules_skipped": 0,
     "rules_total": 13,
@@ -57,7 +57,7 @@
       "step": 5,
       "name": "전기적 사실 추출",
       "status": "done",
-      "detail": "사실 14건 확보 · 판정 2건에 근거로 사용"
+      "detail": "사실 15건 확보 · 판정 2건에 근거로 사용"
     },
     {
       "step": 6,
@@ -73,6 +73,41 @@
     }
   ],
   "findings": [
+    {
+      "rule": "R04",
+      "title": "외부 부품 출력이 GPIO 입력 최대 정격 초과",
+      "tier": "기본",
+      "severity": "CRITICAL",
+      "verdict": "FAIL",
+      "net": "_IN_ACTIVE_LOW",
+      "claim": "K1(JQC-3FF-S-Z)의 IO 로직 레벨은 5V인데, 같은 네트에 물린 U1(XIAO-ESP32C6)가 견디는 절대 최대 입력은 3.6V입니다. 1.4V 초과입니다.",
+      "evidence": [
+        {
+          "kind": "netlist",
+          "text": "K1.pad- → _IN_ACTIVE_LOW\nU1.SDIO → _IN_ACTIVE_LOW",
+          "highlight": [
+            "K1.pad-",
+            "U1.SDIO"
+          ]
+        },
+        {
+          "kind": "datasheet",
+          "mpn": "JQC-3FF-S-Z",
+          "table": "실보드 동작 확인 (2026-08-21 · 한지양)",
+          "page": null,
+          "quote": "XIAO D5 를 릴레이 IN 에 직접 물린 상태(하이 = 3.3V)에서 릴레이가 꺼지지 않았습니다. \"지금 LED가 ON은 되는데 OFF가 안되는 게 문제야.\" 2N3904 로 IN 을 0V/5V 로 스윙하게 바꾸고(베이스 1kΩ, 이미터 GND, 컬렉터 IN, R3 풀업을 3V3 에서 5V_BUS 로) 회로를 REV2 로 개조했습니다."
+        },
+        {
+          "kind": "datasheet",
+          "mpn": "XIAO-ESP32C6",
+          "table": "Table5-1. AbsoluteMaximumRatings",
+          "page": 64,
+          "quote": "Inputpowerpins Allowedinputvoltage –0.3 3.6 V"
+        }
+      ],
+      "suggestion": "레벨 시프터나 분압으로 3.6V 이하로 낮추세요. 절대 최대 정격을 넘으면 U1이 파손됩니다 — 동작 이상이 아니라 고장입니다. 추정이 아니라 양쪽 데이터시트 값입니다 (실측 · 실보드 동작 확인 (2026-08-21 · 한지양) · Table5-1. AbsoluteMaximumRatings · p.64). 이 네트에는 R12(상위 전원 도메인이 하위를 직결) 도 함께 해당합니다.",
+      "unresolved_reason": null
+    },
     {
       "rule": "R07",
       "title": "코드가 쓰는 핀이 회로도에 미연결",
@@ -178,34 +213,6 @@
         }
       ],
       "suggestion": "조치할 것이 없습니다. 데이터시트에서 확인했습니다 — Table 2 Performance and electrical parameters table (Interface) · p.17. U2의 부품번호가 바뀌면 이 판정도 다시 해야 합니다. 이 네트에는 R11(네트명이 주장하는 전압과 소스 부품의 전원 도메인이 다름) 도 함께 해당합니다.",
-      "unresolved_reason": null
-    },
-    {
-      "rule": "R12",
-      "title": "상위 전원 도메인이 하위를 직결",
-      "tier": "기본",
-      "severity": "CRITICAL",
-      "verdict": "PASS",
-      "net": "_IN_ACTIVE_LOW",
-      "claim": "5V 로 도는 K1과 3.3V 로 도는 U1이 같은 네트에 있습니다. 다만 K1(JQC-3FF-S-Z) 의 입력 핀에는 내부 풀업이 없는 것으로 확인돼, 이 핀을 통해 5V 가 U1 로 올라올 경로가 없습니다.",
-      "evidence": [
-        {
-          "kind": "netlist",
-          "text": "K1.pad- → _IN_ACTIVE_LOW\nU1.D5 → _IN_ACTIVE_LOW",
-          "highlight": [
-            "K1.pad-",
-            "U1.D5"
-          ]
-        },
-        {
-          "kind": "datasheet",
-          "mpn": "JQC-3FF-S-Z",
-          "table": "IN↔VCC 저항 측정 (2026-08-19 · 한지양)",
-          "page": null,
-          "quote": "릴레이 모듈 단독 상태에서 IN-VCC 저항을 20kΩ 및 2MΩ 범위로 측정했는데 모두 OL(1.)이 나왔습니다. 따라서 IN-VCC 사이의 저항성 풀업은 확인되지 않았습니다."
-        }
-      ],
-      "suggestion": "조치할 것이 없습니다. 근거 — 실측 · IN↔VCC 저항 측정 (2026-08-19 · 한지양). 다만 저항계는 트랜지스터·다이오드 경로를 못 봅니다. JQC-3FF-S-Z 의 회로도나 모듈 모델명을 알면 완전히 닫힙니다.",
       "unresolved_reason": null
     },
     {

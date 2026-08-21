@@ -44,7 +44,7 @@ from ..netlist.graph import (
 )
 from ..text import eul, eun, i_ga
 from ..types import Context, Evidence, Finding, Severity, Verdict
-from ._clearance import ask, number
+from ._clearance import ask, ask_input_threshold, number
 
 RULE_ID = "R15"
 TITLE = "MCU 출력 하이가 상대 부품의 입력 문턱에 못 미침"
@@ -169,7 +169,9 @@ def _driven_nets(graph: Graph, firmware):
 def _judge(ctx, graph, net, mcu, mcu_v, ref, other_v, use) -> Finding:
     """`vih_min` 을 알면 판정하고, 모르면 무엇이 있어야 풀리는지 적는다."""
     drive = ask(ctx, ref, OUTPUT_TYPE, what="입력단 구동 방식")
-    vih = ask(ctx, ref, VIH_MIN)
+    # `vih_min` 이 정석이고, 없으면 `io_level` 을 본다 — 모듈 데이터시트는
+    # 문턱 규격을 잘 안 주고 "IO 레벨 5V" 라고만 적는 일이 흔하다.
+    vih = ask_input_threshold(ctx, ref)
 
     mcu_pin = graph.display_pin(mcu, net) or graph.pin_on_net(mcu, net) or "?"
     other_pin = graph.pin_on_net(ref, net) or "?"

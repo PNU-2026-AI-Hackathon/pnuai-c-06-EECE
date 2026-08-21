@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..mpn import part_numbers
-from ..datasheet.facts import IO_LEVEL, VOH_MAX, Fact, FactSet, label
+from ..datasheet.facts import IO_LEVEL, VIH_MIN, VOH_MAX, Fact, FactSet, label
 from ..types import Context, Evidence
 
 
@@ -26,6 +26,17 @@ from ..types import Context, Evidence
 #: 사람이 "IO 레벨 3.3V" 를 `voh_max` 라고 적었고, 그건 없는 규격을
 #: 있다고 말한 것이었다. 항목을 나누고 규칙이 둘 다 보게 한다.
 OUTPUT_BOUND_FIELDS = (VOH_MAX, IO_LEVEL)
+
+#: **입력이 어디부터 하이로 읽히는지** 말해 주는 항목들. 위와 대칭이다.
+#:
+#: `vih_min` 이 정석이고, 없으면 `io_level` 을 본다 — IO 레일이 5V 인 모듈의 입력에
+#: 3.3V 를 주면 하이가 안 되는 일이 흔하다. 실측에서 나온 문제다:
+#: 5V 릴레이 모듈의 `IN` 에 3.3V 를 줬더니 **릴레이가 꺼지지 않았다.**
+#:
+#: **`io_level` 은 규격이 아니라 정황이다.** 5V 로 도는 부품이라고 다 5V 문턱은
+#: 아니고 TTL 호환 입력은 2.0V 면 하이다. 그래서 `io_level` 은 **그 부품의 IO 레일을
+#: 실제로 확인했을 때만** 적는다 — VCC 를 보고 짐작해서 적으면 그게 오탐이 된다.
+INPUT_THRESHOLD_FIELDS = (VIH_MIN, IO_LEVEL)
 
 
 @dataclass(frozen=True)
@@ -121,6 +132,26 @@ def ask(
         return Answer(fact=found, mpn=mpn)
 
     return Answer(mpn=mpn, missing=f"{mpn} — {_why_unusable(found, what)}")
+
+
+def ask_input_threshold(
+    ctx: Context, ref: str, *, resolve: bool = True, what: str | None = None
+) -> Answer:
+    """입력이 어디부터 하이로 읽히는지 묻는다. `INPUT_THRESHOLD_FIELDS` 를 순서대로 본다.
+
+    `ask_output_bound` 와 대칭이다. 하나라도 답하면 그걸 쓰고, 아무것도 못 찾으면
+    **가장 직접적인 항목의 미결 사유**를 돌려준다 — "V_IH 를 주세요" 가
+    "IO 레벨을 주세요" 보다 쓸모 있는 안내다.
+    """
+    first: Answer | None = None
+    for field in INPUT_THRESHOLD_FIELDS:
+        answer = ask(ctx, ref, field, resolve=resolve, what=what)
+        if answer.answered:
+            return answer
+        if first is None:
+            first = answer
+    assert first is not None  # INPUT_THRESHOLD_FIELDS 는 비어 있지 않다
+    return first
 
 
 def ask_output_bound(
