@@ -155,3 +155,44 @@ def test_판정만_달라진_것은_따로_센다():
     assert d.added == [] and d.removed == []
     assert d.changed[0].cleared
     assert "해제됨" in format_diff(d)
+
+
+# ── 해제된 항목을 무겁게 표시하지 않는다 ─────────────────────────────
+
+
+def test_해제된_발견은_등급_옆에_해제됨이_붙는다():
+    """데이터시트로 지운 항목이 🔴 아래에 그냥 `(CRITICAL)` 로 나가고 있었다.
+
+    **막지도 않는 항목을 제일 무겁게 보여주는 셈이라** 읽는 사람이 코멘트를 못 믿게 된다.
+    막는 기준(`blocking`)은 이미 판정까지 보고 있었는데 표시만 안 따라왔다.
+    """
+    from prefab.diff import diff_results, format_diff
+
+    before = {"findings": []}
+    after = {
+        "findings": [
+            {"rule": "R12", "net": "SIG", "severity": "CRITICAL", "verdict": "PASS",
+             "claim": "데이터시트로 풀렸다", "evidence": []},
+            {"rule": "R07", "net": "SIG2", "severity": "CRITICAL", "verdict": "FAIL",
+             "claim": "진짜 문제다", "evidence": []},
+        ]
+    }
+    d = diff_results(before, after)
+    text = format_diff(d, before_label="main", after_label="이 PR")
+
+    assert "(CRITICAL · 해제됨)" in text, text
+    # 해제된 것은 막지 않는다 — 막는 것은 FAIL 뿐이다
+    assert len(d.blocking) == 1, d.blocking
+    assert d.blocking[0]["rule"] == "R07"
+
+
+def test_해제된_것만_있으면_막지_않는다():
+    from prefab.diff import diff_results
+
+    after = {
+        "findings": [
+            {"rule": "R12", "net": "SIG", "severity": "CRITICAL", "verdict": "PASS",
+             "claim": "풀렸다", "evidence": []}
+        ]
+    }
+    assert diff_results({"findings": []}, after).blocking == []

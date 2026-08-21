@@ -50,6 +50,20 @@ jobs:
         working-directory: apps/api
         run: pip install -e ".[dev]"
 
+      # **배포된 서버와 같은 판단으로 비교한다.**
+      #
+      # 사실 DB 는 `.gitignore` 라서 CI 에는 없다. 그대로 두면 이 검사가 **제품보다
+      # 엄해진다** — 데이터시트로 해제될 항목이 여기서는 "새로 생긴 치명" 으로 떠서
+      # PR 을 막는다. 사람은 화면에서 해제된 걸 보고 있는데 CI 만 빨간불이면
+      # 그 검사는 곧 꺼진다 (헌법 2-3).
+      #
+      # 서버가 기동할 때 하는 것과 같은 일이다 (`prefab.datasheet.seed.seed_facts`).
+      - name: 부품 사실 심기
+        working-directory: apps/api
+        run: python -m prefab --facts-load parts/*.json
+        env:
+          PREFAB_DB: /tmp/prefab-facts.db
+
       # base 커밋의 입력을 통째로 꺼낸다. 펌웨어가 폴더라서 git show 로는 안 된다.
       - name: base 입력 꺼내기
         id: base
@@ -72,6 +86,8 @@ jobs:
           if [ -d "/tmp/base/$FIRMWARE" ]; then ARGS="$ARGS --firmware /tmp/base/$FIRMWARE"; fi
           if [ -f "/tmp/base/$BOM" ];      then ARGS="$ARGS --bom /tmp/base/$BOM";           fi
           python -m prefab $ARGS --json > /tmp/before.json
+        env:
+          PREFAB_DB: /tmp/prefab-facts.db
 
       - name: 검사 (head 입력)
         working-directory: apps/api
@@ -80,6 +96,8 @@ jobs:
           if [ -d "$GITHUB_WORKSPACE/$FIRMWARE" ]; then ARGS="$ARGS --firmware $GITHUB_WORKSPACE/$FIRMWARE"; fi
           if [ -f "$GITHUB_WORKSPACE/$BOM" ];      then ARGS="$ARGS --bom $GITHUB_WORKSPACE/$BOM";           fi
           python -m prefab $ARGS --json > /tmp/after.json
+        env:
+          PREFAB_DB: /tmp/prefab-facts.db
 
       - name: 비교
         id: diff
