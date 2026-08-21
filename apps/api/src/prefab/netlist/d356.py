@@ -93,6 +93,14 @@ class Netlist:
     #: `Net-(U3-LNA_IN)` 은 잘린 게 아니라 원래 그 이름이다.
     NAME_IS_WIDTH_LIMITED = True
 
+    #: 패드에 좌표가 실려 오는가. IPC-D-356 은 제조용이라 좌표가 본문이다.
+    #:
+    #: 회로도 넷리스트에는 **없다.** 그런데 없는 것을 `0.0` 으로 채워 쓰면 모든 패드가
+    #: 한 점에 뭉쳐서, 좌표 클러스터링이 **아무 말이나 하게 된다** — 실제로 IC 하나가
+    #: "레일+GND 동거" 로 5V 부품이라고 판정됐고 그게 R12 오탐이 됐다.
+    #: 못 하는 것은 안 하는 것으로 표시한다 (헌법 2-2).
+    HAS_COORDINATES = True
+
     def __init__(
         self,
         nets: "OrderedDict[str, list[Pad]]",

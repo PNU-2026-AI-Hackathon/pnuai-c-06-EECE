@@ -32,6 +32,7 @@ KiCad 로 만든 보드에서는 `pinmap` 이 하나도 안 풀렸고, 그래서
 
 from __future__ import annotations
 
+import re
 from collections import OrderedDict
 from xml.etree import ElementTree as ET
 
@@ -48,6 +49,28 @@ MPN_FIELDS = ("MPN", "Manufacturer_Part_Number", "PartNumber", "Part Number", "L
 #: (`GPIO3_8` = 기능 GPIO3, 8번 핀). 실측한 두 저장소 모두 100% 이 규약이었다.
 #: **번호와 정확히 맞을 때만** 뗀다. 아니면 이름을 그대로 둔다 —
 #: 규약이 다른 도구에서 이름 끝을 잘라먹지 않기 위해서다.
+#: KiCad 는 핀 이름에 **렌더링 표기**를 섞어 넣는다.
+#:
+#:     V_{CC}      아래첨자   → 이름 자체는 `VCC`
+#:     ~{CHRG}     오버바     → 액티브 로우 `CHRG`
+#:
+#: 아래첨자는 **이름의 일부**라 붙여야 하고, 오버바는 **뜻을 담은 표시**라 버리면 안 된다.
+#: 그래서 다르게 다룬다 — `V_{CC}` → `VCC`, `~{CHRG}` → `~CHRG`.
+#:
+#: 이걸 안 하면 `V_{CC}` 가 공급핀 패턴(`^VCC…`)에 안 걸린다. 실제로 충전 IC 하나가
+#: 그것 때문에 전원 도메인을 못 읽고 "레일 소속" 추측으로 떨어졌고, 그 추측이
+#: R12 오탐 2건이 됐다.
+SUBSCRIPT = re.compile(r"_\{([^}]*)\}")
+OVERBAR = re.compile(r"~\{([^}]*)\}")
+
+
+def clean_pin_name(name: str) -> str:
+    """KiCad 렌더링 표기를 사람이 읽는 이름으로. 모르는 모양은 그대로 둔다."""
+    name = OVERBAR.sub(r"~\1", name)
+    name = SUBSCRIPT.sub(r"\1", name)
+    return name
+
+
 def strip_pin_number(name: str, pin: str) -> str:
     """`GPIO3_8` + 핀 `8` → `GPIO3`. 안 맞으면 그대로."""
     suffix = f"_{pin}"
@@ -85,6 +108,10 @@ class SchematicNetlist(Netlist):
     #: 회로도 넷리스트는 이름을 안 자른다. IPC-D-356 의 14자 칸 경고를 그대로
     #: 물려받으면 `Net-(U3-LNA_IN)` 같은 멀쩡한 이름을 "잘렸을 수 있다"고 말한다.
     NAME_IS_WIDTH_LIMITED = False
+
+    #: 회로도 넷리스트에는 좌표가 없다. `parse_notes()` 가 이미 그렇게 말하고 있었는데
+    #: **코드는 그 사실을 안 보고 좌표 클러스터링을 돌리고 있었다.**
+    HAS_COORDINATES = False
 
     def __init__(self, *args, components: "OrderedDict[str, Part] | None" = None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -159,7 +186,7 @@ def parse_text(text: str, filename: str = "") -> SchematicNetlist:
             ref, pin = node.get("ref"), (node.get("pin") or "").strip()
             if not ref:
                 continue
-            fn = (node.get("pinfunction") or "").strip()
+            fn = clean_pin_name((node.get("pinfunction") or "").strip())
             pads.append(
                 Pad(
                     ref=ref,
