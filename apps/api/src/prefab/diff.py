@@ -54,6 +54,22 @@ def finding_key(f: dict[str, Any]) -> tuple[str, str, str]:
     return (f.get("rule", ""), f.get("net") or "", " · ".join(sites))
 
 
+def _grade(f: dict) -> str:
+    """등급 표시. **해제된 것을 그냥 `CRITICAL` 로 찍으면 안 된다.**
+
+    데이터시트 근거로 지운 항목이 🔴 아래에 `(CRITICAL)` 로 나가고 있었다.
+    막지도 않는 항목을 제일 무겁게 보여주는 셈이라, 읽는 사람이 코멘트를 못 믿게 된다.
+    막는 기준(`blocking`)은 이미 판정까지 보고 있었는데 **표시만 안 따라왔다.**
+    """
+    severity = f.get("severity", "")
+    verdict = f.get("verdict")
+    if verdict == "PASS":
+        return f"{severity} · 해제됨"
+    if verdict and verdict != FAILED:
+        return f"{severity} · {verdict}"
+    return severity
+
+
 def _label(f: dict[str, Any]) -> str:
     key = finding_key(f)
     where = key[1] or key[2] or "—"
@@ -149,11 +165,11 @@ def format_diff(d: Diff, *, before_label: str = "base", after_label: str = "head
 
     block(
         f"🔴 새로 생긴 발견 {len(d.added)}건",
-        [f"- **{_label(f)}** ({f.get('severity')}) — {f.get('claim', '')}" for f in d.added],
+        [f"- **{_label(f)}** ({_grade(f)}) — {f.get('claim', '')}" for f in d.added],
     )
     block(
         f"✅ 사라진 발견 {len(d.removed)}건",
-        [f"- **{_label(f)}** ({f.get('severity')}) — {f.get('claim', '')}" for f in d.removed],
+        [f"- **{_label(f)}** ({_grade(f)}) — {f.get('claim', '')}" for f in d.removed],
     )
     block(
         f"🔄 판정이 달라진 발견 {len(d.changed)}건",
