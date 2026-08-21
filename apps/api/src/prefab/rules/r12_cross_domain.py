@@ -19,10 +19,12 @@ from ..netlist.graph import (
     CONFIDENCE_HIGH,
     DOMAIN_EPSILON_V,
     Graph,
+    ROLE_PULLUP,
     format_volts,
+    volts,
 )
 from ..datasheet.facts import INPUT_PULLUP_TO, NO_PULLUP, label
-from ..text import eun, gwa, i_ga
+from ..text import eul, eun, gwa, i_ga
 from ..types import Context, Evidence, Finding, Severity, Verdict
 from ._clearance import Answer, ask, ask_output_bound, number
 
@@ -74,9 +76,37 @@ def check(ctx: Context) -> list[Finding]:
             resolve=sure,
             what=None if sure else "핀 방향과 내부 풀업",
         )
-        findings.append(_finding(graph, net, hi, lo, hi_v, lo_v, answer))
+        findings.append(
+            _finding(
+                graph, net, hi, lo, hi_v, lo_v, answer,
+                bounded_to=_pullup_bound(graph, net, lo_v),
+            )
+        )
 
     return findings
+
+
+def _pullup_bound(graph: Graph, net: str, lo_v: float) -> str | None:
+    """이 네트를 **낮은 쪽 레일로 끌어올리는 풀업**이 있으면 그 레일 이름.
+
+    있으면 이야기가 달라진다. 오픈드레인 출력에 3.3V 풀업을 다는 것은 5V 부품을
+    3.3V 로직에 붙이는 **표준 관용구**다 — 풀업이 하이 레벨을 3.3V 로 정하고,
+    상위 부품은 로우로 끌어내리기만 한다. 그러면 5V 가 올라올 일이 없다.
+
+    **증명은 아니다.** 그 핀이 푸시풀이면 풀업과 무관하게 5V 를 낸다. 다만 그때는
+    풀업을 달 이유가 없다 — 드라이버와 싸우기만 한다. 그래서 이건 설계자가
+    "이 네트는 3.3V 레벨" 이라고 말한 흔적이고, **치명이라 단정할 근거는 못 된다.**
+
+    남의 실제 보드에서 충전 IC 의 `~CHRG`·`~STDBY` 가 정확히 이 모양이었다.
+    """
+    for ref in graph.series_candidates(net):
+        role = graph.passive_role(ref, net)
+        if role.role != ROLE_PULLUP or not role.other_net:
+            continue
+        rail = volts(role.other_net)
+        if rail is not None and rail <= lo_v + DOMAIN_EPSILON_V:
+            return role.other_net
+    return None
 
 
 def _no_path_up(answer: Answer) -> bool:
@@ -128,7 +158,9 @@ def _cleared_by_pullup(graph: Graph, net, hi, lo, hi_v, lo_v, answer: Answer) ->
     )
 
 
-def _finding(graph: Graph, net, hi, lo, hi_v, lo_v, answer: Answer) -> Finding:
+def _finding(
+    graph: Graph, net, hi, lo, hi_v, lo_v, answer: Answer, *, bounded_to: str | None = None
+) -> Finding:
     hi_conf = graph.domain(hi).confidence
     hi_token = graph.ref_pin(hi, net)
     lo_token = graph.ref_pin(lo, net)
@@ -203,6 +235,18 @@ def _finding(graph: Graph, net, hi, lo, hi_v, lo_v, answer: Answer) -> Finding:
     else:
         suggestion = (
             f"{need} Voh가 {format_volts(VOH_SAFE_MAX_V)}V 이하면 이 항목은 해제됩니다."
+        )
+
+    # **물어볼 곳을 하나 더 알려준다.** 판정은 그대로 두되, 낮은 쪽 레일로 끌어올리는
+    # 풀업이 있으면 그건 오픈드레인 관용구의 흔적이다. 사용자가 데이터시트에서
+    # 확인할 항목을 정확히 짚어 주면 한 번 보고 끝난다.
+    #
+    # **판정을 바꾸지는 않는다.** 풀업이 있어도 푸시풀이면 5V 가 그대로 올라온다.
+    # 그 구분은 팀이 이미 정했다 (`test_pullup_is_not_counted_as_series_protection`).
+    if bounded_to:
+        suggestion += (
+            f" {i_ga(hi_token)} 오픈드레인이면 하이 레벨을 풀업이 정하므로 "
+            f"{eul(bounded_to)} 넘지 않습니다 — 데이터시트에서 그 핀의 출력 방식을 확인하세요."
         )
 
     evidence: list[Evidence] = [Evidence.netlist("\n".join(lines), highlight)]

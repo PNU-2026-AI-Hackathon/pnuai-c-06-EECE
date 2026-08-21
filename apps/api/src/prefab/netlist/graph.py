@@ -36,8 +36,18 @@ SUPPLY_PIN_PATTERN = re.compile(r"^(VCC|VDD|VIN|VBUS|V\+|5V|3V3|3\.3V|VDDIO)", r
 #: 부품이 자기 IO 레일을 직접 노출하는 핀 이름 (VCC 보다 우선한다)
 IO_RAIL_PIN_PATTERN = re.compile(r"^(3V3|3\.3V|VDDIO)", re.I)
 
-#: 이름 안에 박힌 전압 토큰. 5V, 3V3, 1V8, 12V
-VOLTAGE_TOKEN = re.compile(r"(?<![A-Z0-9])(\d{1,2})V(\d)?(?![A-Z0-9])", re.I)
+#: 이름 안에 박힌 전압 토큰. `5V` · `3V3` · `1V8` · `12V` · `+3.3V` · `0.9V`
+#:
+#: **소수점 표기를 한동안 못 읽었다.** 유럽식(`3V3`)만 보고 있어서 KiCad 가 흔히 쓰는
+#: `+3.3V` 를 **3.0V** 로 읽었다. 더 나쁜 것은 `0.9V` 였다 — 앞의 `0.` 을 건너뛰고
+#: `9V` 를 잡아 **9.0V** 로 읽었다. 0.9V 코어 레일을 9V 로 보면 R11·R12 가
+#: 엉뚱한 과전압 경고를 낸다.
+#:
+#: 그래서 소수점을 먼저 먹고(`\d{1,2}(?:\.\d{1,2})?`), 앞에 `.` 이 오면 아예 안 잡는다.
+#: `0.9V` 의 `9` 자리에서 다시 매칭되는 것을 막는 것이 그 `\.` 이다.
+VOLTAGE_TOKEN = re.compile(
+    r"(?<![A-Z0-9.])(\d{1,2}(?:\.\d{1,2})?)V(\d)?(?![A-Z0-9])", re.I
+)
 
 #: **전압을 모르는 전원 레일.** KiCad 보드는 `+VSW` · `+BATT` 처럼 이름에 숫자가 없다.
 #: 전압 토큰만 보면 이런 레일이 신호로 분류돼 오탐의 출처가 된다 (요청서 A+2).
@@ -270,6 +280,15 @@ class Graph:
         기하가 이름이 잃어버린 것을 복원한다 (K1 의 6개 패드가 전부 'pad-').
         X 로 정렬한 뒤 **이웃 간격이 PAD_CLUSTER_GAP_INCH 를 넘는 자리에서** 자른다.
         """
+        # **좌표가 없는 형식에서는 아무 말도 하지 않는다.**
+        #
+        # 없는 좌표를 `0.0` 으로 채우면 부품의 패드가 전부 한 점에 뭉친다. 그러면 이
+        # 함수는 "이 부품의 모든 핀이 같은 물리 그룹" 이라고 답하는데, 그건 복원이
+        # 아니라 지어낸 것이다. 그 답을 받아 쓴 도메인 추론이 IC 를 "레일+GND 동거"
+        # 로 보고 5V 부품이라 판정했고, 남의 보드에서 R12 오탐 2건이 됐다.
+        if not getattr(self.netlist, "HAS_COORDINATES", True):
+            return {}
+
         pads = [
             (coord[0] if coord[0] is not None else 0.0, pin, net)
             for (_r, pin, coord), net in self.part_pins.get(ref, {}).items()
@@ -365,7 +384,16 @@ class Graph:
         pads = [p for p in self.netlist.nets.get(net, []) if not p.is_via]
         refs = {p.ref for p in pads}
 
-        if sum(1 for p in pads if SUPPLY_PIN_PATTERN.match(p.pin or "")) >= SUPPLY_PINS_MIN:
+        # **핀 *이름* 을 본다. 번호가 아니다.**
+        #
+        # `p.pin` 은 회로도 넷리스트에서 핀 *번호*(`15`)다. 거기다 `VCC|VDD|VIN…` 패턴을
+        # 대면 하나도 안 걸려서 전원 레일이 통째로 신호로 분류된다. 그러면 R11·R12 가
+        # 전원 레일 위에서 돈다 — 실보드 오탐의 한 갈래가 이것이었다.
+        # `pins_of()` 에서 이미 한 번 고친 것과 **같은 버그**가 여기 남아 있었다.
+        if (
+            sum(1 for p in pads if SUPPLY_PIN_PATTERN.match((p.name or p.pin or "")))
+            >= SUPPLY_PINS_MIN
+        ):
             return True
 
         named = bool(volts(net) or POWER_NAME_PATTERN.match(local_name(net)))

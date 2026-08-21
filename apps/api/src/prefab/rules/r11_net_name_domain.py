@@ -11,8 +11,10 @@ from __future__ import annotations
 
 from ..netlist.d356 import NET_NAME_WIDTH
 from ..netlist.graph import (
+    CONFIDENCE_HIGH,
     DOMAIN_EPSILON_V,
     Graph,
+    SUPPLY_PIN_PATTERN,
     format_volts,
     volts,
     voltage_is_clipped,
@@ -46,6 +48,25 @@ def check(ctx: Context) -> list[Finding]:
                 continue
 
             source_pin = graph.pin_on_net(ref, net)
+
+            # **이 부품이 여기서 전원을 *받는* 중이면 소스가 아니다.**
+            #
+            # `U1.VIN → /5V_IN` 을 보고 "이 네트를 구동하는 U1 은 3.3V" 라고 말하고 있었다.
+            # 거꾸로다 — U1 이 5V 를 먹고 안에서 3.3V 를 만든다. 부품의 내부 도메인은
+            # **자기 전원 입력 네트의 전압에 대해 아무 말도 하지 않는다.**
+            if source_pin and SUPPLY_PIN_PATTERN.match(source_pin):
+                continue
+
+            # **"이 부품은 어느 레일에 닿아 있더라" 로는 네트 이름을 반박하지 못한다.**
+            #
+            # 4핀 커넥터 J3 이 2번 핀에서 +5V 에 닿는다는 이유로 도메인이 5V 가 됐고,
+            # 그걸 근거로 `24V_ON` 이라는 이름을 "사실은 5V" 라고 반박했다. 커넥터는
+            # 핀마다 다른 신호를 나르므로 **부품 하나에 도메인 하나**라는 전제가 안 선다.
+            #
+            # 자기 전원 핀에서 읽은 도메인(`high`)만 쓴다. 좌표 클러스터로 읽은 것도
+            # 여기서는 안 쓴다 — 이 규칙의 주장이 "이 핀의 전압" 이라서다 (헌법 2-2).
+            if domain.confidence != CONFIDENCE_HIGH:
+                continue
             lines = [f"네트명: {net}"]
             highlight = [net]
 
