@@ -209,6 +209,8 @@ def _facts_load(paths: list[str], db: str) -> int:
     store = FactStore(db)
     before = store.size()
     bad = 0
+    skipped = 0
+    took = 0
 
     for raw in paths:
         path = Path(raw)
@@ -223,6 +225,7 @@ def _facts_load(paths: list[str], db: str) -> int:
         # **CLI 만 그 규약을 안 따르고 있었다.**
         if path.stem.startswith(TEMPLATE_PREFIX):
             print(f"{path.name}: 서식 파일이라 건너뜁니다")
+            skipped += 1
             continue
         try:
             report = store.save_json(path.read_text(encoding="utf-8"))
@@ -231,6 +234,7 @@ def _facts_load(paths: list[str], db: str) -> int:
             bad += 1
             continue
 
+        took += 1
         print(f"{path.name}: 저장 {report.stored} · 값없음 기록 {report.negative} "
               f"· 거절 {len(report.rejected)}")
         for r in report.rejected:
@@ -239,6 +243,18 @@ def _facts_load(paths: list[str], db: str) -> int:
 
     parts, facts = store.size()
     print(f"부품 DB: {before[0]} → {parts} (사실 {before[1]} → {facts})")
+
+    # **넣을 것이 하나도 없었으면 실패다.**
+    #
+    # 서식 파일만 지정한 경우가 그렇다 — 사용자는 사실을 넣으려 했는데 아무것도 안 들어갔다.
+    # 조용히 0 을 내면 "넣었다" 고 착각한다 (헌법 2-4).
+    #
+    # 반대로 `parts/*.json` 글롭처럼 **서식이 딸려 왔을 뿐이고 나머지는 들어갔으면**
+    # 성공이다. 그걸 실패로 세는 바람에 `bash -e` 로 도는 CI 스텝이 통째로 죽었다.
+    if skipped and not took:
+        print("넣을 사실 파일이 없습니다 — 서식 파일만 지정했습니다.", file=sys.stderr)
+        return 1
+
     return 1 if bad else 0
 
 
