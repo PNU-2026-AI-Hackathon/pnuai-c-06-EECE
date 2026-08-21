@@ -95,16 +95,15 @@ def test_커밋된_파일만으로_PRESENCE_3V3_두_건이_해제된다(tmp_path
     assert not [f for f in before if f.verdict is Verdict.PASS], "넣기 전에 이미 해제돼 있다"
 
     cleared = [f for f in after if f.verdict is Verdict.PASS]
-    # R11 은 dedup 으로 R12 에 합쳐진다. 네트마다 해제가 하나씩 남는다.
-    #   PRESENCE_3V3   U2 데이터시트 (문서로 해제)
-    #   _IN_ACTIVE_LOW K1 실측       (재서 해제)
-    assert {(f.rule, f.net) for f in cleared} == {
-        ("R12", "PRESENCE_3V3"),
-        ("R12", "_IN_ACTIVE_LOW"),
-    }
+    # R11 은 dedup 으로 R12 에 합쳐진다.
+    #
+    # **`_IN_ACTIVE_LOW` 는 한때 여기 같이 있었다.** 저항 실측(`input_pullup_to: none`)
+    # 으로 해제됐었는데, 8/21 에 그 보드가 실제로 고장 나면서 사실이 하나 더 들어왔고
+    # (`io_level: 5V`) 그 네트는 **해제에서 R04 치명으로 돌아섰다.**
+    # 아래 `test_K1_은_해제됐다가_되돌아왔다` 가 그 이야기를 붙잡는다.
+    assert {(f.rule, f.net) for f in cleared} == {("R12", "PRESENCE_3V3")}
     presence = next(f for f in cleared if f.net == "PRESENCE_3V3")
     assert "R11" in presence.suggestion, "합쳐진 규칙을 조용히 버리지 않는다"
-    assert len(after) == len(before), "해제는 발견을 지우는 게 아니라 판정을 바꾸는 것이다"
 
 
 def test_해제된_발견에는_데이터시트_출처가_붙는다(tmp_path):
@@ -119,31 +118,53 @@ def test_해제된_발견에는_데이터시트_출처가_붙는다(tmp_path):
         assert f.unresolved_reason is None
 
 
-def test_K1은_실측으로_풀렸다(tmp_path):
-    """이 테스트는 원래 "K1 은 여전히 미결로 남는다" 였다.
+def test_K1_은_해제됐다가_되돌아왔다(tmp_path):
+    """**이 프로젝트에서 제일 값진 한 건이다. 순서를 그대로 남긴다.**
 
-    그때 적어둔 조건이 그대로 왔다 — `input_pullup_to`. 하드웨어 담당이 모듈을
-    보드에서 뽑아 IN↔VCC 를 20kΩ · 2MΩ 범위로 쟀고 둘 다 OL 이었다.
-    저항성 5V 풀업이 없으면 그 핀을 통해 5V 가 U1 로 올라올 길이 없다.
+    1. R12 가 `_IN_ACTIVE_LOW` 를 짚었다 — 5V 릴레이가 3.3V MCU 와 같은 네트다
+    2. 하드웨어 담당이 모듈을 뽑아 IN↔VCC 를 20kΩ · 2MΩ 로 쟀고 둘 다 OL 이었다.
+       `input_pullup_to: none` 으로 저장했고 **경고가 해제됐다**
+    3. 그때 그 사실 파일에 이렇게 적어 뒀다 —
+       *"저항계는 트랜지스터·다이오드 경로를 못 보므로 '저항성 풀업이 없다' 까지가
+       이 측정이 말하는 전부다."*
+    4. **8/21, 보드가 그 자리에서 고장 났다.** "LED가 ON은 되는데 OFF가 안된다."
+       3.3V 가 K1 의 입력 문턱에 못 미쳤다
+    5. `io_level: 5V` 를 실측으로 넣었고, 그 네트는 **해제에서 R04 치명으로 돌아섰다**
 
-    **데이터시트가 아니라 측정으로 풀린 첫 건이다.** 부품에 따라 데이터시트가
-    아예 없거나 그 항목을 안 싣는다. 그때 남는 길이 이것이다.
-
-    저항계가 못 보는 것(트랜지스터·다이오드 경로)은 `suggestion` 이 그대로 말한다.
+    적어둔 한계가 그대로 왔다. **해제를 되돌릴 수 있어야 한다** — 사실이 늘면
+    판정이 바뀌는 것이 이 구조의 요점이고, 한 번 지운 것을 영영 못 되살리면
+    그건 파이프라인이 아니라 예외 목록이다.
     """
-    found = [
-        f
-        for f in _real_board(_loaded_store(tmp_path)).engine.findings
-        if f.net == "_IN_ACTIVE_LOW" and f.rule == "R12"
+    findings = [
+        f for f in _real_board(_loaded_store(tmp_path)).engine.findings
+        if f.net == "_IN_ACTIVE_LOW"
     ]
-    assert len(found) == 1
-    assert found[0].verdict is Verdict.PASS
-    assert found[0].unresolved_reason is None
+    assert len(findings) == 1, [(f.rule, f.verdict) for f in findings]
+    f = findings[0]
 
-    cite = next(e for e in found[0].evidence if e.kind == "datasheet")
-    assert cite.page is None, "실측에는 쪽 번호가 없다"
-    assert "OL" in cite.quote
-    assert "트랜지스터" in found[0].suggestion, "저항계가 못 보는 것을 말해야 한다"
+    assert f.rule == "R04", f.rule
+    assert f.verdict is Verdict.FAIL
+    # 양쪽 데이터시트 값으로 말한다 — 추정이 아니다
+    assert "5V" in f.claim and "3.6V" in f.claim, f.claim
+
+    cite = next(e for e in f.evidence if e.kind == "datasheet")
+    assert cite.quote
+
+    # 되돌린 근거가 실측이라는 것이 화면에 남아야 한다
+    assert "실측" in f.suggestion, f.suggestion
+
+
+def test_저항_측정_자체는_그대로_살아_있다(tmp_path):
+    """되돌아섰다고 앞의 측정을 지우지 않는다. **틀린 값이 아니라 좁은 값이었다.**
+
+    IN↔VCC 에 저항성 풀업이 없다는 것은 지금도 사실이다. 다만 그것만으로는
+    "5V 가 올라올 길이 없다" 가 안 나온다는 것을 알게 됐을 뿐이다.
+    """
+    facts = _loaded_store(tmp_path).lookup(["JQC-3FF-S-Z"]).facts
+    pullup = facts.get("JQC-3FF-S-Z", "input_pullup_to")
+    level = facts.get("JQC-3FF-S-Z", "io_level")
+    assert pullup is not None and pullup.value == "none"
+    assert level is not None and level.value == 5.0
 
 
 def test_사실이_들어가면_4단계가_미구현이라고_말하지_않는다(tmp_path):
