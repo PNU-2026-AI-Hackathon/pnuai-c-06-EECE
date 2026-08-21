@@ -140,6 +140,16 @@ export function UploadPage() {
   const [netlist, setNetlist] = useState<File | null>(null);
   const [bom, setBom] = useState<File | null>(null);
   const [firmware, setFirmware] = useState<File | null>(null);
+  /**
+   * 바뀌기 전 회로도. **없어도 검사는 그대로 된다** — R10 만 조용해진다.
+   *
+   * 한동안 이 슬롯을 일부러 안 뒀다. 근거는 "웹으로 파일을 올리는 사람에게는 이전
+   * 넷리스트가 없고, 있는 곳은 CI 다" 였다. 절반은 맞다. 다만 그 대가로
+   * **R10 이 화면에서 절대 못 도는 규칙**이 됐다 — 카탈로그에는 「동작」이라 적힌 채로.
+   * 회로도를 고친 사람은 직전 판을 가지고 있다. 위 세 칸과 떨어뜨려 둔 것은
+   * 처음 오는 사람의 시선을 뺏지 않기 위해서다.
+   */
+  const [previousNetlist, setPreviousNetlist] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   /**
@@ -172,7 +182,7 @@ export function UploadPage() {
     setError(null);
     setBusy(true);
     try {
-      const created = await createCheck({ netlist, bom, firmware });
+      const created = await createCheck({ netlist, bom, firmware, previousNetlist });
       navigate(`/c/${created.check_id}`);
     } catch (e) {
       // 서버가 이유를 말해줬으면 그대로 쓴다. 못 닿은 경우도 api.ts 가 문구를 채워 준다
@@ -227,6 +237,36 @@ export function UploadPage() {
           impact={impactOf(rules, "firmware")}
         />
       </div>
+
+      {/*
+        **드리프트 칸은 따로 둔다.**
+
+        위 세 칸은 "지금 이 보드" 를 검사하는 데 필요한 것이고, 이 칸은 "직전과 무엇이
+        달라졌나" 를 묻는 것이라 질문 자체가 다르다. 넷 칸을 나란히 두면 처음 오는
+        사람이 넷 다 있어야 하는 줄 안다.
+      */}
+      <details className="mb-4 rounded-block border border-line bg-surface/60 px-4 py-3">
+        <summary className="cursor-pointer select-none text-[14px] font-bold text-ink">
+          바뀌기 전 회로도와 비교하기{" "}
+          <span className="ml-1 rounded-chip bg-surface-2 px-1.5 py-0.5 text-[12px] font-semibold text-mute">
+            선택
+          </span>
+        </summary>
+        <p className="mb-3 mt-3 text-[13px] leading-relaxed text-sub">
+          직전 회로도를 함께 올리면 <strong className="font-bold text-ink">무엇이 옮겨갔는지</strong>{" "}
+          짚어 줍니다. 한 장만 보면 "이 핀이 안 붙었다" 와 "저 핀을 코드가 안 쓴다" 가 따로
+          나오는데, 둘이 같은 사건인지는 이전 상태를 알아야 말할 수 있습니다.
+        </p>
+        <div className="grid gap-3 md:grid-cols-3">
+          <Slot
+            title="이전 회로도"
+            accept=".d356,.ipc,.txt,.xml,.net"
+            file={previousNetlist}
+            onPick={setPreviousNetlist}
+            missingNote="없으면 무엇이 달라졌는지는 비교하지 않습니다. 리포트에 그렇게 적힙니다."
+          />
+        </div>
+      </details>
 
       {/* 표기법을 여기서 한 번 가르친다. 리포트의 소스 레인이 같은 기호를 쓴다 */}
       <p className="mb-8 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-mute">

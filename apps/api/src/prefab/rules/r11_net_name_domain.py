@@ -17,6 +17,7 @@ from ..netlist.graph import (
     volts,
     voltage_is_clipped,
 )
+from ..text import eun
 from ..types import Context, Evidence, Finding, Severity, Verdict
 from ._clearance import ask_output_bound, number
 
@@ -68,7 +69,7 @@ def check(ctx: Context) -> list[Finding]:
 
             claim = (
                 f"네트 이름은 {format_volts(claimed)}V라고 말하는데, "
-                f"이 네트를 구동하는 {ref}는 {format_volts(domain.volts)}V로 동작합니다."
+                f"이 네트를 구동하는 {eun(ref)} {format_volts(domain.volts)}V로 동작합니다."
             )
             if clipped:
                 claim += (
@@ -108,7 +109,7 @@ def check(ctx: Context) -> list[Finding]:
                 elif abs(voh - claimed) <= DOMAIN_EPSILON_V:
                     verdict = Verdict.PASS
                     claim = (
-                        f"네트 이름 {net} 은 맞습니다. {ref}({answer.mpn})의 전원은 "
+                        f"네트 이름 {eun(net)} 맞습니다. {ref}({answer.mpn})의 전원은 "
                         f"{format_volts(domain.volts)}V지만 출력은 {format_volts(voh)}V입니다."
                     )
                     suggestion = (

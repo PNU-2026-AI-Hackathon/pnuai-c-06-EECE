@@ -29,6 +29,7 @@ from __future__ import annotations
 import re
 from collections import OrderedDict
 
+from ..text import eul, i_ga
 from ..types import Context, Evidence, Finding, Severity, Verdict
 
 RULE_ID = "R14"
@@ -106,7 +107,7 @@ def _finding(ctx: Context, key: str, seats) -> Finding:
             )
 
     pins = " · ".join(f"GPIO{g}" for g in seats)
-    lines = [f"코드가 {key} 를 두 핀으로 부릅니다", *rows]
+    lines = [f"코드가 {eul(key)} 두 핀으로 부릅니다", *rows]
 
     net = _net_of(ctx, key)
     if net:
@@ -127,7 +128,7 @@ def _finding(ctx: Context, key: str, seats) -> Finding:
         ),
         evidence=tuple(evidence),
         suggestion=(
-            f"{key} 가 실제로 어느 핀인지 회로도에서 확인하고 한쪽으로 맞추세요. "
+            f"{i_ga(key)} 실제로 어느 핀인지 회로도에서 확인하고 한쪽으로 맞추세요. "
             "정의가 여러 파일에 흩어져 있으면 한 파일로 모으는 편이 안전합니다."
         ),
         unresolved_reason=None,

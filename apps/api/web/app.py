@@ -126,6 +126,7 @@ async def create_check(
     netlist: UploadFile | None = File(default=None),
     bom: UploadFile | None = File(default=None),
     firmware: UploadFile | None = File(default=None),
+    previous_netlist: UploadFile | None = File(default=None),
 ) -> dict:
     if netlist is None or not netlist.filename:
         raise service.netlist_required()
@@ -144,6 +145,12 @@ async def create_check(
         firmware_bytes = await _accept("firmware", firmware)
         firmware_name = firmware.filename
 
+    previous_name = None
+    previous_bytes = None
+    if previous_netlist is not None and previous_netlist.filename:
+        previous_bytes = await _accept("previous_netlist", previous_netlist)
+        previous_name = previous_netlist.filename
+
     result = service.run_check(
         netlist_bytes=netlist_bytes,
         netlist_filename=netlist.filename,
@@ -151,6 +158,8 @@ async def create_check(
         bom_filename=bom_name,
         firmware_filename=firmware_name,
         firmware_bytes=firmware_bytes,
+        previous_netlist_bytes=previous_bytes,
+        previous_netlist_filename=previous_name,
         fact_store=facts,
     )
     store.save(result)

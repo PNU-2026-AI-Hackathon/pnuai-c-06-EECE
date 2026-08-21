@@ -25,6 +25,7 @@ from __future__ import annotations
 
 from ..chips import Chip
 from ..netlist.d356 import Netlist
+from ..text import eun
 from ..types import Context, Evidence, Finding, Severity, Verdict
 from .r01_unusable_pin import chip_of
 
@@ -104,7 +105,7 @@ def _finding(chip: Chip, pad, net: str, netlist: Netlist, flash_device: str | No
     where = f"{pad.ref}.{pad.silk}" if pad.silk else f"{pad.ref}.{pad.pin}"
     token = f"GPIO{pad.gpio}"
 
-    lines = [f"{chip.name} — {token} 는 내장 플래시 전용 핀이다", f"{where} → {net}"]
+    lines = [f"{chip.name} — {eun(token)} 내장 플래시 전용 핀이다", f"{where} → {net}"]
     for ref, pin in netlist.connections(net):
         if ref == pad.ref:
             continue

@@ -14,6 +14,9 @@ from .engine import EngineResult
 from .netlist.d356 import Netlist
 from .types import Severity, Verdict
 
+#: 이전 회로도가 있어야만 말을 하는 규칙. 없으면 "실행함" 이 거짓말이 된다.
+R10 = "R10"
+
 PIPELINE_NAMES = (
     (1, "넷리스트 파싱"),
     (2, "부품 식별"),
@@ -117,6 +120,7 @@ def build_pipeline(
     pinmap,
     bom=None,
     facts=None,
+    has_previous: bool = False,
 ) -> list[dict[str, Any]]:
     step = dict(PIPELINE_NAMES)
 
@@ -133,6 +137,17 @@ def build_pipeline(
         f"미구현 {len(engine.skipped_not_implemented)} · "
         f"입력 부족 {len(engine.skipped_missing_input)}"
     )
+
+    # **"실행함" 이 "볼 것이 있었음" 을 뜻하지 않는 규칙이 하나 있다.**
+    #
+    # R10 은 이전 회로도와 지금 회로도를 비교한다. 이전 것이 없으면 아무 말도 못 하는데,
+    # 그 입력이 `NEEDS` 에 없어서(계약 어휘를 안 넓히려고) 엔진은 R10 을 **실행함**으로
+    # 센다. 그래서 "12개 중 12개 실행 · 입력 부족 0" 이 나오는데 R10 은 시작도 못 했다.
+    #
+    # 못 한 일을 실행했다고 적는 것이라 헌법 2-4 에 걸린다. 숫자는 그대로 두고
+    # (계약이 세는 방식을 안 바꾼다) **무엇을 못 봤는지 한 줄 덧붙인다.**
+    if R10 in engine.ran and not has_previous:
+        engine_detail += " · R10(드리프트)은 이전 회로도가 없어 비교할 대상이 없었습니다"
 
     parse_detail = f"네트 {netlist.net_count} · 부품 {netlist.part_count}"
     # 읽으며 뺀 줄이 있으면 그대로 붙인다. 조용히 버리지 않는다 (CLAUDE.md 2-4).
@@ -253,7 +268,15 @@ def build_result(
         },
         "summary": build_summary(netlist, engine, parts_identified or analysis.parts_identified),
         "pipeline": build_pipeline(
-            netlist, engine, has_bom, firmware, pinmap, analysis.bom, analysis.facts
+            netlist,
+            engine,
+            has_bom,
+            firmware,
+            pinmap,
+            analysis.bom,
+            analysis.facts,
+            # 이전 회로도가 실제로 손에 있었는지. `Context.git` 이 그 자리다.
+            has_previous=getattr(analysis.context, "git", None) is not None,
         ),
         "findings": [f.to_dict() for f in engine.findings],
         "netlist": analysis.to_netlist_dict(),

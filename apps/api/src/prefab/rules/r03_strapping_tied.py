@@ -28,6 +28,7 @@ from __future__ import annotations
 from ..chips import Chip
 from ..netlist.d356 import Netlist
 from ..netlist.graph import GND_PATTERN, local_name
+from ..text import eun
 from ..types import Context, Evidence, Finding, Severity, Verdict
 from .r01_unusable_pin import chip_of
 
@@ -79,7 +80,7 @@ def _finding(chip: Chip, pad, net: str, level: str, netlist: Netlist) -> Finding
     token = f"GPIO{pad.gpio}"
     held = "접지에 묶여 항상 LOW" if level == "LOW" else f"{net} 에 묶여 항상 HIGH"
 
-    lines = [f"{chip.name} — {token} 는 스트래핑 핀이다", f"{where} → {net}"]
+    lines = [f"{chip.name} — {eun(token)} 스트래핑 핀이다", f"{where} → {net}"]
     others = [f"{ref}.{pin}" for ref, pin in netlist.connections(net) if ref != pad.ref]
     if others:
         lines.append(f"같은 네트: {', '.join(others[:6])}")

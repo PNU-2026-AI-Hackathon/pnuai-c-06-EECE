@@ -19,6 +19,7 @@ R01 은 **핀 하나가 못 쓰는 핀인가**를 본다. 여기는 **두 기능
 from __future__ import annotations
 
 from ..chips import Chip
+from ..text import eul, eun
 from ..types import Context, Evidence, Finding, Severity, Verdict
 from .r01_unusable_pin import chip_of, gpio_of
 
@@ -86,7 +87,7 @@ def _finding(
     where = f"{use.silk}(GPIO{gpio})" if use.silk else f"GPIO{gpio}"
 
     evidence: list[Evidence] = [
-        Evidence.netlist(f"{chip.name} — {where} 는 {what}", [where])
+        Evidence.netlist(f"{chip.name} — {eun(where)} {what}", [where])
     ]
     for call in use.calls[:3]:
         evidence.append(Evidence.firmware(
@@ -100,7 +101,7 @@ def _finding(
         severity=severity,
         verdict=Verdict.FAIL,
         net=None,
-        claim=f"코드가 {where} 를 아날로그 입력으로 읽습니다. {chip.name} 에서 {what}. {why}",
+        claim=f"코드가 {eul(where)} 아날로그 입력으로 읽습니다. {chip.name} 에서 {what}. {why}",
         evidence=tuple(evidence),
         suggestion=fix,
         unresolved_reason=None,

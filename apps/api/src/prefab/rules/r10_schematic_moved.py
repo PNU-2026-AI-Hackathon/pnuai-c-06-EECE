@@ -16,20 +16,32 @@ R08 은 "붙었는데 코드가 안 쓴다"고 각자 절반씩 말한다. 한 �
 **둘이 같은 사건인지는 이전 상태를 알아야 말할 수 있다.** 모르면 잇지 않는다 — 그건
 추측이고, 두 발견이 정말 무관한 경우가 흔하다 (우리 실측 보드가 그렇다).
 
-## 입력을 계약에 넣지 않는다
+## 입력은 선택이다 — 다만 계약에는 넣었다 (8/21 뒤집음)
 
 `ctx.git` 은 **선택 입력**이다. `datasheet` 와 같은 자리다 — 규칙이 보지만
-`NEEDS` 에는 안 쓴다. 웹으로 파일 세 개를 올리는 사람에게는 이전 넷리스트가 없고,
-있는 곳은 CI 다. 계약 어휘(`netlist`·`bom`·`firmware`)를 넓히면 화면에 안 쓰는
-업로드 슬롯이 하나 생긴다.
+`NEEDS` 에는 안 쓴다. 이건 그대로다.
+
+원래는 **업로드 슬롯 자체를 안 만들었다.** 근거는 "웹으로 파일 세 개를 올리는
+사람에게는 이전 넷리스트가 없고, 있는 곳은 CI 다. 계약 어휘를 넓히면 화면에 안 쓰는
+슬롯이 하나 생긴다" 였다. 절반은 지금도 맞다.
+
+**틀린 절반은 그 대가였다.** 이 규칙은 카탈로그에 「동작」이라 적혀 있고
+`rules_run` 에 12/12 로 세어지는데, 웹으로 들어온 사람에게는 **구조적으로 절대
+못 도는 규칙**이었다. 못 한 일을 실행했다고 적은 것이라 헌법 2-4 에 걸린다.
+그리고 회로도를 고친 사람은 직전 판을 **가지고 있다** — 방금 새로 뽑았으니까.
+
+그래서 `previous_netlist` 를 선택 입력으로 열었다. 원래 걱정(첫 화면이 복잡해지는 것)은
+슬롯을 접어서 위 세 칸과 떨어뜨려 두는 것으로 막았다.
 
 이전 넷리스트가 없으면 **아무 말도 하지 않는다.** R07·R08 이 각자 할 말을 이미 한다.
+대신 리포트의 「규칙 엔진」 단계가 *"이전 회로도가 없어 비교할 대상이 없었습니다"* 라고
+적는다 — 조용히 넘어가지 않는다.
 """
 
 from __future__ import annotations
 
 from ..netlist.d356 import Netlist
-from ..text import eun
+from ..text import eul, eun
 from ..types import Context, Evidence, Finding, Severity, Verdict
 
 RULE_ID = "R10"
@@ -104,7 +116,7 @@ def _finding(net: str, stale, arrived, firmware, now: Netlist) -> Finding:
     ]
     for p in stale:
         where = now.net_at(p.ref, p.pin, p.x, p.y)
-        lines.append(f"       {p.ref}.{p.silk} 는 이제 {where or 'N/C'} 다")
+        lines.append(f"       {eun(f'{p.ref}.{p.silk}')} 이제 {where or 'N/C'} 다")
 
     evidence: list[Evidence] = [Evidence.netlist("\n".join(lines), [old, new])]
     for p in stale:
@@ -128,7 +140,7 @@ def _finding(net: str, stale, arrived, firmware, now: Netlist) -> Finding:
         net=net,
         claim=(
             f"회로도에서 {eun(net)} {old} 에서 {new} 로 옮겨갔는데, "
-            f"코드는 아직 {old} 을 씁니다. 회로도만 바뀌고 코드가 안 따라왔습니다."
+            f"코드는 아직 {eul(old)} 씁니다. 회로도만 바뀌고 코드가 안 따라왔습니다."
         ),
         evidence=tuple(evidence),
         suggestion=(

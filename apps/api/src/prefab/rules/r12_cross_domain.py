@@ -113,7 +113,7 @@ def _cleared_by_pullup(graph: Graph, net, hi, lo, hi_v, lo_v, answer: Answer) ->
         verdict=Verdict.PASS,
         net=net,
         claim=(
-            f"{format_volts(hi_v)}V 로 도는 {hi} 와 {format_volts(lo_v)}V 로 도는 {lo} 가 "
+            f"{format_volts(hi_v)}V 로 도는 {gwa(hi)} {format_volts(lo_v)}V 로 도는 {i_ga(lo)} "
             f"같은 네트에 있습니다. 다만 {hi}({answer.mpn}) 의 입력 핀에는 내부 풀업이 "
             f"없는 것으로 확인돼, 이 핀을 통해 {format_volts(hi_v)}V 가 {lo} 로 올라올 "
             f"경로가 없습니다."
@@ -213,7 +213,7 @@ def _finding(graph: Graph, net, hi, lo, hi_v, lo_v, answer: Answer) -> Finding:
     # 방향을 모르면 미결 사유가 그 사실부터 말한다. 부품번호만 문제인 게 아니다
     if hi_conf != CONFIDENCE_HIGH and unresolved is not None:
         unresolved = (
-            f"{hi}이 이 네트를 구동하는지 입력으로 받는지 넷리스트만으로는 알 수 없습니다. "
+            f"{i_ga(hi)} 이 네트를 구동하는지 입력으로 받는지 넷리스트만으로는 알 수 없습니다. "
             f"{unresolved}"
         )
 
@@ -228,7 +228,7 @@ def _finding(graph: Graph, net, hi, lo, hi_v, lo_v, answer: Answer) -> Finding:
         if voh <= VOH_SAFE_MAX_V:
             verdict = Verdict.PASS
             claim = (
-                f"{head} 다만 {hi}({answer.mpn})의 {label(answer.fact.field)}이 "
+                f"{head} 다만 {hi}({answer.mpn})의 {i_ga(label(answer.fact.field))} "
                 f"{format_volts(voh)}V로 확인되어 {lo}의 {format_volts(lo_v)}V 입력이 견딥니다. "
                 f"전원이 {format_volts(hi_v)}V일 뿐 출력은 그렇지 않습니다."
             )
@@ -238,7 +238,7 @@ def _finding(graph: Graph, net, hi, lo, hi_v, lo_v, answer: Answer) -> Finding:
             )
         else:
             claim = (
-                f"{head} {tail} {hi}({answer.mpn})의 {label(answer.fact.field)}이 "
+                f"{head} {tail} {hi}({answer.mpn})의 {i_ga(label(answer.fact.field))} "
                 f"{format_volts(voh)}V로 확인되어 {format_volts(VOH_SAFE_MAX_V)}V 한도를 넘습니다."
             )
             suggestion = (
