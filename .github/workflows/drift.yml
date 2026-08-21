@@ -20,8 +20,9 @@ on:
   pull_request:
     # 입력이 안 바뀐 PR 에서는 돌 이유가 없다. 결과가 항상 "변화 없음"이다.
     paths:
-      - "apps/api/tests/fixtures/**"
+      - "apps/api/board/**"
       - "apps/api/src/prefab/**"
+      - "apps/api/parts/**"
       - ".github/workflows/drift.yml"
 
 permissions:
@@ -33,10 +34,16 @@ jobs:
     name: 회로도 ↔ 코드 대조
     runs-on: ubuntu-latest
     env:
-      # 검사할 보드. 실제 프로젝트에서는 자기 보드 파일을 여기에 적는다.
-      NETLIST: apps/api/tests/fixtures/esp32-c6-presence-smart-light.d356
-      FIRMWARE: apps/api/tests/fixtures/esp32-c6-presence-smart-light.firmware
-      BOM: apps/api/tests/fixtures/esp32-c6-presence-smart-light.bom.csv
+      # **우리 보드. 테스트 픽스처가 아니다.**
+      #
+      # 한동안 `tests/fixtures/` 를 보고 있었다. 그러면 **보드를 고칠 수가 없다** —
+      # 픽스처를 건드리는 순간 테스트 20개가 같이 깨져서, 회로도가 바뀐 것인지
+      # 규칙이 바뀐 것인지 구분이 안 된다. 그게 이 검사가 가리려던 바로 그 구분이다.
+      #
+      # 픽스처는 **그 시점의 기록**이고 `board/` 는 **지금 우리 보드**다 (`board/README.md`).
+      NETLIST: apps/api/board/board.net.xml
+      FIRMWARE: apps/api/board/firmware
+      BOM: apps/api/board/bom.csv
     steps:
       - uses: actions/checkout@v4
         with:
