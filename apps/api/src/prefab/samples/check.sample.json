@@ -22,9 +22,9 @@
     "warning": 1,
     "info": 0,
     "cleared": 2,
-    "rules_run": 12,
+    "rules_run": 13,
     "rules_skipped": 0,
-    "rules_total": 12,
+    "rules_total": 13,
     "parts_identified": 3,
     "parts_total": 10
   },
@@ -63,7 +63,7 @@
       "step": 6,
       "name": "규칙 엔진",
       "status": "done",
-      "detail": "12개 중 12개 실행 · 미구현 0 · 입력 부족 0 · R10(드리프트)은 이전 회로도가 없어 비교할 대상이 없었습니다"
+      "detail": "13개 중 13개 실행 · 미구현 0 · 입력 부족 0 · R10(드리프트)은 이전 회로도가 없어 비교할 대상이 없었습니다"
     },
     {
       "step": 7,

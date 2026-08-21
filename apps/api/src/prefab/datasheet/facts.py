@@ -19,6 +19,11 @@ VIL_MAX = "vil_max"                    #: 입력 Low 문턱 최대
 VCC_NOMINAL = "vcc_nominal"            #: 정격 공급 전압
 VIN_ABSOLUTE_MAX = "vin_absolute_max"  #: 입력 절대 최대 (넘으면 파손)
 OUTPUT_TYPE = "output_type"            #: push-pull / open-drain
+
+#: `output_type` 이 가질 수 있는 값. **문자열을 손으로 적지 않는다** —
+#: 규칙이 `"open-drain"` 을 오타로 쓰면 조용히 아무것도 해제 안 된다.
+OPEN_DRAIN = "open-drain"
+PUSH_PULL = "push-pull"
 IO_LEVEL = "io_level"                  #: 모듈 IO 가 도는 로직 레벨
 INPUT_PULLUP_TO = "input_pullup_to"    #: 입력 핀이 내부에서 어디로 풀업되는가
 

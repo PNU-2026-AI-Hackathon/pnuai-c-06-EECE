@@ -41,7 +41,10 @@ def test_rules_exposes_every_rule_with_its_state(client):
     지키려던 것은 개수가 아니라 노출이다.
     """
     rules = client.get("/api/v1/rules").json()["rules"]
-    assert len(rules) == 12
+    # **개수를 손으로 못 박지 않는다.** 규칙이 늘 때마다 세 곳을 고치게 된다 (헌법 7절).
+    from prefab import catalog
+
+    assert len(rules) == catalog.TOTAL
     assert all(isinstance(r["implemented"], bool) for r in rules)
     r12 = next(r for r in rules if r["id"] == "R12")
     assert r12["implemented"] is True
