@@ -20,9 +20,6 @@
       <fields><field name="MPN">HLK-LD2410C</field></fields></comp>
     <comp ref="K1"><value>5V relay module</value>
       <fields><field name="MPN">JQC-3FF-S-Z</field></fields></comp>
-    <comp ref="Q1"><value>NPN</value>
-      <fields><field name="MPN">2N3904</field></fields></comp>
-    <comp ref="R4"><value>1k</value></comp>
     <comp ref="R3"><value>10k</value></comp>
     <comp ref="R1"><value>5.1k</value></comp>
     <comp ref="R2"><value>5.1k</value></comp>
@@ -39,7 +36,6 @@
       <node ref="K1" pin="5" pinfunction="COM"/>
       <node ref="C1" pin="1"/>
       <node ref="C2" pin="1"/>
-      <node ref="R3" pin="1"/>
       <node ref="J1" pin="1" pinfunction="VBUS"/>
     </net>
     <net name="GND_BUS">
@@ -54,20 +50,16 @@
       <node ref="J1" pin="2" pinfunction="GND"/>
       <node ref="J2" pin="2"/>
     </net>
+    <net name="3V3">
+      <node ref="U1" pin="8" pinfunction="3V3"/>
+      <node ref="R3" pin="1"/>
+    </net>
     <net name="PRESENCE_3V3">
       <node ref="U1" pin="4" pinfunction="D2"/>
       <node ref="U2" pin="3" pinfunction="OUT"/>
     </net>
-    <net name="Q1_BASE_DRIVE">
-      <node ref="U1" pin="7" pinfunction="D5"/>
-      <node ref="R4" pin="1"/>
-    </net>
-    <net name="Q1_BASE">
-      <node ref="R4" pin="2"/>
-      <node ref="Q1" pin="2" pinfunction="B"/>
-    </net>
     <net name="RELAY_IN_NET">
-      <node ref="Q1" pin="1" pinfunction="C"/>
+      <node ref="U1" pin="7" pinfunction="D5"/>
       <node ref="K1" pin="3" pinfunction="IN"/>
       <node ref="R3" pin="2"/>
     </net>
