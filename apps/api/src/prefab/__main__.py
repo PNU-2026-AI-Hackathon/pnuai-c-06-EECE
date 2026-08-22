@@ -312,6 +312,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--facts-load", nargs="+", metavar="JSON",
                     help="데이터시트 사실 파일을 부품 DB 에 넣는다")
     ap.add_argument("--facts", action="store_true", help="부품 DB 크기를 본다")
+    ap.add_argument(
+        "--discover",
+        action="store_true",
+        help="검사 뒤에 **우리 규칙이 못 본 것**을 LLM 에 물어본다. 판정이 아니라 후보다",
+    )
     ap.add_argument("--measure", metavar="DIR", nargs="?", const="tests/fixtures/injected",
                     help="라벨된 케이스 폴더에 엔진을 돌려 검출율·오탐율을 낸다")
     ap.add_argument("--diff", nargs=2, metavar=("BEFORE.json", "AFTER.json"),
@@ -419,7 +424,49 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
         print(_human(analysis, path))
+
+    if args.discover:
+        from .discover import discover
+
+        proposal = discover(
+            analysis,
+            netlist_text=path.read_text(encoding="utf-8", errors="replace"),
+            firmware_sources=sources,
+        )
+        if args.json:
+            print(json.dumps(proposal.to_dict(), ensure_ascii=False, indent=2))
+        else:
+            print(_discovery(proposal))
     return 0
+
+
+def _discovery(proposal) -> str:
+    """후보를 사람이 읽게. **발견과 다르게 보이도록 제목부터 다르게 쓴다.**"""
+    bar = "=" * 74
+    out = [bar, "우리가 못 봤을 수 있는 것 — **판정이 아니라 후보입니다**", bar]
+
+    if proposal.unavailable:
+        out.append(f"  물어보지 못했습니다 — {proposal.unavailable}")
+        return "\n".join(out)
+
+    if not proposal.kept:
+        out.append("  새로 올릴 후보가 없습니다.")
+    for c in proposal.kept:
+        out.append(f"\n  [후보] {c.title}")
+        out.append(f"         {c.why}")
+        for cite in c.citations:
+            where = f"{cite.where}:{cite.what}" if cite.what else cite.where
+            out.append(f"         근거  {where}")
+            if cite.quote:
+                out.append(f"               {cite.quote.splitlines()[0]}")
+
+    # **버린 것을 숨기지 않는다.** 몇 개를 왜 버렸는지 말해야 남은 것을 믿을 수 있다
+    if proposal.dropped:
+        out.append(f"\n  코드가 거른 것 {len(proposal.dropped)}건 —")
+        for title, reason in proposal.dropped:
+            out.append(f"    · {title}: {reason}")
+    out.extend(["", *(f"  {n}" for n in proposal.notes), bar])
+    return "\n".join(out)
 
 
 if __name__ == "__main__":
