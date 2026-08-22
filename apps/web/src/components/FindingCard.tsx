@@ -154,10 +154,17 @@ export function FindingCard({
   return (
     <article className="card overflow-hidden">
       <header className="border-b border-line px-5 py-4">
+        {/*
+          **발견 제목은 heading 이다.**
+
+          `span` 이면 스크린리더가 발견 사이를 넘어갈 수 없다 — 리포트에 h3 가 하나도
+          없어서 발견 여러 건이 h2 아래 평평하게 깔려 있었다. 규칙 ID(`R07`)는 제목이
+          아니라 식별자라 heading 밖에 둔다.
+        */}
         <div className="flex items-baseline gap-2">
           <SeverityBadge severity={finding.severity} />
           <span className="data font-semibold text-sub">{finding.rule}</span>
-          <span className="min-w-0 text-[17px] font-bold tracking-tight">{finding.title}</span>
+          <h3 className="min-w-0 text-[17px] font-bold tracking-tight">{finding.title}</h3>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {finding.net && (
