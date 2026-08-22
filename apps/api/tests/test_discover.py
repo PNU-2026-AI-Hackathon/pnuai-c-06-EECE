@@ -121,8 +121,13 @@ def test_버린_것도_이유와_함께_남는다():
 # ── 모델을 못 불렀을 때 ─────────────────────────────────────────────
 
 
-def test_키가_없으면_그렇게_말한다():
-    """**부르지 않은 것과 못 부른 것은 다르다.** 조용히 빈 목록을 내면 안 된다."""
+def test_키가_없으면_그렇게_말한다(monkeypatch):
+    """**부르지 않은 것과 못 부른 것은 다르다.** 조용히 빈 목록을 내면 안 된다.
+
+    환경변수를 지우고 본다. 안 지우면 **개발자 셸에 키가 있을 때만 실패하는**
+    테스트가 된다 — 실제로 그렇게 한 번 깨졌다.
+    """
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     out, why = propose(
         netlist_text="x", firmware_sources=None, catalog_rules=[], findings=[], api_key=""
     )
