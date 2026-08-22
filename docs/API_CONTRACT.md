@@ -296,6 +296,40 @@ IPC-D-356 은 핀 이름을 **4자에서 자른다.** 그래서 물리적으로 
 { "error": { "code": "NETLIST_REQUIRED", "message": "넷리스트 파일이 필요합니다." } }
 ```
 
+## `discovery` — 선택 필드. **판정이 아니다**
+
+검사 응답에 이 키가 **있을 수도 있다.** 없으면 발견 루프를 안 돌린 것이다.
+
+```json
+{
+  "discovery": {
+    "candidates": [
+      {
+        "title": "pinMode(OUTPUT)가 안전값 출력보다 먼저라서 리셋마다 릴레이가 순간 ON",
+        "why": "…",
+        "citations": [
+          { "kind": "firmware", "where": "presence_light.ino", "what": "13",
+            "quote": "pinMode(RELAY_PIN, OUTPUT);" }
+        ],
+        "covered_by": null
+      }
+    ],
+    "dropped": [{ "title": "…", "reason": "인용한 내용이 없습니다" }],
+    "unavailable": null,
+    "notes": ["모델이 3건을 냈고 코드가 1건을 남겼습니다."]
+  }
+}
+```
+
+**`findings` 와 섞지 않는다.** 후보에는 `severity` 도 `verdict` 도 **없다** —
+붙이면 화면에서 발견처럼 보인다. 프론트는 다른 섹션·다른 색으로 그린다.
+
+**`dropped` 를 같이 싣는다.** 몇 개를 왜 버렸는지 안 보이면 "두 개 찾았습니다" 가
+"두 개만 말했습니다" 로 읽힌다. `unavailable` 은 **모델을 못 불렀을 때만** 찬다 —
+부르지 않은 것과 못 부른 것은 다르다.
+
+---
+
 | 상황 | 코드 | 상태 |
 |---|---|---|
 | 넷리스트 없음 | `NETLIST_REQUIRED` | 422 |

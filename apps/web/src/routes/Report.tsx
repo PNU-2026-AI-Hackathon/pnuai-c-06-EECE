@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { FindingCard } from "../components/FindingCard";
 import { Page, SectionTitle } from "../components/Layout";
 import { NetlistAppendix } from "../components/NetlistAppendix";
+import { Discovery } from "../components/Discovery";
 import { Pipeline } from "../components/Pipeline";
 import { InputsTable, SummaryTiles } from "../components/Summary";
 import { ApiFailure, checkNotice, getCheck } from "../lib/api";
@@ -192,7 +193,21 @@ export function ReportPage() {
         <Pipeline steps={check.pipeline} />
       </div>
 
-      <SectionTitle no="05">부록 · 넷리스트</SectionTitle>
+      {/*
+        **발견 다음이 아니라 근거 층 뒤에 둔다.** 후보는 아직 규칙이 아니라서
+        사용자가 먼저 볼 것이 아니다. 그래도 부록보다는 앞이다 — 부록은 참고 자료고
+        이건 다음에 할 일이다.
+      */}
+      {check.discovery && (
+        <>
+          <SectionTitle no="05">우리가 못 봤을 수 있는 것</SectionTitle>
+          <div className="mb-8">
+            <Discovery data={check.discovery} />
+          </div>
+        </>
+      )}
+
+      <SectionTitle no={check.discovery ? "06" : "05"}>부록 · 넷리스트</SectionTitle>
       <NetlistAppendix netlist={check.netlist} />
     </Page>
   );

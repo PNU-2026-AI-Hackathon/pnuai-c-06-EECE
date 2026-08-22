@@ -156,6 +156,8 @@ export interface CheckResult {
   pipeline: PipelineStep[];
   findings: Finding[];
   netlist: { nets: Net[]; parts: Part[] };
+  /** 규칙 후보. 발견 루프를 안 돌렸으면 없다 */
+  discovery?: Discovery;
 }
 
 /** POST /api/v1/checks 응답 */
@@ -177,4 +179,33 @@ export interface RuleInfo {
 /** 오류 응답 */
 export interface ApiError {
   error: { code: string; message: string };
+}
+
+
+/**
+ * 규칙 후보 — **발견이 아니다.**
+ *
+ * `Finding` 과 일부러 다르게 생겼다. `severity` 도 `verdict` 도 없다 —
+ * 붙이면 화면에서 발견처럼 보인다 (`docs/API_CONTRACT.md` 「discovery」).
+ */
+export interface Citation {
+  kind: "firmware" | "netlist";
+  where: string;
+  what: string | null;
+  quote: string | null;
+}
+
+export interface Candidate {
+  title: string;
+  why: string;
+  citations: Citation[];
+  covered_by: string | null;
+}
+
+export interface Discovery {
+  candidates: Candidate[];
+  dropped: { title: string; reason: string }[];
+  /** 모델을 **못** 불렀을 때만 찬다. 안 부른 것과 못 부른 것은 다르다 */
+  unavailable: string | null;
+  notes: string[];
 }

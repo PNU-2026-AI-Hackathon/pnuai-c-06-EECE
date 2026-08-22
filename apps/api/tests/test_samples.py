@@ -66,9 +66,17 @@ def _regenerate(tmp_path) -> dict:
 # ── 낡지 않는가 ─────────────────────────────────────────────────────
 
 
+#: 엔진이 다시 만들 수 없는 자리. **여기 있는 것은 대조에서 뺀다.**
+#:
+#: `discovery` 는 LLM 을 불러야 나온다. 매번 다시 뽑으면 결과가 달라지고, 그러면
+#: 이 테스트가 영영 빨간불이다. 대신 **모양이 계약대로인지**는 아래에서 따로 본다.
+NOT_REGENERABLE = ("discovery",)
+
+
 def test_실려_있는_샘플이_지금_엔진과_같다(tmp_path):
     """어긋나면 다시 뽑아야 한다 — 명령은 `src/prefab/samples/__init__.py` 에 있다."""
-    assert load_sample() == _regenerate(tmp_path), (
+    carried = {k: v for k, v in load_sample().items() if k not in NOT_REGENERABLE}
+    assert carried == _regenerate(tmp_path), (
         "샘플이 엔진보다 낡았습니다. 두 줄로 다시 뽑으세요 —\n"
         "  PREFAB_DB=/tmp/sample-facts.db python -m prefab --facts-load parts/*.json\n"
         "  PREFAB_DB=/tmp/sample-facts.db python -m prefab tests/fixtures/esp32-c6-presence-smart-light.d356 --bom tests/fixtures/esp32-c6-presence-smart-light.bom.csv --firmware tests/fixtures/esp32-c6-presence-smart-light.firmware --json > src/prefab/samples/check.sample.json\n"
@@ -171,3 +179,40 @@ def test_깨진_샘플도_예외를_안_던진다(tmp_path, monkeypatch):
     broken.write_text("{ 이건 JSON 이 아니다", encoding="utf-8")
     monkeypatch.setattr(samples, "SAMPLE_PATH", broken)
     assert samples.load_sample() is None
+
+
+# ── 후보를 같이 싣는다 — 방문자 클릭당 비용 0 ──────────────────────
+
+
+def test_샘플에_규칙_후보가_실려_있다():
+    """**업로드 없이 보는 화면에서 발견 루프까지 보이게 하는 유일한 길이다.**
+
+    매 방문마다 LLM 을 부르면 공개 사이트에서 클릭당 비용이 난다. 샘플 검사와 같은
+    방법으로 미리 뽑아 싣는다 (F-4).
+    """
+    d = load_sample()
+    assert "discovery" in d, "샘플에 discovery 가 없습니다"
+    assert d["discovery"]["candidates"], "후보가 비어 있습니다"
+
+
+def test_후보에는_판정이_없다():
+    """**후보는 발견이 아니다.** 심각도나 판정이 붙으면 화면에서 발견처럼 보인다."""
+    for c in load_sample()["discovery"]["candidates"]:
+        assert "severity" not in c and "verdict" not in c, c
+
+
+def test_후보마다_확인할_자리가_있다():
+    """근거 없는 후보는 사용자가 확인할 방법이 없다. 검증기가 이미 걸렀어야 한다."""
+    for c in load_sample()["discovery"]["candidates"]:
+        assert c["citations"], c["title"]
+        for cite in c["citations"]:
+            assert cite["kind"] in ("firmware", "netlist")
+            assert cite["where"]
+
+
+def test_버린_것도_같이_실린다():
+    """**"두 개 찾았습니다" 와 "두 개만 말했습니다" 는 다르다** (헌법 2-4)."""
+    d = load_sample()["discovery"]
+    assert "dropped" in d
+    for item in d["dropped"]:
+        assert item["title"] and item["reason"]
