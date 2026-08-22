@@ -604,5 +604,75 @@
         "mpn": "HLK-LD2410C"
       }
     ]
+  },
+  "discovery": {
+    "candidates": [
+      {
+        "title": "pinMode(OUTPUT)가 안전값 출력보다 먼저라서 리셋마다 릴레이가 순간 ON",
+        "why": "RELAY_ON이 LOW인 액티브 로우 입력인데, 13행에서 핀을 OUTPUT으로 바꾸는 순간 출력 래치 기본값(LOW)이 먼저 나가고 15행에서야 HIGH(OFF)를 씁니다. 그 사이 구간 동안 K1 입력이 활성 레벨로 눌려 매 리셋·재부팅마다 부하가 순간 통전됩니다. 부팅 중 칩이 자동으로 내보내는 스트래핑 출력(R09)이 아니라, 펌웨어 초기화 '순서'에서 생기는 글리치입니다.",
+        "citations": [
+          {
+            "kind": "firmware",
+            "where": "presence_light.ino",
+            "what": "13",
+            "quote": "  pinMode(RELAY_PIN, OUTPUT);"
+          },
+          {
+            "kind": "firmware",
+            "where": "presence_light.ino",
+            "what": "15",
+            "quote": "  digitalWrite(RELAY_PIN, RELAY_OFF);"
+          },
+          {
+            "kind": "firmware",
+            "where": "presence_light.ino",
+            "what": "4",
+            "quote": "const int RELAY_ON  = LOW;   // Active LOW: LOW를 출력해야 릴레이가 켜짐"
+          }
+        ],
+        "covered_by": null
+      },
+      {
+        "title": "감지 입력에 디바운스·유지시간이 전혀 없어 20ms 주기로 기계식 릴레이가 채터링",
+        "why": "22행에서 센서 출력을 그대로 한 번 읽고 24/29행에서 즉시 릴레이를 토글하며, 루프 주기는 35행의 20ms뿐입니다. 인체감지 출력이 경계에서 흔들리면 릴레이가 초당 수십 회 여닫히게 되어 접점 수명과 부하가 직격을 받습니다. 최소 점등 유지시간이나 다중 샘플링이 코드 어디에도 없습니다.",
+        "citations": [
+          {
+            "kind": "firmware",
+            "where": "presence_light.ino",
+            "what": "22",
+            "quote": "  int presence = digitalRead(PRESENCE_PIN);"
+          },
+          {
+            "kind": "firmware",
+            "where": "presence_light.ino",
+            "what": "25",
+            "quote": "    digitalWrite(RELAY_PIN, RELAY_ON);"
+          },
+          {
+            "kind": "firmware",
+            "where": "presence_light.ino",
+            "what": "30",
+            "quote": "    digitalWrite(RELAY_PIN, RELAY_OFF);"
+          },
+          {
+            "kind": "firmware",
+            "where": "presence_light.ino",
+            "what": "35",
+            "quote": "  delay(20);"
+          }
+        ],
+        "covered_by": null
+      }
+    ],
+    "dropped": [
+      {
+        "title": "릴레이 접점이 MCU·센서와 같은 5V_BUS를 그대로 스위칭 — 부하 돌입전류가 자기 자신의 전원을 흔듦",
+        "reason": "K1.pad- 는 이미 기존 규칙이 보고 있습니다"
+      }
+    ],
+    "unavailable": null,
+    "notes": [
+      "모델이 3건을 냈고 코드가 2건을 남겼습니다."
+    ]
   }
 }
