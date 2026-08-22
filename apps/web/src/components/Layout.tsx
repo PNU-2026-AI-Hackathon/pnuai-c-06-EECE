@@ -5,7 +5,7 @@ export function Header({ meta }: { meta?: { label: string; value: string }[] }) 
   return (
     <header className="sticky top-0 z-10 border-b border-line bg-surface/85 backdrop-blur">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-y-3 px-5 py-3.5">
-        <Link to="/" className="flex items-baseline gap-2">
+        <Link to="/" className="-mx-2 flex min-h-[44px] items-center gap-2 rounded-block px-2">
           <span className="text-[19px] font-extrabold tracking-tight">Prefab</span>
           <span className="text-[13px] text-mute">펌웨어와 회로도 대조 검사</span>
         </Link>

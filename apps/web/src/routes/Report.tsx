@@ -128,7 +128,7 @@ export function ReportPage() {
             {check.summary.rules_run}개만 실행됐고
             {check.summary.parts_total > 0 &&
               ` 부품 ${check.summary.parts_total}개 중 ${check.summary.parts_identified}개만 식별됐습니다`}
-            . 아래 진행 단계에서 무엇이 막혔는지 확인하세요.
+            . 아래 「어디까지 봤나」에서 무엇이 막혔는지 확인하세요.
           </p>
         )}
 
@@ -136,26 +136,25 @@ export function ReportPage() {
           <p className="mt-3 rounded-block bg-warn-weak px-4 py-3.5 text-[14px] leading-relaxed text-warn">
             {/*
               사유를 단정하지 않는다. 못 돈 이유는 "입력 부족"만이 아니라 "미구현"도 있고,
-              요약이 가진 숫자로는 둘을 가를 수 없다. 사유는 아래 진행 단계가 그대로 말한다.
+              요약이 가진 숫자로는 둘을 가를 수 없다. 사유는 아래 「어디까지 봤나」가 그대로 말한다.
             */}
-            규칙 {check.summary.rules_skipped}개는 실행하지 못했습니다. 아래 진행 단계에서 사유를
+            규칙 {check.summary.rules_skipped}개는 실행하지 못했습니다. 아래 「어디까지 봤나」에서 사유를
             확인하세요.{" "}
             <strong className="font-bold">돌리지 못한 규칙은 "이상 없음"이 아닙니다.</strong>
           </p>
         )}
       </div>
 
-      <SectionTitle no="02">입력</SectionTitle>
-      <div className="mb-8">
-        <InputsTable inputs={check.inputs} summary={check.summary} />
-      </div>
+      {/*
+        **답을 먼저 보여준다.**
 
-      <SectionTitle no="03">진행 단계</SectionTitle>
-      <div className="mb-8">
-        <Pipeline steps={check.pipeline} />
-      </div>
-
-      <SectionTitle no="04">발견 {open.length}건</SectionTitle>
+        한동안 요약 → 입력 → 진행 단계 → 발견 순서였다. 사용자가 제일 알고 싶은 것
+        (무슨 문제가 있나)이 1,150px 아래에 있었다 — 데스크톱에서 1.6화면이다.
+        입력과 진행 단계는 **답이 아니라 그 답을 믿어도 되는지**를 말하는 장치라
+        답 다음에 와야 한다. 지우지는 않는다 — 못 본 것을 숨기지 않는 것이 이 제품의
+        약속이고(헌법 2-4), 위 요약이 이미 "발견 0건은 이상 없음이 아니다"로 그리 보낸다.
+      */}
+      <SectionTitle no="02">발견 {open.length}건</SectionTitle>
       <div className="mb-8 space-y-4">
         {open.length === 0 ? (
           <p className="card px-5 py-8 text-center text-[15px] text-sub">
@@ -181,6 +180,17 @@ export function ReportPage() {
           </div>
         </details>
       )}
+
+      {/* 여기서부터는 **근거 층**이다 — 무엇을 받았고 어디까지 봤는지 */}
+      <SectionTitle no="03">검사한 파일</SectionTitle>
+      <div className="mb-8">
+        <InputsTable inputs={check.inputs} summary={check.summary} />
+      </div>
+
+      <SectionTitle no="04">어디까지 봤나</SectionTitle>
+      <div className="mb-8">
+        <Pipeline steps={check.pipeline} />
+      </div>
 
       <SectionTitle no="05">부록 · 넷리스트</SectionTitle>
       <NetlistAppendix netlist={check.netlist} />

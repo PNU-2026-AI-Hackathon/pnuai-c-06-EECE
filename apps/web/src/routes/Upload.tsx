@@ -27,18 +27,18 @@ function ImpactNote({ impact }: { impact: Impact }) {
   if (impact.blocked.length === 0 && impact.pending.length === 0) return null;
 
   return (
-    <p className="mb-4 text-[12px] leading-relaxed text-mute">
+    // **규칙 ID 를 나열하지 않는다.** `R01 · R05 · R07 …` 은 우리 내부 어휘라
+    // 처음 온 사람에게 아무 뜻이 없고, 아직 아무것도 안 한 화면에서 제일 먼저
+    // 눈에 띄면 안 되는 종류의 정보다. 개수만 말하고 무엇인지는 `title` 로 남긴다.
+    <p
+      className="mb-4 text-[12px] leading-relaxed text-mute"
+      title={[...impact.blocked, ...impact.pending].map((r) => `${r.id} ${r.title}`).join("\n")}
+    >
       {impact.blocked.length > 0 && (
-        <span className="block">
-          실행 못 하는 규칙 {impact.blocked.length}개 —{" "}
-          <span className="data">{impact.blocked.map((r) => r.id).join(" · ")}</span>
-        </span>
+        <span className="block">검사 항목 {impact.blocked.length}개를 건너뜁니다</span>
       )}
       {impact.pending.length > 0 && (
-        <span className="block">
-          이 입력을 쓰는 규칙 {impact.pending.length}개는 아직 구현 전 —{" "}
-          <span className="data">{impact.pending.map((r) => r.id).join(" · ")}</span>
-        </span>
+        <span className="block">{impact.pending.length}개는 아직 준비 중입니다</span>
       )}
     </p>
   );
@@ -104,7 +104,7 @@ function Slot({
           <button
             type="button"
             onClick={() => onPick(null)}
-            className="mt-auto self-start rounded-chip px-2.5 py-1.5 text-[13px] font-semibold text-mute hover:bg-surface-2 hover:text-ink"
+            className="mt-auto inline-flex min-h-[44px] items-center self-start rounded-chip px-3 text-[13px] font-semibold text-mute hover:bg-surface-2 hover:text-ink"
           >
             비우기
           </button>
@@ -125,7 +125,7 @@ function Slot({
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="mt-auto self-start rounded-block bg-surface-2 px-3.5 py-2 text-[14px] font-bold text-ink hover:bg-line"
+            className="mt-auto inline-flex min-h-[44px] items-center self-start rounded-block bg-surface-2 px-4 text-[14px] font-bold text-ink hover:bg-line"
           >
             파일 선택
           </button>
@@ -198,20 +198,95 @@ export function UploadPage() {
 
   return (
     <Page>
-      <section className="mb-10 max-w-2xl">
-        <p className="mb-3 text-[14px] font-bold text-brand-strong">보드 발주 전 교차검증</p>
-        <h1 className="mb-4 text-[27px] font-extrabold leading-[1.35] md:text-[40px] md:leading-[1.25]">
-          회로도만 보는 검사는 이미 있습니다.
-          <br className="hidden md:block" />{" "}
-          <span className="text-brand-strong">코드까지 보는 검사</span>는 없습니다.
+      {/*
+        **첫 화면은 "무엇을 해주는가" 로 연다.**
+
+        한동안 "회로도만 보는 검사는 이미 있습니다 / 코드까지 보는 검사는 없습니다" 로
+        시작했다. 그건 **경쟁 비교**라서 이미 문제를 아는 사람에게만 통한다.
+        처음 온 사람은 "무슨 검사?" 부터 모른다. 비교는 아래로 내렸다.
+      */}
+      <section className="mb-8 max-w-2xl md:mb-10">
+        <h1 className="mb-4 text-[28px] font-extrabold leading-[1.3] md:text-[42px] md:leading-[1.2]">
+          보드를 발주하기 전에,
+          <br />
+          <span className="text-brand-strong">코드와 회로도가 어긋난 곳</span>을 찾습니다.
         </h1>
-        <p className="text-[16px] leading-relaxed text-sub">
-          이미 짜놓은 펌웨어가 바뀐 회로도를 따라가고 있는지 보드 발주 전에 검사합니다. 넷리스트만
-          있어도 시작할 수 있고, 부품 목록과 펌웨어가 함께 있으면 더 많이 봅니다.
+        <p className="text-[16px] leading-relaxed text-sub md:text-[17px]">
+          컴파일도 되고 업로드도 되는데 보드가 안 도는 버그가 있습니다. 문제가 코드와 회로도{" "}
+          <strong className="font-bold text-ink">사이</strong>에 있어서 어느 쪽 검사에도 안 걸리기
+          때문입니다. 그 사이를 봅니다.
+        </p>
+
+        {/*
+          **증거를 첫 화면에 둔다.** 이 제품의 힘은 근거가 붙은 발견이고,
+          그게 안 보이면 남는 건 홍보 문구뿐이다.
+        */}
+        <figure className="mt-6 overflow-hidden rounded-card border border-line bg-surface">
+          <figcaption className="flex items-center gap-2 border-b border-line px-4 py-2.5 md:px-5">
+            <span className="rounded-chip bg-crit-weak px-2 py-0.5 text-[11px] font-bold text-crit">
+              치명
+            </span>
+            <span className="text-[13px] font-semibold text-sub">실제 보드에서 찾은 것</span>
+          </figcaption>
+          <div className="px-4 py-4 md:px-5">
+            <p className="mb-3 text-[15px] leading-relaxed text-ink">
+              코드가 <span className="data">D10</span> 핀을 출력으로 구동합니다. 그런데 회로도에서
+              이 핀은 아무 데도 이어져 있지 않습니다.
+            </p>
+            <dl className="grid gap-2 text-[13px] sm:grid-cols-2">
+              <div className="rounded-block bg-surface-2 px-3 py-2.5">
+                <dt className="label mb-1">회로도</dt>
+                <dd className="data text-sub">U1.D10 → N/C</dd>
+              </div>
+              <div className="rounded-block bg-surface-2 px-3 py-2.5">
+                <dt className="label mb-1">코드</dt>
+                <dd className="data text-sub">
+                  main.ino:16
+                  <br />
+                  const int LED_PIN = D10;
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </figure>
+
+        {/*
+          **파일이 없는 사람이 대부분이다.** 그 사람에게 유일한 길을 주 버튼으로 둔다.
+          한동안 이 버튼이 업로드 폼 아래 고스트 버튼이었다.
+        */}
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(`/r/${sampleCheck.check_id}`)}
+            className="btn-primary"
+          >
+            예시 보드 검사 결과 보기
+          </button>
+          {/* 터치 영역을 44px 로 맞춘다. 글자만 두면 23px 라 손가락으로 놓치기 쉽다 */}
+          <a
+            href="#upload"
+            className="inline-flex min-h-[44px] items-center rounded-block px-3 text-[15px] font-bold text-sub hover:text-ink"
+          >
+            내 파일로 검사하기 ↓
+          </a>
+        </div>
+      </section>
+
+      {/*
+        **경쟁 비교는 여기서 한다.** 무엇을 해주는지 먼저 말한 다음이라야 뜻이 통한다.
+      */}
+      <section className="mb-10 max-w-2xl rounded-card border border-line bg-surface px-5 py-5">
+        <h2 className="mb-3 text-[17px] font-bold">회로도만 보는 검사는 이미 있습니다</h2>
+        <p className="text-[15px] leading-relaxed text-sub">
+          전압 도메인이나 풀업 저항처럼 회로도 안에서 끝나는 검사는 상용 도구가 이미 합니다.
+          <strong className="font-bold text-ink"> 코드까지 같이 보는 검사가 없습니다.</strong>{" "}
+          회로도가 바뀌었는데 펌웨어가 안 따라온 자리는 아무도 안 봅니다.
         </p>
       </section>
 
-      <SectionTitle no="01">입력</SectionTitle>
+      <div id="upload" className="scroll-mt-20">
+        <SectionTitle no="01">검사할 파일</SectionTitle>
+      </div>
       <div className="mb-4 grid gap-3 md:grid-cols-3">
         <Slot
           title="넷리스트"
@@ -299,23 +374,10 @@ export function UploadPage() {
           {busy ? "시작하는 중" : "검사 실행"}
         </button>
         {/*
-          **파일이 없는 사람에게 유일한 입구다.**
-
-          한동안 `usingMock` 으로 가려 뒀다. 서버가 이 id 를 몰라서 404 가 났기 때문이고,
-          "서버가 샘플을 직접 만들어 주면 되살린다" 고 적어 뒀다 (백엔드_요청서 F-4).
-          **그 F-4 가 끝났는데 이 조건이 안 따라왔다** — 정확히 우리가 잡으려는 종류의
-          드리프트였고, 배포된 화면에서만 버튼이 사라져 있었다.
-
-          양쪽 id 가 `chk_sample01` 로 같아서 목이든 서버든 그대로 열린다.
-          `tests/test_samples.py` 와 `scripts/smoke.sh` 6단계가 그 사실을 지킨다.
+          예시 보기는 **히어로로 올라갔다.** 파일이 없는 사람이 대부분이라 그 사람의
+          유일한 길이 폼 아래 고스트 버튼일 이유가 없다. 여기서 또 내보내면
+          같은 화면에 주 행동이 둘이 된다.
         */}
-        <button
-          type="button"
-          onClick={() => navigate(`/r/${sampleCheck.check_id}`)}
-          className="btn-ghost"
-        >
-          예시 보드 결과 보기
-        </button>
       </div>
 
       {usingMock && (
