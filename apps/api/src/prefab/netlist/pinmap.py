@@ -37,6 +37,13 @@ COLUMN_TOL_INCH = 0.02
 #: 헤더 열로 인정할 최소 패드 수. 두세 개짜리 우연한 정렬을 걸러낸다.
 MIN_COLUMN_PADS = 4
 
+#: 실크 이름으로 모듈을 인정할 최소 일치 수.
+#:
+#: 회로도 심볼이 헤더 이름을 다르게 쓸 수 있다 (`GPIO2` · `IO2` · `2`).
+#: 한두 개 우연히 맞은 것으로 모듈을 단정하면 **GPIO 번호를 지어내는 것**이고,
+#: 그 위에 올라가는 R07·R08 이 통째로 거짓말이 된다.
+MIN_SILK_MATCHES = 4
+
 
 @dataclass(frozen=True)
 class PadIdentity:
@@ -155,6 +162,13 @@ def resolve(netlist: Netlist) -> PinMap:
                 continue
             pads_by_ref.setdefault(pad.ref, []).append(pad)
 
+    # 회로도 넷리스트는 부품번호를 실어 온다. 좌표가 없는 대신 그게 있다.
+    mpns: "dict[str, str]" = {
+        ref: part.mpn
+        for ref, part in getattr(netlist, "components", {}).items()
+        if getattr(part, "mpn", None)
+    }
+
     identities: "list[PadIdentity]" = []
     matched: "dict[str, str]" = {}
 
@@ -167,10 +181,70 @@ def resolve(netlist: Netlist) -> PinMap:
                 matched[ref] = module.id
                 hit = True
                 break
+
+        # 기하로 못 풀었으면 **부품번호 + 핀 이름**으로 푼다.
+        if not hit and ref in mpns:
+            module = _module_from_mpn(mpns[ref])
+            if module is not None:
+                found = _match_by_silk(ref, pads, module)
+                if found:
+                    identities.extend(found)
+                    matched[ref] = module.id
+                    hit = True
+
         if not hit:
             identities.extend(_bare_chip(ref, pads))
 
     return PinMap(identities, matched)
+
+
+def _module_from_mpn(mpn: str) -> "ModulePinout | None":
+    """부품번호에서 모듈을 알아본다. `XIAO ESP32C6` · `XIAO-ESP32C6` 둘 다 같다.
+
+    긴 id 부터 본다 — 짧은 id 가 긴 것 안에 들어 있을 수 있다 (`_chip_from_mpn` 과 같은 이유).
+    """
+    key = "".join(ch for ch in mpn.lower() if ch.isalnum())
+    for module_id in sorted(MODULES, key=len, reverse=True):
+        if "".join(ch for ch in module_id.lower() if ch.isalnum()) in key:
+            return MODULES[module_id]
+    return None
+
+
+def _match_by_silk(ref: str, pads: "list[Pad]", module: ModulePinout) -> "list[PadIdentity]":
+    """**부품번호가 모듈을 말해 주면, 핀 이름으로 실크를 푼다.**
+
+    기하가 필요 없는 경로다. 회로도 넷리스트에는 좌표가 없어서 `_match_part` 의
+    열 서명이 못 서는데, 대신 핀 이름이 안 잘린 채로 오고 부품번호도 함께 온다.
+
+    **이게 없으면 회로도로 올린 보드에서 R07·R08 이 통째로 조용하다.** 실제로
+    우리 REV2 보드가 그 상태였고, 센서 핀을 옮겨도 드리프트가 "변화 없음" 이었다.
+
+    한두 개 맞은 것으로 단정하지 않는다 (`MIN_SILK_MATCHES`) — 심볼이 헤더를
+    다르게 부르면 GPIO 번호를 지어내는 셈이고, 그 위의 규칙이 전부 거짓이 된다.
+    """
+    silk_to_gpio = module.silk_to_gpio
+    # **확인은 전원 핀 이름까지 센다.** 회로도는 쓰는 핀만 그리는 일이 흔해서
+    # GPIO 실크가 두어 개뿐일 수 있는데, `5V`·`GND`·`3V3` 이 같이 맞으면 그 부품이
+    # 이 모듈이라는 증거는 그만큼 더 세다. **신원을 붙이는 것은 GPIO 가 있는 핀뿐이다.**
+    all_silks = {p.silk for col in module.columns for p in col}
+
+    corroborating = 0
+    found: "list[PadIdentity]" = []
+    for pad in pads:
+        silk = (pad.name or "").strip()
+        if not silk or silk not in all_silks:
+            continue
+        corroborating += 1
+        gpio = silk_to_gpio.get(silk)
+        if gpio is None:
+            continue  # 전원·접지 핀은 증거로만 쓰고 신원은 안 붙인다
+        found.append(
+            PadIdentity(
+                ref=ref, pin=pad.pin, x=pad.x, y=pad.y,
+                silk=silk, gpio=gpio, module=module.id,
+            )
+        )
+    return found if corroborating >= MIN_SILK_MATCHES else []
 
 
 def _bare_chip(ref: str, pads: "list[Pad]") -> "list[PadIdentity]":
