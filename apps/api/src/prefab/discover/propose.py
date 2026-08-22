@@ -63,11 +63,35 @@ SCHEMA: dict[str, Any] = {
                         "type": "array",
                         "items": {
                             "type": "object",
+                            # **칸의 뜻을 스키마에 적는다.** 프롬프트 산문에만 두면
+                            # 모델이 `where` 에 `main.ino:13` 이나 `K1 -pad- (5V_BUS)` 처럼
+                            # 합쳐서 낸다. 실제로 그래서 쓸 만한 후보를 여러 번 버렸다.
                             "properties": {
-                                "kind": {"type": "string", "enum": ["firmware", "netlist"]},
-                                "where": {"type": "string"},
-                                "what": {"type": ["string", "null"]},
-                                "quote": {"type": ["string", "null"]},
+                                "kind": {
+                                    "type": "string",
+                                    "enum": ["firmware", "netlist"],
+                                    "description": "firmware=소스 파일의 줄, netlist=회로도의 부품·핀",
+                                },
+                                "where": {
+                                    "type": "string",
+                                    "description": (
+                                        "firmware 면 파일 이름만 (예: main.ino). "
+                                        "netlist 면 부품기호만 (예: U1). "
+                                        "줄 번호·핀 이름·설명을 여기 붙이지 마세요."
+                                    ),
+                                },
+                                "what": {
+                                    "type": ["string", "null"],
+                                    "description": (
+                                        "firmware 면 줄 번호만 (예: 13). "
+                                        "netlist 면 핀 이름만 (예: D5). "
+                                        "설명 문장을 쓰지 말고, 모르면 null 로 두세요."
+                                    ),
+                                },
+                                "quote": {
+                                    "type": ["string", "null"],
+                                    "description": "그 자리의 원문 한 줄. 고치거나 요약하지 마세요 — 코드가 대조합니다.",
+                                },
                             },
                             "required": ["kind", "where", "what", "quote"],
                             "additionalProperties": False,
@@ -98,7 +122,15 @@ SYSTEM = """당신은 임베디드 하드웨어 리뷰어입니다.
 - 모든 후보에는 **파일과 줄 번호, 또는 부품과 핀**을 답니다. 못 대면 내지 마세요.
 - 인용문은 **원문 그대로** 적습니다. 요약하거나 고치지 마세요. 코드가 대조합니다.
 - 확실하지 않으면 내지 마세요. **빈 목록이 정답인 경우가 많습니다.**
-- 판정하지 마세요. 심각도를 매기지 마세요. 여기서 내는 것은 **후보**입니다."""
+- 판정하지 마세요. 심각도를 매기지 마세요. 여기서 내는 것은 **후보**입니다.
+
+근거 칸을 이렇게 채웁니다 —
+
+    펌웨어:  {{"kind": "firmware", "where": "main.ino", "what": "13", "quote": "pinMode(RELAY_PIN, OUTPUT);"}}
+    회로도:  {{"kind": "netlist",  "where": "K1", "what": "pad-", "quote": null}}
+
+`where` 에 `main.ino:13` 처럼 합치거나 `K1 -pad- (5V_BUS)` 처럼 설명을 붙이면
+**코드가 자리를 못 찾아 그 후보를 버립니다.**"""
 
 
 def _rule_book(catalog_rules) -> str:

@@ -188,3 +188,25 @@ def test_칸이_제대로_나뉘어_오면_그대로_쓴다():
     r = verify([_c(citations=(Citation("firmware", "main.ino", "2", "const int LED_PIN = D10;"),))],
                firmware_sources=FW)
     assert len(r.kept) == 1, r.dropped
+
+
+def test_파일과_줄을_합치면서_what_까지_채워_와도_찾는다():
+    """**실제로 이렇게 왔다.** `where="main.ino:13"` 이고 `what="13"` 이다.
+
+    `what` 이 있으면 `where` 를 안 가르게 만들었다가 쓸 만한 후보 셋을 통째로 버렸다.
+    형식을 미리 단정하지 말고 **찾아보고 안 되면 갈라야 한다.**
+    """
+    r = verify(
+        [_c(citations=(Citation("firmware", "main.ino:2", "2", "const int LED_PIN = D10;"),))],
+        firmware_sources=FW,
+    )
+    assert len(r.kept) == 1, r.dropped
+
+
+def test_부품기호에_설명이_붙어_와도_찾는다():
+    """실제로 이런 것이 왔다 — `K1 -pad- (5V_BUS, 접점 COM)`."""
+    r = verify(
+        [_c(citations=(Citation("netlist", "K1 -pad- (5V_BUS, 접점 COM)", None),))],
+        netlist_parts={"K1": {"pad-"}},
+    )
+    assert len(r.kept) == 1, r.dropped

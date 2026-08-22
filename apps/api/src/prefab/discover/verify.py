@@ -43,47 +43,62 @@ def _flat(text: str) -> str:
     return text.translate(NO_SPACE)
 
 
-def _split_line(where: str, what: str | None) -> "tuple[str, str | None]":
-    """`main.ino:13` 처럼 합쳐 온 것을 가른다.
+def _line_no(what: str | None, suffix: str | None) -> "int | None":
+    for v in (what, suffix):
+        if v is None:
+            continue
+        s = str(v).strip()
+        if s.isdigit():
+            return int(s)
+    return None
 
-    스키마로 칸을 나눠 줘도 모델은 곧잘 합쳐서 낸다. **형식이 어긋났다고 후보를 버리면
-    안 된다** — 우리가 거르려는 것은 지어낸 내용이지 표기법이 아니다.
-    실제로 이것 때문에 쓸 만한 후보 넷을 통째로 버렸다.
+
+def _find_source(where: str, sources: "dict[str, str]") -> "tuple[str, str, str | None] | None":
+    """`where` 로 소스를 찾는다. `(이름, 본문, 떼어낸 줄 접미)` 또는 None.
+
+    **찾아보고 안 되면 갈라 본다.** 형식을 미리 단정하지 않는다 — 모델은
+    `main.ino` 로도, `main.ino:13` 으로도, `src/main.ino` 로도 낸다.
+    한 번에 맞히려 하면 그중 하나에서 조용히 틀린다.
     """
+    def by_name(name: str) -> "tuple[str, str] | None":
+        if name in sources:
+            return name, sources[name]
+        tail = name.rsplit("/", 1)[-1]
+        hits = [(k, v) for k, v in sources.items() if k.rsplit("/", 1)[-1] == tail]
+        return hits[0] if len(hits) == 1 else None
+
     name = where.strip()
-    if what not in (None, ""):
-        return name, what
+    hit = by_name(name)
+    if hit:
+        return hit[0], hit[1], None
+
+    # `main.ino:13` 처럼 줄이 붙어 온 경우. **`what` 이 따로 와도 여기로 온다** —
+    # 모델은 둘 다 채우는 일이 흔한데, 그걸 안 보고 이름만 찾다가 쓸 만한 후보를 버렸다.
     head, sep, tail = name.rpartition(":")
     if sep and tail.strip().isdigit():
-        return head.strip(), tail.strip()
-    return name, what
+        hit = by_name(head.strip())
+        if hit:
+            return hit[0], hit[1], tail.strip()
+    return None
 
 
 def _firmware_ok(c: Citation, sources: "dict[str, str]") -> str | None:
     """펌웨어 자리를 확인한다. 문제가 있으면 사유, 없으면 None."""
-    name, what = _split_line(c.where, c.what)
-    hit = sources.get(name)
-    if hit is None:
-        # 경로가 다르게 올 수 있다 — 파일 이름으로 한 번 더 본다
-        tail = name.rsplit("/", 1)[-1]
-        matches = [v for k, v in sources.items() if k.rsplit("/", 1)[-1] == tail]
-        if len(matches) != 1:
-            return f"펌웨어에 {name} 파일이 없습니다"
-        hit = matches[0]
+    found = _find_source(c.where, sources)
+    if found is None:
+        return f"펌웨어에 {c.where.strip()} 파일이 없습니다"
+    name, body, suffix = found
 
-    if what is None:
+    line_no = _line_no(c.what, suffix)
+    if line_no is None:
         return "줄 번호가 없습니다"
-    try:
-        line_no = int(str(what))
-    except ValueError:
-        return f"줄 번호가 숫자가 아닙니다 ({what})"
 
-    lines = hit.splitlines()
+    lines = body.splitlines()
     if not (1 <= line_no <= len(lines)):
         return f"{name} 는 {len(lines)}줄인데 {line_no}줄을 가리킵니다"
 
     if c.quote:
-        # 지목한 줄 자체와, 그 앞뒤 한 줄까지 본다. 모델이 한 줄 어긋나게 세는 일이 흔하다.
+        # 지목한 줄과 그 앞뒤 한 줄까지 본다. 모델이 한 줄 어긋나게 세는 일이 흔하다.
         window = lines[max(0, line_no - 2) : line_no + 1]
         if _flat(c.quote) not in _flat("\n".join(window)):
             return f"{name}:{line_no} 에 인용한 내용이 없습니다"
@@ -101,13 +116,29 @@ def _netlist_ok(c: Citation, parts: "dict[str, set[str]]") -> str | None:
 
 
 def _split_pin(where: str, what: str | None) -> "tuple[str, str | None]":
-    """`U1.D5` 처럼 합쳐 온 것을 가른다. 펌웨어 쪽과 같은 이유다."""
-    ref = where.strip()
+    """부품기호와 핀을 가른다. **모델은 설명까지 붙여 낸다.**
+
+    실제로 이런 것이 왔다 — `K1 -pad- (5V_BUS, 접점 COM)`.
+    부품기호는 맨 앞 토큰이고, 나머지는 사람이 읽으라고 붙인 말이다.
+    """
+    raw = where.strip()
     pin = (what or "").strip() or None
-    if pin is None and "." in ref:
-        head, _, tail = ref.partition(".")
-        return head.strip(), tail.strip() or None
-    return ref, pin
+
+    ref = raw.split()[0] if raw.split() else raw
+    # `U1.D5` · `U1-D5` 둘 다 온다. 구분자만 봐준다
+    if pin is None:
+        for sep in (".", "-"):
+            head, found, tail = ref.partition(sep)
+            if found and tail.strip():
+                return head.strip(), tail.strip()
+
+    # **`what` 에 설명 문장이 오면 핀 이름으로 안 본다.**
+    # `"릴레이 제어 입력이 _IN_ACTIVE_LOW 네트"` 같은 것을 핀 이름과 대조하면
+    # 멀쩡한 후보가 "그런 핀이 없습니다" 로 떨어진다. **확인할 수 있는 것만 확인한다** —
+    # 부품이 실재하는지는 그대로 본다.
+    if pin and (" " in pin or len(pin) > 24):
+        pin = None
+    return ref.strip(), pin
 
 
 def verify(
