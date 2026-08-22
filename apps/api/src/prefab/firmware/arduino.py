@@ -127,6 +127,12 @@ class PinCall:
     file: str
     line: int
     snippet: str
+    #: 이 호출이 들어 있는 **함수 이름** (`setup` · `loop` · …). 못 읽으면 빈 문자열.
+    #:
+    #: **어디서 불렀는지가 뜻을 바꾼다.** `digitalWrite(pin, HIGH)` 가 `setup()` 에
+    #: 있으면 "이 핀의 안전한 초기값" 이고, `loop()` 에 있으면 그냥 평상시 동작이다.
+    #: 이걸 안 보고 규칙을 만들었다가 정상 보드에서 오탐이 났다 (R16).
+    scope: str = ""
 
 
 @dataclass(frozen=True)
@@ -196,6 +202,11 @@ class Firmware:
     pins: tuple[PinUse, ...] = ()
     #: 상수까지 따라갔는데도 값을 확정 못 한 자리. 숨기지 않고 들고 다닌다.
     unresolved: tuple[Unreadable, ...] = ()
+    #: 이름 → 값. `#define RELAY_OFF HIGH` 처럼 코드가 스스로 밝힌 것들.
+    #:
+    #: **규칙이 `digitalWrite(pin, RELAY_OFF)` 의 뜻을 알려면 이게 있어야 한다.**
+    #: 여기 없는 이름은 규칙이 **모르는 것으로 다룬다** — 추측하지 않는다 (헌법 2-2).
+    constants: "dict[str, str]" = field(default_factory=dict)
     #: `#include <X.h>` 로 끌어온 헤더 이름 (소문자, `.h` 없이).
     #: 칩이 지원하지 않는 **조합**을 보려면 어떤 주변장치를 쓰는지 알아야 한다 (R05).
     includes: tuple[str, ...] = ()
@@ -395,7 +406,10 @@ def analyze(sources: "dict[str, str]") -> Firmware:
 
             line = text.count("\n", 0, start) + 1
             snippet = original[line - 1].strip() if line <= len(original) else ""
-            call = PinCall(function=function, file=path, line=line, snippet=snippet)
+            call = PinCall(
+                function=function, file=path, line=line, snippet=snippet,
+                scope=_scope_at(text, start),
+            )
 
             if silk is None and gpio is None:
                 unresolved.append(
@@ -452,8 +466,29 @@ def analyze(sources: "dict[str, str]") -> Firmware:
         total_lines=sum(len(s.splitlines()) for s in sources.values()),
         pins=pins,
         unresolved=tuple(unresolved),
+        constants=dict(constants),
         includes=_includes(sources.values()),
     )
+
+
+#: 함수 정의의 머리. `void setup() {` · `static void loop(void) {`
+_FUNCTION_HEAD = re.compile(r"^[A-Za-z_][\w \t\*&:<>,]*?\b(\w+)\s*\([^;{]*\)\s*\{", re.M)
+
+
+def _scope_at(text: str, offset: int) -> str:
+    """이 위치를 감싸는 함수 이름. 못 찾으면 빈 문자열.
+
+    **정확한 파서가 아니다.** 그 위에서 가장 가까운 함수 머리를 고를 뿐이다.
+    괄호를 세지 않으므로 중첩 정의에서는 틀릴 수 있는데, 아두이노 스케치에서는
+    함수가 최상위에만 있어서 실무상 맞는다. **틀리면 규칙이 조용해질 뿐**이고
+    (빈 문자열이면 `setup` 이 아니므로) 없는 발견을 만들지는 않는다.
+    """
+    last = ""
+    for m in _FUNCTION_HEAD.finditer(text):
+        if m.start() > offset:
+            break
+        last = m.group(1)
+    return last
 
 
 def _includes(sources) -> tuple[str, ...]:
