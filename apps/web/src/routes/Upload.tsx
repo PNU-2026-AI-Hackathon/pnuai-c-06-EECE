@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { Page, SectionTitle } from "../components/Layout";
 import { SourceMark } from "../components/Mark";
@@ -199,94 +199,24 @@ export function UploadPage() {
   return (
     <Page>
       {/*
-        **첫 화면은 "무엇을 해주는가" 로 연다.**
+        **여기는 검사 화면이다. 다시 설득하지 않는다.**
 
-        한동안 "회로도만 보는 검사는 이미 있습니다 / 코드까지 보는 검사는 없습니다" 로
-        시작했다. 그건 **경쟁 비교**라서 이미 문제를 아는 사람에게만 통한다.
-        처음 온 사람은 "무슨 검사?" 부터 모른다. 비교는 아래로 내렸다.
+        홍보는 `/` 가 한다. 파일을 올리러 온 사람에게 히어로와 비교 문구를 또 보이면
+        올릴 자리까지 스크롤이 늘어날 뿐이다 — 한동안 그러고 있었다.
       */}
-      <section className="mb-8 max-w-2xl md:mb-10">
-        <h1 className="mb-4 text-[28px] font-extrabold leading-[1.3] md:text-[42px] md:leading-[1.2]">
-          보드를 발주하기 전에,
-          <br />
-          <span className="text-brand-strong">코드와 회로도가 어긋난 곳</span>을 찾습니다.
+      <section className="mb-8 max-w-2xl">
+        <h1 className="mb-2 text-[24px] font-extrabold leading-snug md:text-[30px]">
+          검사할 파일을 올려 주세요
         </h1>
-        <p className="text-[16px] leading-relaxed text-sub md:text-[17px]">
-          컴파일도 되고 업로드도 되는데 보드가 안 도는 버그가 있습니다. 문제가 코드와 회로도{" "}
-          <strong className="font-bold text-ink">사이</strong>에 있어서 어느 쪽 검사에도 안 걸리기
-          때문입니다. 그 사이를 봅니다.
-        </p>
-
-        {/*
-          **증거를 첫 화면에 둔다.** 이 제품의 힘은 근거가 붙은 발견이고,
-          그게 안 보이면 남는 건 홍보 문구뿐이다.
-        */}
-        <figure className="mt-6 overflow-hidden rounded-card border border-line bg-surface">
-          <figcaption className="flex items-center gap-2 border-b border-line px-4 py-2.5 md:px-5">
-            <span className="rounded-chip bg-crit-weak px-2 py-0.5 text-[11px] font-bold text-crit">
-              치명
-            </span>
-            <span className="text-[13px] font-semibold text-sub">실제 보드에서 찾은 것</span>
-          </figcaption>
-          <div className="px-4 py-4 md:px-5">
-            <p className="mb-3 text-[15px] leading-relaxed text-ink">
-              코드가 <span className="data">D10</span> 핀을 출력으로 구동합니다. 그런데 회로도에서
-              이 핀은 아무 데도 이어져 있지 않습니다.
-            </p>
-            <dl className="grid gap-2 text-[13px] sm:grid-cols-2">
-              <div className="rounded-block bg-surface-2 px-3 py-2.5">
-                <dt className="label mb-1">회로도</dt>
-                <dd className="data text-sub">U1.D10 → N/C</dd>
-              </div>
-              <div className="rounded-block bg-surface-2 px-3 py-2.5">
-                <dt className="label mb-1">코드</dt>
-                <dd className="data text-sub">
-                  main.ino:16
-                  <br />
-                  const int LED_PIN = D10;
-                </dd>
-              </div>
-            </dl>
-          </div>
-        </figure>
-
-        {/*
-          **파일이 없는 사람이 대부분이다.** 그 사람에게 유일한 길을 주 버튼으로 둔다.
-          한동안 이 버튼이 업로드 폼 아래 고스트 버튼이었다.
-        */}
-        <div className="mt-5 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => navigate(`/r/${sampleCheck.check_id}`)}
-            className="btn-primary"
-          >
-            예시 보드 검사 결과 보기
-          </button>
-          {/* 터치 영역을 44px 로 맞춘다. 글자만 두면 23px 라 손가락으로 놓치기 쉽다 */}
-          <a
-            href="#upload"
-            className="inline-flex min-h-[44px] items-center rounded-block px-3 text-[15px] font-bold text-sub hover:text-ink"
-          >
-            내 파일로 검사하기 ↓
-          </a>
-        </div>
-      </section>
-
-      {/*
-        **경쟁 비교는 여기서 한다.** 무엇을 해주는지 먼저 말한 다음이라야 뜻이 통한다.
-      */}
-      <section className="mb-10 max-w-2xl rounded-card border border-line bg-surface px-5 py-5">
-        <h2 className="mb-3 text-[17px] font-bold">회로도만 보는 검사는 이미 있습니다</h2>
         <p className="text-[15px] leading-relaxed text-sub">
-          전압 도메인이나 풀업 저항처럼 회로도 안에서 끝나는 검사는 상용 도구가 이미 합니다.
-          <strong className="font-bold text-ink"> 코드까지 같이 보는 검사가 없습니다.</strong>{" "}
-          회로도가 바뀌었는데 펌웨어가 안 따라온 자리는 아무도 안 봅니다.
+          넷리스트만 있어도 시작합니다. 부품 목록과 펌웨어가 함께 있으면 더 많이 봅니다.{" "}
+          <Link to={`/r/${sampleCheck.check_id}`} className="font-bold text-brand-strong underline">
+            먼저 예시 결과를 보시겠어요?
+          </Link>
         </p>
       </section>
 
-      <div id="upload" className="scroll-mt-20">
-        <SectionTitle no="01">검사할 파일</SectionTitle>
-      </div>
+      <SectionTitle no="01">검사할 파일</SectionTitle>
       <div className="mb-4 grid gap-3 md:grid-cols-3">
         <Slot
           title="넷리스트"

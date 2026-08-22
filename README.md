@@ -9,6 +9,7 @@
 | | |
 |---|---|
 | **써 보기** | **https://prefab-web.onrender.com** — 설치 없이 브라우저에서 바로 |
+| 바로 검사 | https://prefab-web.onrender.com/check — 파일을 이미 갖고 계시면 |
 | API | https://pnuai-c-06-eece-prefab.onrender.com ([문서](https://pnuai-c-06-eece-prefab.onrender.com/docs)) |
 | 예시 리포트 | [업로드 없이 결과만 보기](https://prefab-web.onrender.com/r/chk_sample01) |
 | 시연 영상 | *(8/27 등록 예정)* |
