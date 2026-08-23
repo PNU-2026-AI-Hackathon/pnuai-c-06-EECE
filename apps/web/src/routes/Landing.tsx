@@ -277,14 +277,29 @@ function Closing() {
 function Footer() {
   return (
     <footer className="border-t border-line">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-8 text-[13px] text-mute">
-        <p>Prefab · 2026 PNU AI 해커톤 창업트랙</p>
-        <a
-          href="https://github.com/PNU-2026-AI-Hackathon/pnuai-c-06-EECE"
-          className="inline-flex min-h-[44px] items-center font-semibold hover:text-ink"
-        >
-          소스 보기
-        </a>
+      <div className="mx-auto max-w-5xl px-5 py-10 text-[13px] text-mute">
+        <div className="mb-4 flex flex-wrap items-center gap-x-5">
+          <Link to="/privacy" className="inline-flex min-h-[44px] items-center font-semibold hover:text-ink">
+            데이터 처리 안내
+          </Link>
+          <a
+            href="https://github.com/PNU-2026-AI-Hackathon/pnuai-c-06-EECE"
+            className="inline-flex min-h-[44px] items-center font-semibold hover:text-ink"
+          >
+            소스 보기
+          </a>
+          <a
+            href="https://github.com/PNU-2026-AI-Hackathon/pnuai-c-06-EECE/issues/new"
+            className="inline-flex min-h-[44px] items-center font-semibold hover:text-ink"
+          >
+            문의하기
+          </a>
+        </div>
+        <p className="leading-relaxed">
+          Prefab · 부산대학교 2026 AI 해커톤 창업트랙 C-06 전전컴
+          <br />
+          박강현 · 조우진 · 유동훈 · 한지양 · 권지효
+        </p>
       </div>
     </footer>
   );
