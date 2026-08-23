@@ -27,7 +27,8 @@ import { Header } from "../components/Layout";
  *   3. 진짜인가           우리 보드에서 실제로 있었던 일
  *   4. 어떻게 아나        세 자료를 대조한다
  *   5. 지어내진 않나      근거가 붙는다 · 모르면 모른다고 한다
- *   6. 지금 뭘 하나       CTA
+ *   6. LLM이면 되지 않나   재봤다 — 숫자로 답한다
+ *   7. 지금 뭘 하나       CTA
  */
 export function LandingPage() {
   return (
@@ -39,6 +40,7 @@ export function LandingPage() {
         <RealCase />
         <How />
         <Evidence />
+        <VsLlm />
         <Closing />
       </main>
       <Footer />
@@ -202,7 +204,9 @@ function How() {
         </dl>
         <p className="text-[16px] leading-relaxed text-sub">
           셋이 서로 다른 말을 하는 자리가 어긋난 곳입니다. 지금{" "}
-          <strong className="font-bold text-ink">14가지</strong>를 봅니다.
+          {/* 진실은 API 의 `catalog.py` 다. 여기 숫자는 사본이라 규칙이 늘면 같이 고친다.
+              검사 화면은 응답의 rules_total 을 쓰므로 이 값에 안 기댄다. */}
+          <strong className="font-bold text-ink">15가지</strong>를 봅니다.
         </p>
       </div>
     </Section>
@@ -258,6 +262,184 @@ function Evidence() {
         </p>
       </div>
     </Section>
+  );
+}
+
+/**
+ * 「그냥 LLM 한테 물어보면 되는 거 아닌가」 에 대한 답.
+ *
+ * **이 화면에서 유일하게 남의 도구와 직접 비교하는 자리다.** 그래서 규칙을 두 개 건다 —
+ *
+ *   1. 우리가 실제로 측정한 것만 적는다. 측정 조건을 각주로 같이 낸다
+ *   2. **낮을수록 좋은 것과 높을수록 좋은 것을 섞지 않는다.** 막대 두 개 다
+ *      「길수록 우리가 낫다」로 방향을 맞춘다. 안 그러면 훑어보는 사람이 거꾸로 읽는다
+ *
+ * 색: 우리는 brand-strong(#1B64DA), 상대는 sub(#4E5968). 상대를 빨강으로 칠하지 않는다 —
+ * 판정 색(crit·warn·ok)은 검사 결과 전용이고, 광고에 쓰면 그 뜻이 닳는다.
+ * 두 색은 색맹 분리 ΔE 18.1 · 표면 대비 3:1 을 넘고, 신원은 색이 아니라 **막대마다 붙은
+ * 이름표**가 진다.
+ */
+function VsLlm() {
+  return (
+    <Section>
+      <div className="max-w-3xl">
+        <Eyebrow>그냥 LLM에 물어보면 안 되나요</Eyebrow>
+        <h2 className="mb-5 text-[24px] font-extrabold leading-snug md:text-[32px]">
+          재봤습니다. 같은 보드 28개를 Claude Sonnet 5와 나란히 돌렸습니다.
+        </h2>
+        <p className="mb-9 text-[16px] leading-relaxed text-sub">
+          한 번도 검사에 써본 적 없는 공개 회로도 28개입니다. 양쪽에 같은 파일,
+          같은 규칙 목록을 줬습니다.
+        </p>
+
+        <div className="grid gap-8 sm:grid-cols-2">
+          <BarPair
+            title="끝까지 읽은 보드"
+            note="큰 보드는 LLM이 통째로 건너뜁니다. 안 본 보드는 “문제 없음”이 아니라 모르는 보드입니다."
+            unit="개"
+            max={28}
+            bars={[
+              { name: "Prefab", value: 28, ours: true },
+              { name: "Sonnet 5", value: 22 },
+            ]}
+          />
+          <BarPair
+            title="경고 중 근거를 끝까지 댄 비율"
+            note="“확인할 수 없다”고 적어 놓고 그대로 경고로 낸 것을 뺀 값입니다. 우리는 그런 자리를 경고가 아니라 미결로 냅니다."
+            unit="%"
+            max={100}
+            bars={[
+              { name: "Prefab", value: 100, ours: true, detail: "16건 중 16건" },
+              { name: "Sonnet 5", value: 77, detail: "44건 중 34건" },
+            ]}
+          />
+        </div>
+
+        <figure className="mt-9 overflow-hidden rounded-card border border-line bg-surface">
+          <figcaption className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-2.5">
+            <span className="rounded-chip bg-surface-2 px-2 py-0.5 text-[11px] font-bold text-sub">
+              경고
+            </span>
+            <span className="text-[13px] font-semibold text-sub">
+              Sonnet 5가 낸 것 그대로
+            </span>
+          </figcaption>
+          <div className="px-5 py-4">
+            <p className="text-[15px] leading-relaxed text-sub">
+              “IO10은 부팅 시 상태가 불확실한 핀인데 부저 드라이브에 직결되어 있어
+              버저가 순간 구동될 수 있음.{" "}
+              <mark className="bg-warn-weak font-bold text-warn">
+                다만 door_entry.h를 보지 못해
+              </mark>{" "}
+              IO10이 실제로 어떤 GPIO 번호에 매핑되는지는 확인할 수 없음.”
+            </p>
+            <p className="mt-4 text-[14px] leading-relaxed text-mute">
+              읽지 못한 파일을 근거로 경고를 냈습니다. 44건 중 10건이 이런
+              모양이었습니다. 우리는 같은 상황을 경고가 아니라{" "}
+              <strong className="font-bold text-ink">미결</strong>로 내고,
+              무엇이 있으면 풀리는지를 적습니다.
+            </p>
+          </div>
+        </figure>
+
+        <div className="mt-6 rounded-card border border-line bg-brand-weak px-5 py-4">
+          <p className="text-[15px] leading-relaxed text-ink">
+            <strong className="font-bold">
+              같은 파일을 두 번 넣으면 같은 결과가 나옵니다.
+            </strong>{" "}
+            판정하는 코드는 모델을 부르지 않습니다. 회로도가 우리 서버 밖으로
+            나가지 않는 이유도 그것입니다.
+          </p>
+        </div>
+
+        <p className="mt-5 text-[13px] leading-relaxed text-mute">
+          측정 조건 — 공개 저장소 28곳, 2026년 8월. 회로도와 펌웨어를 양쪽에 똑같이
+          넣었습니다. 막대는 양쪽이 다 읽은 22개 보드 기준입니다.{" "}
+          <strong className="font-semibold text-sub">
+            정답표가 없는 실제 보드라 “누가 더 많이 맞혔나”는 재지 못했습니다
+          </strong>{" "}
+          — 위 두 가지는 셀 수 있는 것만 적은 것입니다.{" "}
+          <a
+            href="https://github.com/PNU-2026-AI-Hackathon/pnuai-c-06-EECE/blob/main/apps/api/scripts/llm_baseline.py"
+            className="font-semibold text-brand-strong hover:underline"
+          >
+            측정 스크립트
+          </a>
+          는 공개돼 있습니다.
+        </p>
+      </div>
+    </Section>
+  );
+}
+
+/** 막대 두 개짜리 비교 하나. 값은 막대마다 직접 붙는다 — 축도 범례도 두지 않는다.
+ *
+ * **막대 둘 다 「길수록 우리가 낫다」여야 한다.** 처음에 두 번째 그림을 건수로 그렸다가
+ * Sonnet 막대가 더 길어져서 정반대로 읽혔다. 비율로 바꿔 방향을 맞췄다. */
+function BarPair({
+  title,
+  note,
+  unit,
+  max,
+  bars,
+}: {
+  title: string;
+  note: string;
+  unit: string;
+  max: number;
+  bars: { name: string; value: number; ours?: boolean; detail?: string }[];
+}) {
+  return (
+    <figure>
+      <figcaption className="mb-4 text-[15px] font-bold text-ink">
+        {title}
+      </figcaption>
+      <div className="space-y-3.5">
+        {bars.map((b) => (
+          <div key={b.name}>
+            <div className="mb-1.5 flex items-baseline justify-between gap-2">
+              <span
+                className={
+                  b.ours
+                    ? "text-[13px] font-bold text-ink"
+                    : "text-[13px] font-semibold text-mute"
+                }
+              >
+                {b.name}
+              </span>
+              <span
+                className={
+                  b.ours
+                    ? "text-[15px] font-extrabold text-ink"
+                    : "text-[15px] font-bold text-sub"
+                }
+              >
+                {b.value}
+                <span className="text-[12px] font-semibold text-mute">
+                  {unit}
+                  {b.detail ? ` · ${b.detail}` : ""}
+                </span>
+              </span>
+            </div>
+            {/* 막대는 요소 하나다. 값은 위에 이미 있으므로 안에 글자를 넣지 않는다 */}
+            <div
+              className="h-2.5 overflow-hidden rounded-chip bg-surface-2"
+              role="img"
+              aria-label={`${b.name} ${b.value}${unit}`}
+            >
+              <div
+                className="h-full rounded-chip"
+                style={{
+                  width: `${Math.max(2, (b.value / max) * 100)}%`,
+                  backgroundColor: b.ours ? "#1B64DA" : "#4E5968",
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-[13px] leading-relaxed text-mute">{note}</p>
+    </figure>
   );
 }
 
