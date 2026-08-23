@@ -16,6 +16,7 @@ from ..netlist.graph import (
     Graph,
     SUPPLY_PIN_PATTERN,
     format_volts,
+    names_a_control,
     volts,
     voltage_is_clipped,
 )
@@ -38,6 +39,12 @@ def check(ctx: Context) -> list[Finding]:
     for net in graph.signal_nets():
         claimed = volts(net)
         if claimed is None:
+            continue
+
+        # **이름이 제어 대상을 말하는 경우는 전압 주장이 아니다.**
+        # `24V_ON` 은 3.3V MCU 가 24V 를 켜는 신호다 — 이름의 `24V` 를 반박하면
+        # 정상 설계를 결함으로 지목하게 된다. 홀드아웃 보드에서 실제로 그랬다.
+        if names_a_control(net):
             continue
 
         for ref in graph.refs_on(net):

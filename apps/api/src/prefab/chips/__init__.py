@@ -24,6 +24,12 @@ class Chip:
     spi_flash: tuple[int, ...] = ()
     #: 부팅 시 레벨이 부팅 모드를 결정하는 핀
     strapping: tuple[int, ...] = ()
+    #: 이 칩의 **IO 로직 전압**. 데이터시트가 정하는 값이고 배선으로 안 바뀐다.
+    #:
+    #: 넷리스트만으로는 이걸 알 수 없다. 개발보드는 `5V` 핀과 `3V3` 핀을 둘 다 뽑는데
+    #: 하나는 레귤레이터 **입력**이고 하나는 **출력**이라, 아무거나 고르면 절반은 틀린다.
+    #: 실제로 우리 보드의 XIAO 가 REV2 에서 3V3 핀을 떼자 5V 부품으로 판정됐다.
+    logic_volts: float | None = None
     adc1: tuple[int, ...] = ()
     #: 비어 있으면 이 칩에 ADC2 가 없다는 뜻이다 (없음 ≠ 이상 없음)
     adc2: tuple[int, ...] = ()
@@ -46,6 +52,9 @@ ESP32 = Chip(
     id="esp32",
     name="ESP32 (구형, ESP32-D0WD 계열)",
     input_only=(34, 35, 36, 37, 38, 39),
+    # ESP32 데이터시트 Recommended Operating Conditions: VDD 3.0~3.6V (typ 3.3V).
+    # 5V 를 받는 개발보드도 칩은 3.3V 로 돈다 — 보드의 5V 핀은 레귤레이터 입력이다.
+    logic_volts=3.3,
     spi_flash=tuple(range(6, 12)),
     strapping=(0, 2, 5, 12, 15),
     adc1=tuple(range(32, 40)),
@@ -61,6 +70,9 @@ ESP32C6 = Chip(
     id="esp32c6",
     name="ESP32-C6",
     input_only=(),  # C6 는 입력 전용 핀이 없다
+    # ESP32-C6 데이터시트 Table 5-2: VDDA/VDDPST 3.0~3.6V (typ 3.3V).
+    # `parts/esp32-c6.json` 의 vcc_nominal 과 같은 값이고 출처도 같다.
+    logic_volts=3.3,
     spi_flash=tuple(range(24, 31)),
     strapping=(4, 5, 8, 9, 15),
     adc1=tuple(range(0, 7)),

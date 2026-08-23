@@ -10,6 +10,7 @@ import re
 from collections import OrderedDict, defaultdict
 from dataclasses import dataclass
 
+from ..chips import CHIPS, MODULES
 from .d356 import NO_CONNECT, Netlist, Pad
 from .pinmap import PinMap, resolve as resolve_pinmap
 
@@ -35,6 +36,23 @@ SUPPLY_PIN_PATTERN = re.compile(r"^(VCC|VDD|VIN|VBUS|V\+|5V|3V3|3\.3V|VDDIO)", r
 
 #: 부품이 자기 IO 레일을 직접 노출하는 핀 이름 (VCC 보다 우선한다)
 IO_RAIL_PIN_PATTERN = re.compile(r"^(3V3|3\.3V|VDDIO)", re.I)
+
+#: 그중 **부품이 스스로 "이게 내 IO 공급이다" 라고 밝힌** 이름.
+#: `3V3` 는 여기 안 들어간다 — 개발보드 헤더의 `3V3` 는 IO 선언이 아니라
+#: **레귤레이터 출력 핀**이고, 5V 로직 보드에도 그 핀이 있다.
+IO_SUPPLY_PIN_PATTERN = re.compile(r"^VDDIO", re.I)
+
+#: **먹는 쪽**이라고 이름이 말하는 전원 핀. `VIN` 은 "내가 받는 전압" 이지
+#: "내 로직 전압" 이 아니다 — 5V 를 먹고 안에서 3.3V 를 만드는 부품이 흔하다.
+#: 그래서 다른 전원 핀이 있으면 이쪽은 로직 전압 투표에서 뺀다.
+SUPPLY_INPUT_PIN_PATTERN = re.compile(r"^(VIN|VBUS|V\+)", re.I)
+
+#: 「레일 소속」 추론(마지막 단계)을 쓰려면 이 부품의 핀 중 전원·접지가 차지하는 최소 비율.
+#:
+#: 이 추론의 뜻은 "이 부품은 저 레일에서 전원을 받는다" 다. 커넥터처럼 신호를 잔뜩
+#: 나르는 부품에서는 그 말이 성립하지 않는다 — 40핀 헤더의 4핀이 전원이라고
+#: 나머지 36핀이 그 전압인 것이 아니다.
+RAIL_INFERENCE_MIN_POWER_SHARE = 0.5
 
 #: 이름 안에 박힌 전압 토큰. `5V` · `3V3` · `1V8` · `12V` · `+3.3V` · `0.9V`
 #:
@@ -97,6 +115,24 @@ ROLE_UNKNOWN = "미상"
 
 #: 출력이라고 이름이 말해 주는 핀. 이것 말고는 방향을 단정하지 않는다.
 OUTPUT_PIN_PATTERN = re.compile(r"^(OUT|DOUT|TXD|TX|MISO|MOSI)", re.I)
+
+#: **핀 이름이 스스로 "나는 받는 쪽" 이라고 밝힌** 경우.
+#:
+#: 좁게 잡는다 — `IN1` · `DIN` 까지만 받고 `INT`(인터럽트) · `INH`(억제) 는 안 받는다.
+#: 넓히면 신호 핀을 통째로 입력으로 오인해서 R12 가 침묵한다. 그건 더 나쁜 실패다.
+INPUT_PIN_PATTERN = re.compile(r"^(IN|INPUT|DIN)\d*$", re.I)
+
+#: 네트 **이름이 전압을 주장하는 게 아니라 무엇을 제어하는지 말하는** 꼬리표.
+#:
+#: `24V_ON` 은 24V 네트가 아니라 **24V 를 켜는 신호**다. 3.3V MCU 가 내는 게 정상인데,
+#: 이름의 `24V` 를 전압 주장으로 읽고 "구동하는 A3 은 3.3V" 라고 반박하고 있었다.
+#: 이름이 제어 대상을 말할 때 그 네트의 전압은 **모르는 것**이다 (헌법 2-2).
+CONTROL_SUFFIX_PATTERN = re.compile(r"_(ON|OFF|EN|ENABLE|CTRL|SEL|SW|PWM)\d*$", re.I)
+
+
+def names_a_control(net: str) -> bool:
+    """이 네트 이름이 **자기 전압이 아니라 제어 대상**을 말하고 있는가."""
+    return bool(CONTROL_SUFFIX_PATTERN.search(local_name(net or "")))
 
 
 def volts(name: str | None) -> float | None:
@@ -211,6 +247,20 @@ class Graph:
 
     # ------------------------------------------------------------------ 조회
 
+    def _chip_of(self, ref: str):
+        """이 부품이 어느 칩인가. 모듈 핀아웃 매칭 결과로만 정한다."""
+        module_id = self.pinmap.modules_matched.get(ref)
+        module = MODULES.get(module_id) if module_id else None
+        return CHIPS.get(module.chip) if module else None
+
+    def _chip_logic_volts(self, ref: str) -> float | None:
+        chip = self._chip_of(ref)
+        return chip.logic_volts if chip else None
+
+    def _chip_name(self, ref: str) -> str:
+        chip = self._chip_of(ref)
+        return chip.name if chip else "?"
+
     def domain(self, ref: str) -> Domain:
         return self._domains.get(ref, Domain(None, "unknown", CONFIDENCE_NONE))
 
@@ -263,6 +313,20 @@ class Graph:
         pin = self.pin_on_net(ref, net)
         return bool(pin and OUTPUT_PIN_PATTERN.match(pin))
 
+    def receives(self, ref: str, net: str) -> bool:
+        """이 부품이 이 네트에 **받는 쪽 핀으로** 닿아 있는가.
+
+        `drives` 와 짝이고, 마찬가지로 **핀 이름이 그렇게 말할 때만** True 다.
+        모르면 False 다 — "입력인지 모른다" 를 "입력이다" 로 쓰면 경고가 조용히 사라진다.
+
+        레벨 시프터에서 실제로 걸렸다. `SN74LV1T34`(5V VCC)의 `IN` 핀이 3.3V MCU 와
+        같은 네트에 있다고 R12 가 치명을 냈는데, **그 부품이 바로 문제를 푸는 부품**이다.
+        발견 문구가 "레벨 시프터도 없습니다" 라면서 레벨 시프터를 가리키고 있었다.
+        받는 쪽 핀은 자기 VCC 를 네트에 올리지 않는다.
+        """
+        pin = self.pin_on_net(ref, net)
+        return bool(pin and INPUT_PIN_PATTERN.match(pin))
+
     def supply_pin_of(self, ref: str) -> tuple[str, str] | None:
         """(전원 핀 이름, 그 핀이 물린 레일 네트). 이름 없는 패드뿐이면 None."""
         named = self.pins_of(ref)
@@ -312,21 +376,59 @@ class Graph:
     def _supply_domain(self, ref: str) -> Domain:
         named = self.pins_of(ref)
 
-        # 1. 자기 IO 레일을 직접 노출하는 핀이 있으면 그것이 IO 전압이다.
+        # 0. 어느 모듈인지 알면 **칩이 로직 전압을 말해 준다.** 배선보다 이게 세다.
+        #
+        #    개발보드는 `5V` 핀과 `3V3` 핀을 둘 다 뽑는다. 하나는 레귤레이터 입력이고
+        #    하나는 출력이라, 배선만 보고 고르면 절반은 틀린다. 실제로 우리 보드의
+        #    XIAO 가 REV2 에서 3V3 핀을 떼자 **5V 부품으로 판정됐다** — 3.3V 로직인데.
+        chip_v = self._chip_logic_volts(ref)
+        if chip_v is not None:
+            return Domain(chip_v, f"{ref} = {self._chip_name(ref)} (칩 로직 전압)", CONFIDENCE_HIGH)
+
+        # 1. `VDDIO` 는 **부품이 스스로 밝힌 IO 공급핀**이다. 다른 레일이 있어도 이게 맞다.
+        #    코어와 IO 를 다른 전압으로 도는 부품이 실제로 그렇게 그려진다.
         for pin, nets in named.items():
-            if IO_RAIL_PIN_PATTERN.match(pin):
+            if IO_SUPPLY_PIN_PATTERN.match(pin):
                 for n in nets:
                     v = volts(n)
                     if v:
                         return Domain(v, f"{ref}.{pin} → {n}", CONFIDENCE_HIGH)
 
-        # 2. 없으면 VCC/VDD/VIN 을 먹이는 레일.
+        # 2. 나머지 전원 핀. **두 패턴을 합쳐서 본다.**
+        #
+        #    따로 보면 안 된다 — `3V3` 를 먼저 훑고 거기서 반환해 버리면 옆에 있는
+        #    `5V` 핀을 아예 못 본다. Mega Pro(ATmega2560, **5V 로직**)가 정확히 그 모양이라
+        #    3.3V 보드로 읽혔고, 거기 붙은 5V 부품이 전부 오탐이 됐다 —
+        #    홀드아웃 보드 하나에서 7건. `3V3` 는 IO 선언이 아니라 **레귤레이터 출력 핀**이다.
+        #
+        #    전압이 다른 전원 핀이 둘 이상이면 어느 쪽이 로직인지 넷리스트가 안 말해 준다.
+        #    모르면 모른다고 한다 (헌법 2-2). 아는 부품은 위 0단계가 이미 잡았다.
+        #    단, `VIN`·`VBUS` 는 이름이 이미 **먹는 쪽**이라고 말한다. 다른 전원 핀이
+        #    있으면 투표에서 뺀다 — 안 그러면 `VIN→5V` + `3V3→3V3` 인 레귤레이터 내장
+        #    부품이 전부 "모른다" 가 된다. 그것뿐이면 그건 써야 한다 (센서 다수가 그렇다).
+        rails: list[tuple[str, str, float]] = []
+        inputs: list[tuple[str, str, float]] = []
         for pin, nets in named.items():
-            if SUPPLY_PIN_PATTERN.match(pin):
-                for n in nets:
-                    v = volts(n)
-                    if v:
-                        return Domain(v, f"{ref}.{pin} → {n}", CONFIDENCE_HIGH)
+            if not (IO_RAIL_PIN_PATTERN.match(pin) or SUPPLY_PIN_PATTERN.match(pin)):
+                continue
+            bucket = inputs if SUPPLY_INPUT_PIN_PATTERN.match(pin) else rails
+            for n in sorted(nets):
+                v = volts(n)
+                if v:
+                    bucket.append((pin, n, v))
+        found = rails or inputs
+        distinct = {v for _p, _n, v in found}
+        if len(distinct) == 1:
+            pin, n, v = found[0]
+            return Domain(v, f"{ref}.{pin} → {n}", CONFIDENCE_HIGH)
+        if len(distinct) > 1:
+            shown = " · ".join(sorted(f"{p}→{n}" for p, n, _v in found))
+            return Domain(
+                None,
+                f"{ref} 에 전압이 다른 전원 핀이 둘 이상 있습니다 ({shown}) — "
+                f"어느 쪽이 IO 로직 전압인지 넷리스트만으로는 알 수 없습니다",
+                CONFIDENCE_NONE,
+            )
 
         # 3. 이름 없는 패드뿐이면 (K1 의 'pad-'),
         #    전원+접지가 같이 들어 있는 X클러스터에서 레일을 읽는다.
@@ -349,15 +451,30 @@ class Graph:
         #    **이 부품이 어느 레일에 닿아 있는지**로 마지막 추론을 한다 (요청서 A+1).
         #    KiCad 넷리스트는 핀 이름이 숫자(`1` · `2`)라 1~3단계가 전부 빗나간다.
         #    전압을 아는 레일이 **정확히 하나**일 때만 쓴다. 둘이면 어느 쪽이 IO 인지 모른다.
+        nets_of = list(self.part_pins.get(ref, {}).values())
         rails = {
             n
-            for n in {net for net in self.part_pins.get(ref, {}).values()}
+            for n in set(nets_of)
             if volts(n) and not GND_PATTERN.match(local_name(n)) and self.is_power_rail(n)
         }
-        touches_ground = any(
-            GND_PATTERN.match(local_name(n)) for n in self.part_pins.get(ref, {}).values()
+        touches_ground = any(GND_PATTERN.match(local_name(n)) for n in nets_of)
+
+        # **"이 부품은 그 레일에서 전원을 받는다" 는 부품이 작을 때만 믿을 만하다.**
+        #
+        # 40핀 라즈베리파이 헤더가 +5V 와 GND 에 닿는다는 이유로 5V 부품이 됐고,
+        # 거기 물린 3.3V 마이크가 전부 "5V 가 3.3V 를 직결" 로 떴다 — 한 보드에서 10건.
+        # 헤더의 나머지 36핀은 전부 3.3V 신호다. R11 은 이 전제를 이미 막고 있었는데
+        # (「커넥터는 핀마다 다른 신호를 나른다」) R12 는 안 막고 있었다.
+        #
+        # 핀 개수로 자르지 않고 **비율로** 본다 — 2핀 저항은 100%, 3핀 센서는 67%,
+        # 40핀 헤더는 10% 다. 개수는 부품마다 다르지만 비율은 성질을 말한다.
+        power_pins = sum(
+            1 for n in nets_of
+            if GND_PATTERN.match(local_name(n)) or (volts(n) and self.is_power_rail(n))
         )
-        if len(rails) == 1 and touches_ground:
+        mostly_power = nets_of and power_pins / len(nets_of) >= RAIL_INFERENCE_MIN_POWER_SHARE
+
+        if len(rails) == 1 and touches_ground and mostly_power:
             rail = rails.pop()
             return Domain(volts(rail), f"{ref} → {rail} (레일 소속)", CONFIDENCE_INFERRED)
 

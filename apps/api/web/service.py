@@ -126,6 +126,34 @@ def unsupported_file_type(field: str) -> ApiError:
     )
 
 
+def too_many_requests(window: str, retry_after: int) -> ApiError:
+    """한도 초과. **막힌 이유와 언제 다시 되는지를 같이 말한다.**
+
+    "요청이 너무 많습니다"만 돌려주면 받는 쪽은 자기가 무엇을 잘못했는지도,
+    기다리면 풀리는 건지도 모른다. 그러면 새로고침을 연타하게 되고, 그건
+    한도를 만든 이유를 정확히 거스른다.
+    """
+    return ApiError(
+        "RATE_LIMITED",
+        f"같은 주소에서 짧은 시간에 너무 많이 올렸습니다({window} 한도). "
+        f"{retry_after}초 뒤에 다시 시도해 주세요.",
+        429,
+    )
+
+
+def body_too_large() -> ApiError:
+    """본문 전체가 상한을 넘음 — **파일을 읽기 전에** 끊을 때 쓴다.
+
+    `file_too_large` 와 달리 어느 칸이 컸는지 모른다. 아직 안 읽었기 때문이다.
+    """
+    mb = MAX_UPLOAD_BYTES // (1024 * 1024)
+    return ApiError(
+        "FILE_TOO_LARGE",
+        f"올린 파일이 {mb}MB를 넘습니다. 줄여서 다시 올려 주세요.",
+        413,
+    )
+
+
 def check_not_found(check_id: str) -> ApiError:
     return ApiError("CHECK_NOT_FOUND", f"검사 {check_id} 를 찾지 못했습니다. 주소를 확인해 주세요.", 404)
 
@@ -281,6 +309,17 @@ def seed_sample(store: "Store") -> str | None:
 
 # --------------------------------------------------------------------- 저장
 
+def _netlist_name(body: dict[str, Any]) -> str | None:
+    netlist = (body.get("inputs") or {}).get("netlist")
+    if isinstance(netlist, dict):
+        return netlist.get("filename")
+    return netlist if isinstance(netlist, str) else None
+
+
+def _columns(conn: sqlite3.Connection, table: str) -> set[str]:
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+
+
 class Store:
     """SQLite 한 개. Postgres 를 쓰지 않는다 (CLAUDE.md 9절)."""
 
@@ -319,13 +358,73 @@ class Store:
                 )
                 """
             )
+            # 로그인 없이 만든 검사는 주인이 없다 (`NULL`). **그게 정상이다** —
+            # 로그아웃 상태에서도 검사가 되어야 하기 때문이다 (헌법 4절).
+            #
+            # `ALTER TABLE` 로 붙이는 이유: 이미 검사가 들어 있는 DB 가 돌아가고
+            # 있다. 표를 새로 만들면 그 결과들이 사라진다.
+            if "owner_id" not in _columns(conn, "checks"):
+                conn.execute("ALTER TABLE checks ADD COLUMN owner_id TEXT")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS checks_owner ON checks (owner_id, created_at)"
+            )
 
-    def save(self, result: dict[str, Any]) -> None:
+    def save(self, result: dict[str, Any], owner_id: str | None = None) -> None:
         with self._session() as conn:
             conn.execute(
-                "INSERT OR REPLACE INTO checks (id, created_at, payload) VALUES (?, ?, ?)",
-                (result["check_id"], result["created_at"], json.dumps(result, ensure_ascii=False)),
+                "INSERT OR REPLACE INTO checks (id, created_at, payload, owner_id)"
+                " VALUES (?, ?, ?, ?)",
+                (
+                    result["check_id"],
+                    result["created_at"],
+                    json.dumps(result, ensure_ascii=False),
+                    owner_id,
+                ),
             )
+
+    def delete(self, check_id: str) -> None:
+        with self._session() as conn:
+            conn.execute("DELETE FROM checks WHERE id = ?", (check_id,))
+
+    def owner_of(self, check_id: str) -> str | None:
+        """이 검사의 주인. 없으면 `None` (로그인 없이 만든 검사)."""
+        with self._session() as conn:
+            row = conn.execute(
+                "SELECT owner_id FROM checks WHERE id = ?", (check_id,)
+            ).fetchone()
+        return row["owner_id"] if row else None
+
+    def list_for_owner(self, owner_id: str, limit: int = 50) -> list[dict[str, Any]]:
+        """한 사람의 검사 목록. 최신순.
+
+        **본문(payload)을 통째로 싣지 않는다.** 목록 한 번에 검사 50건의 전체
+        결과를 내려보내면 수 MB 가 된다. 요약만 꺼낸다.
+        """
+        with self._session() as conn:
+            rows = conn.execute(
+                "SELECT id, created_at, payload FROM checks WHERE owner_id = ?"
+                " ORDER BY created_at DESC LIMIT ?",
+                (owner_id, limit),
+            ).fetchall()
+
+        out: list[dict[str, Any]] = []
+        for row in rows:
+            try:
+                body = json.loads(row["payload"])
+            except json.JSONDecodeError:
+                # 읽지 못한 결과 하나 때문에 목록 전체를 포기하지 않는다.
+                continue
+            out.append(
+                {
+                    "check_id": row["id"],
+                    "created_at": row["created_at"],
+                    "summary": body.get("summary", {}),
+                    # `inputs.netlist` 는 문자열이 아니라 {filename, nets, parts} 다.
+                    # 그대로 실었더니 목록에 사전이 통째로 나갔다.
+                    "netlist_filename": _netlist_name(body),
+                }
+            )
+        return out
 
     def get(self, check_id: str) -> dict[str, Any]:
         with self._session() as conn:
