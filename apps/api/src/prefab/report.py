@@ -138,6 +138,14 @@ def build_pipeline(
         f"입력 부족 {len(engine.skipped_missing_input)}"
     )
 
+    # **왜 못 돌렸는지가 개수보다 중요하다.** 「입력 부족 5」 만 보면 무엇을 내야 하는지
+    # 모른다. 칩을 못 알아본 경우가 특히 그렇다 — 파일을 더 낼 수도 있고, 우리 표에
+    # 그 칩이 없는 것일 수도 있다. 둘은 사용자가 할 일이 다르다.
+    stuck = engine.skipped_precondition
+    if stuck:
+        rules_hit = " · ".join(s.rule for s in stuck)
+        engine_detail += f" · 전제 미충족 {len(stuck)}({rules_hit}): {stuck[0].detail}"
+
     # **"실행함" 이 "볼 것이 있었음" 을 뜻하지 않는 규칙이 하나 있다.**
     #
     # R10 은 이전 회로도와 지금 회로도를 비교한다. 이전 것이 없으면 아무 말도 못 하는데,

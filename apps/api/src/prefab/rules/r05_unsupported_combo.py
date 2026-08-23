@@ -106,3 +106,20 @@ def _finding(
         suggestion=fix,
         unresolved_reason=None,
     )
+
+
+def blocked(ctx) -> str | None:
+    """어느 칩인지 모르면 이 규칙은 **시작도 못 한다.**
+
+    조용히 빈 목록을 돌려주면 화면에 "규칙 실행됨" 으로 세어져서, 사용자는 검사해서
+    깨끗한 줄 안다. 실제로는 아무것도 안 본 것이다 (헌법 2-4).
+
+    푸는 법은 사용자가 할 수 있는 일로 적는다 — 우리 표에 없는 칩이면 그것도 말한다.
+    """
+    if chip_of(ctx) is not None:
+        return None
+    return (
+        "어느 칩인지 알아내지 못했습니다 — 부품번호(MPN)를 BOM 이나 회로도 심볼에 "
+        "채우면 판정합니다. 채워져 있는데도 이 문구가 보이면 그 칩이 아직 우리 표에 "
+        "없는 것입니다 (docs/CHIPS.md)."
+    )

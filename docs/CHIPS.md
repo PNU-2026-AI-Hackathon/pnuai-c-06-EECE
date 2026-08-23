@@ -95,6 +95,81 @@ OV3660 은 병렬(DVP) 카메라라 C6 로는 못 받습니다 — S3 에는 LCD
 
 ---
 
+## ESP32-C3
+
+| 분류 | 핀 | 의미 |
+|---|---|---|
+| 입력 전용 | **없음** | 모든 GPIO 가 양방향 |
+| SPI 플래시 | GPIO14 ~ GPIO17 | SPICS0 · SPICLK · SPID · SPIQ — **모드와 무관하게 항상 플래시** |
+| ~~GPIO12 · 13~~ | **일부러 뺐다** | SPIHD · SPIWP 는 **쿼드(QIO) 모드에서만** 쓴다 |
+| 스트래핑 | GPIO2, 8, 9 | ESP-IDF: "GPIO2, GPIO8 and GPIO9 are strapping pins" |
+| ADC1 | GPIO0 ~ GPIO4 | 데이터시트 Table 2-6, ADC1_CH0~CH4 |
+| ADC2 | GPIO5 | 같은 표, ADC2_CH0 하나뿐 |
+| USB Serial/JTAG | GPIO18, 19 | ESP-IDF: "used by USB-JTAG by default" |
+| 부팅 시 출력 | GPIO21 | U0TXD (데이터시트 Table 2-4). ROM 로그 115200bps |
+
+> **GPIO12·13 을 넣었다가 실측에서 바로 데였습니다.** ESP-IDF 는 "GPIO12 ~ GPIO17 are
+> **usually** used for SPI flash" 라고 쓰는데, 그 "usually" 가 이 두 핀입니다.
+> LuatOS CORE-ESP32-C3 는 2선(DIO) 모드라 그 둘을 LED 로 뽑아 쓰는데,
+> 우리가 "부팅이 실패한다" 고 치명 3건을 냈습니다 — **전부 오탐**이었습니다.
+> 넷리스트는 플래시 모드를 말해 주지 않으므로 우리는 모릅니다 (헌법 2-2).
+>
+> C6·S3 와 같습니다 — **부팅 글리치 핀 목록은 아직 못 찾았습니다.** 없어서가 아닙니다.
+
+---
+
+## ESP32-H2
+
+| 분류 | 핀 | 의미 |
+|---|---|---|
+| 입력 전용 | **없음** | 모든 GPIO 가 양방향 |
+| SPI 플래시 | GPIO15 ~ GPIO21 | ESP-IDF: "usually used for SPI flash and not recommended for other uses" |
+| 스트래핑 | GPIO2, 3, 8, 9, 25 | ESP-IDF 원문 그대로 |
+| ADC1 | GPIO1 ~ GPIO5 | 데이터시트 ADC1_CH0~CH4 |
+| ADC2 | **없음** | 데이터시트가 "up to five channels" 로 하나만 말합니다 |
+| USB Serial/JTAG | GPIO26, 27 | ESP-IDF: "used by USB-Serial-JTAG by default" |
+| 부팅 시 출력 | GPIO24 | U0TXD (데이터시트) |
+
+> ESP-IDF 가 밝힙니다 — **GPIO15~21 과 GPIO6~7 은 외부 핀으로 나오지 않습니다.**
+> 회로도에 그 번호가 안 보이는 것이 정상입니다.
+
+---
+
+## RP2040
+
+**이 칩은 우리 표의 칸 대부분이 진짜로 비어 있습니다. 못 찾아서가 아닙니다.**
+
+| 분류 | 핀 | 의미 |
+|---|---|---|
+| 입력 전용 | **없음** | 모든 GPIO 가 양방향 |
+| SPI 플래시 | **해당 없음** | QSPI 가 **별도 뱅크**입니다. GPIO0~29 와 번호가 안 겹칩니다 |
+| 스트래핑 | **없음** | 부팅 모드는 BOOTSEL 버튼(QSPI CS)이고 GPIO 가 아닙니다 |
+| ADC | GPIO26 ~ GPIO29 | ADC 가 하나뿐이고 멀티플렉서로 채널을 고릅니다 |
+| USB | **해당 없음** | USB_DP · USB_DM 이 전용 핀입니다 |
+| 부팅 시 출력 | **못 찾음** | 부트롬이 UART 로그를 안 뿌립니다 (USB 대용량저장으로 올라옵니다) |
+
+> ESP32 는 플래시·USB·스트래핑이 전부 일반 GPIO 를 빌려 씁니다. RP2040 은 그것들을
+> **따로 뽑아 놨습니다.** 그래서 GPIO 를 쓰다 밟을 지뢰가 적습니다.
+> 이 빈칸들은 「이 보드는 그 위험이 없다」는 뜻이고, 규칙이 조용한 것이 정답입니다.
+
+---
+
+## 개발보드 이름 → 칩
+
+회로도는 칩 이름을 안 적고 **보드 이름을 적습니다.** 실측 28개 보드에서 RP2040 계열
+6개가 전부 `Pico` · `RaspberryPi_Pico` 라고만 적혀 있었습니다.
+
+| 보드 값 (정규화) | 칩 |
+|---|---|
+| `pico` · `picoh` · `picow` · `picowh` | RP2040 |
+| `raspberrypipico` (+ `h` · `w` · `wh`) | RP2040 |
+
+**부분일치로 하면 안 됩니다.** `Pico 2` 는 RP2040 이 아니라 **RP2350** 이고 우리 표에
+없는 칩입니다. `pico` 가 `pico2` 에 걸리면 다른 칩의 핀 제약으로 판정하게 되는데,
+그건 못 잡는 것보다 나쁩니다. 그래서 **정규화 후 정확히 같을 때만** 인정합니다.
+
+---
+
 ## 규칙이 칩별로 어떻게 갈리나
 
 | 규칙 | ESP32 (구형) | ESP32-C6 |
@@ -250,5 +325,26 @@ X 좌표 클러스터링이 실제로 제어부/스위치부를 갈라낸다는 
   — ADC1 = GPIO1~10 · ADC2 = GPIO11~20 (헤더 정의를 그대로 읽었습니다)
 - [ADC Oneshot — ESP32-S3, ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/peripherals/adc/adc_oneshot.html)
   — "ADC2 is also used by Wi-Fi"
+
+**ESP32-C3** (2026-08-24 확인, 전부 1차 출처):
+- [GPIO & RTC GPIO — ESP32-C3, ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c3/api-reference/peripherals/gpio.html)
+  — 스트래핑 GPIO2·8·9 · SPI 플래시 GPIO12~17 · 입력 전용 없음 · USB-JTAG GPIO18·19
+- [Boot Mode Selection — ESP32-C3, esptool](https://docs.espressif.com/projects/esptool/en/latest/esp32c3/advanced-topics/boot-mode-selection.html)
+  — GPIO9 Low 로 시리얼 부트로더 진입 · ROM 로그 115200bps
+- [ESP32-C3 Datasheet — Espressif](https://documentation.espressif.com/esp32-c3_datasheet_en.html)
+  — Table 2-4 U0TXD = GPIO21 · Table 2-6 ADC1_CH0~CH4 = GPIO0~4 · ADC2_CH0 = GPIO5
+
+**ESP32-H2** (2026-08-24 확인, 전부 1차 출처):
+- [GPIO & RTC GPIO — ESP32-H2, ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/stable/esp32h2/api-reference/peripherals/gpio.html)
+  — 스트래핑 GPIO2·3·8·9·25 · SPI 플래시 GPIO15~21 · USB-Serial-JTAG GPIO26·27 ·
+  GPIO15~21 과 GPIO6~7 은 외부 핀으로 안 나옴
+- [ESP32-H2 Datasheet — Espressif](https://documentation.espressif.com/esp32-h2_datasheet_en.html)
+  — U0TXD = GPIO24 · ADC1_CH0~CH4 = GPIO1~5 · ADC2 없음
+
+**RP2040** (2026-08-24 확인, 전부 1차 출처):
+- [RP2040 Datasheet — Raspberry Pi](https://datasheets.raspberrypi.com/rp2040/rp2040-datasheet.pdf)
+  — QSPI 는 별도 뱅크 · GPIO26~29 가 ADC 입력 · USB_DP/USB_DM 전용 핀 · 입력 전용 없음
+- [Raspberry Pi Pico series — Raspberry Pi Documentation](https://www.raspberrypi.com/documentation/microcontrollers/pico-series.html)
+  — Pico · Pico H · Pico W · Pico WH = **RP2040** / Pico 2 계열 = **RP2350**(우리 표에 없음)
 
 표를 고칠 때는 **근거 링크를 함께 남깁니다.** 출처 없는 핀 번호는 규칙에 넣지 않습니다.
