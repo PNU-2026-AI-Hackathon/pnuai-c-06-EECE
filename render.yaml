@@ -7,6 +7,24 @@ services:
   #
   # **영구 디스크를 안 쓴다.** 커밋된 `parts/*.json` 을 기동 때 DB 로 다시 만들기
   # 때문이다 (`service.seed_facts`). 그래서 무료 플랜으로 돈다.
+  #
+  # 8/23 에 계정이 생기면서 이 선택에 값이 붙었다 — **계정과 검사 결과는 다시
+  # 만들 수 없어서 재배포마다 사라진다.** 무료 플랜에는 디스크를 못 붙인다
+  # (Render 문서: 유료 서비스에만 붙일 수 있다).
+  #
+  # 고치려면 `plan` 을 올리고 `disk:` 를 더한 뒤 `PREFAB_DB` 를 그 안으로 옮긴다.
+  #
+  #     plan: starter
+  #     disk:
+  #       name: prefab-data
+  #       mountPath: /var/prefab
+  #       sizeGB: 1
+  #     envVars:
+  #       - key: PREFAB_DB
+  #         value: /var/prefab/prefab.db
+  #
+  # 그렇게 하면 화면의 "계정이 사라질 수 있습니다" 경고가 **두 번째 기동부터
+  # 저절로** 사라진다 — `web/storage.py` 가 표식으로 직접 확인하기 때문이다.
   - type: web
     name: prefab-api
     runtime: docker
@@ -19,6 +37,12 @@ services:
       # 비우면 브라우저가 CORS 로 막는다 — 대시보드에서 아래 정적 사이트 주소를 넣는다.
       - key: ALLOWED_ORIGINS
         sync: false
+      # 세션 쿠키가 생기면서 CORS 가 **보안 경계가 됐다.** 배포에서는 개발
+      # 주소(localhost:5173 등)를 닫는다 — 허용된 출처의 페이지는 사용자의
+      # 쿠키를 실어 이 API 를 부를 수 있기 때문이다.
+      # 개발하는 사람은 이 변수를 안 건드리므로 로컬은 그대로 열려 있다.
+      - key: ALLOW_DEV_ORIGINS
+        value: "0"
 
   # ── 화면 ────────────────────────────────────────────────────────────
   - type: web

@@ -15,7 +15,8 @@ from starlette.formparsers import MultiPartParser
 
 from prefab.datasheet.store import FactStore
 
-from . import service, usage
+from . import service, storage, usage
+from .auth import AuthError, AuthStore, normalize_email
 from .ratelimit import RateLimiter, client_key
 from .service import ApiError
 
@@ -36,11 +37,28 @@ DEV_ORIGINS = [
 #: 증상이 고약하다 — 화면은 멀쩡히 뜨고 검사만 조용히 실패한다. 배포한 사람은
 #: 자기가 무엇을 껐는지 모르고, 다른 사람은 자기 코드를 의심한다.
 #:
-#: **여기서 CORS 는 보안 경계가 아니다.** 이 API 는 인증이 없어서 `curl` 로는
-#: 어차피 누구나 부른다. CORS 가 막는 것은 *브라우저*뿐이고, 브라우저는 페이지가
-#: `Origin` 을 `localhost` 로 위조하게 두지 않는다. 개발 포트를 더 여는 것으로
-#: 늘어나는 위험이 없다 (헌법 2-3 — 조용한 실패가 더 비싸다).
-ALLOWED_ORIGINS = DEV_ORIGINS + [
+#: **이 주석은 8/23 에 틀린 것이 됐다. 고쳐서 남긴다.**
+#:
+#: 원래 이렇게 적혀 있었다 — *"여기서 CORS 는 보안 경계가 아니다. 이 API 는
+#: 인증이 없어서 `curl` 로는 어차피 누구나 부른다. 개발 포트를 더 여는 것으로
+#: 늘어나는 위험이 없다."* 인증이 없던 동안에는 맞는 말이었다.
+#:
+#: **세션 쿠키가 생기면서 CORS 가 보안 경계가 됐다.** 이제 허용된 출처의
+#: 페이지는 사용자의 쿠키를 실어 이 API 를 부를 수 있다. `curl` 은 쿠키가
+#: 없으니 상관없지만, 브라우저는 다르다.
+#:
+#: 그래서 **개발 주소를 배포에서는 닫는다.** 누가 `localhost:5173` 에 악의적인
+#: 개발 서버를 띄우면(예를 들어 남의 프로젝트를 받아 `npm run dev` 하면)
+#: 그 페이지가 우리 배포 API 를 로그인된 채로 부를 수 있다. 확률은 낮지만
+#: 공짜로 막을 수 있는 것을 열어 둘 이유가 없다.
+#:
+#: **끄는 스위치를 따로 둔 이유가 있다.** 예전에 `ALLOWED_ORIGINS` 를 설정하면
+#: 개발 주소가 *대체*되게 만들었더니, 배포 주소를 넣는 순간 로컬 개발이 통째로
+#: 막혔다. 증상이 고약했다 — 화면은 멀쩡히 뜨고 검사만 조용히 실패한다.
+#: 별도 변수로 두면 **배포에서만 켜고, 개발하는 사람은 아무것도 안 건드린다.**
+ALLOW_DEV_ORIGINS = os.getenv("ALLOW_DEV_ORIGINS", "1") not in ("0", "false", "False")
+
+ALLOWED_ORIGINS = (DEV_ORIGINS if ALLOW_DEV_ORIGINS else []) + [
     o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()
 ]
 
@@ -61,6 +79,26 @@ RATE_LIMIT_PER_HOUR = int(os.getenv("RATE_LIMIT_PER_HOUR", "200"))
 #: 끌 수 있게 둔다. 시연 중에 한도가 걸리는 것만큼 나쁜 사고가 없다.
 RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "1") not in ("0", "false", "False")
 
+#: 로그인 시도의 주소별 한도. **업로드보다 훨씬 빡빡하다.**
+#:
+#: 비밀번호 해시가 한 번에 80ms 쯤 걸리는데, 그건 무차별 대입에 벽이면서
+#: 동시에 **워커를 붙잡는 수단**이기도 하다. 사람이 로그인하는 속도와는
+#: 두 자릿수 차이라 정상 사용에는 닿지 않는다.
+AUTH_LIMIT_PER_MINUTE = int(os.getenv("AUTH_LIMIT_PER_MINUTE", "10"))
+AUTH_LIMIT_PER_HOUR = int(os.getenv("AUTH_LIMIT_PER_HOUR", "60"))
+
+#: 세션 쿠키 이름과 속성.
+#:
+#: 화면(`prefab-web.onrender.com`)과 API(`...prefab.onrender.com`)가 **다른
+#: 출처**라서 `SameSite=None` 이어야 쿠키가 실려 간다. 그리고 `None` 은
+#: `Secure` 없이는 브라우저가 아예 거부한다. 둘은 같이 간다.
+#:
+#: `HttpOnly` 는 양보하지 않는다. 토큰을 `localStorage` 에 두면 스크립트가
+#: 읽을 수 있고, 그러면 XSS 한 번이 곧 계정 탈취가 된다.
+SESSION_COOKIE = "prefab_session"
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "1") not in ("0", "false", "False")
+COOKIE_SAMESITE = os.getenv("COOKIE_SAMESITE", "none")
+
 #: 멀티파트를 **메모리에만** 둔다.
 #:
 #: starlette 기본값은 1MB 를 넘으면 임시 파일로 넘긴다(`SpooledTemporaryFile`).
@@ -75,6 +113,10 @@ MultiPartParser.max_part_size = service.MAX_UPLOAD_BYTES + 1
 
 limiter = RateLimiter(per_minute=RATE_LIMIT_PER_MINUTE, per_hour=RATE_LIMIT_PER_HOUR)
 
+#: 로그인 시도는 업로드와 **따로** 센다. 한 통에 넣으면 검사를 몇 번 돌린
+#: 사람이 로그인을 못 하게 된다.
+auth_limiter = RateLimiter(per_minute=AUTH_LIMIT_PER_MINUTE, per_hour=AUTH_LIMIT_PER_HOUR)
+
 app = FastAPI(title="Prefab API", version="0.1.0", docs_url="/docs")
 
 
@@ -88,11 +130,22 @@ async def guard(request: Request, call_next):
     핸들러 안에서 검사하면 이미 늦다 — 그때는 멀티파트 파서가 파일을 다 받아
     메모리에 올려 둔 뒤다. 막으려던 비용을 이미 치른 것이다.
     """
-    if request.method != "POST" or not request.url.path.startswith("/api/v1/checks"):
+    path = request.url.path
+    guarded = path.startswith("/api/v1/checks") or path.startswith("/api/v1/auth/")
+    if request.method != "POST" or not guarded:
         return await call_next(request)
 
+    # 로그인·가입은 업로드와 다른 통으로 센다. 해시 한 번이 80ms 라
+    # 여기를 안 막으면 비밀번호를 지키려고 고른 값이 서비스를 눕히는 수단이 된다.
+    bucket = auth_limiter if path.startswith("/api/v1/auth/") else limiter
+
     declared = request.headers.get("content-length")
-    if declared and declared.isdigit() and int(declared) > service.MAX_UPLOAD_BYTES:
+    if (
+        path.startswith("/api/v1/checks")
+        and declared
+        and declared.isdigit()
+        and int(declared) > service.MAX_UPLOAD_BYTES
+    ):
         err = service.body_too_large()
         return JSONResponse(status_code=err.status, content=err.to_dict())
 
@@ -100,7 +153,7 @@ async def guard(request: Request, call_next):
         return await call_next(request)
 
     key = client_key(request.headers.get("x-forwarded-for"), _peer(request))
-    decision = limiter.check(key)
+    decision = bucket.check(key)
     if not decision.allowed:
         err = service.too_many_requests(decision.window, decision.retry_after)
         return JSONResponse(
@@ -128,7 +181,11 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_origin_regex=ALLOWED_ORIGIN_REGEX,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    # 세션 쿠키가 다른 출처로 실려 가려면 이게 있어야 한다.
+    # **이걸 켜면 `allow_origins` 에 `*` 를 쓸 수 없다** — 브라우저가 거부한다.
+    # 우리는 처음부터 목록으로 적어 왔으니 그대로 간다.
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
     max_age=86400,
 )
@@ -141,6 +198,14 @@ SAMPLE_CHECK_ID = service.seed_sample(store)
 #: 부품 사실 DB. **checks 와 같은 파일**을 쓴다 — SQLite 한 개 (CLAUDE.md 9절).
 facts = FactStore(DB_PATH)
 
+#: 계정·세션. **checks 와 같은 파일**을 쓴다 (헌법 9절).
+accounts = AuthStore(DB_PATH)
+
+#: 이 저장소가 재시작을 견디는지 **재서** 안다. 기동 때 한 번만 부른다.
+#: 무료 플랜에는 영구 디스크를 못 붙여서 계정이 재배포마다 사라질 수 있는데,
+#: 그걸 조용히 두지 않으려고 만든 것이다 (헌법 4절 단서 2).
+STORAGE = storage.probe(DB_PATH)
+
 #: 커밋된 사실 파일을 기동 때 심는다. 배포 이미지에는 DB 가 없기 때문이다 —
 #: 안 심으면 데이터시트 해제가 배포된 서버에서만 조용히 사라진다.
 #: 이 덕분에 **영구 디스크가 필요 없다.** 못 심으면 빈 목록이고, 루트 응답에 그대로 실린다.
@@ -152,6 +217,14 @@ SEEDED_PARTS = service.seed_facts(os.getenv("PREFAB_PARTS", "parts"), facts)
 @app.exception_handler(ApiError)
 async def api_error_handler(_request: Request, exc: ApiError) -> JSONResponse:
     return JSONResponse(status_code=exc.status, content=exc.to_dict())
+
+
+@app.exception_handler(AuthError)
+async def auth_error_handler(_request: Request, exc: AuthError) -> JSONResponse:
+    return JSONResponse(
+        status_code=exc.status,
+        content={"error": {"code": exc.code, "message": exc.message}},
+    )
 
 
 @app.exception_handler(Exception)
@@ -177,6 +250,104 @@ async def root() -> dict:
     # 몇 개를 심었는지 그대로 싣는다. 0 이면 데이터시트 해제가 안 도는 상태다 (헌법 2-4).
     out["seeded_parts"] = SEEDED_PARTS
     return out
+
+
+# ------------------------------------------------------------------- 인증
+
+def _current_user(request: Request):
+    """세션 쿠키로 사용자를 찾는다. 없으면 `None`.
+
+    **없다고 거절하지 않는다.** 로그아웃 상태에서도 검사가 되고 결과가 열려야
+    하기 때문이다 (헌법 4절 단서 1). 거절이 필요한 자리에서만 따로 거절한다.
+    """
+    return accounts.user_for_token(request.cookies.get(SESSION_COOKIE))
+
+
+def _require_user(request: Request):
+    user = _current_user(request)
+    if user is None:
+        raise AuthError("NOT_AUTHENTICATED", "로그인이 필요합니다.", 401)
+    return user
+
+
+def _with_session(body: dict, token: str, expires, status: int = 200) -> JSONResponse:
+    # `JSONResponse` 를 직접 돌려주면 데코레이터의 `status_code` 가 무시된다.
+    # 가입이 201 대신 200 으로 나가는 걸 테스트에서 잡았다.
+    response = JSONResponse(content=body, status_code=status)
+    response.set_cookie(
+        SESSION_COOKIE,
+        token,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE,
+        expires=expires,
+        path="/",
+    )
+    return response
+
+
+def _account_body(user) -> dict:
+    """계정 응답. **여기에 실리는 것이 우리가 가진 전부다.**
+
+    비밀번호 해시는 물론이고 세션 토큰도 안 싣는다. 저장소 상태를 같이
+    싣는 이유는, 계정이 사라질 수 있는 상태라면 **화면이 그걸 말해야** 하기
+    때문이다 (헌법 4절 단서 2).
+    """
+    return {
+        "email": user.email,
+        "created_at": user.created_at,
+        "storage": STORAGE.to_dict(),
+    }
+
+
+@app.post("/api/v1/auth/signup", status_code=201)
+async def signup(payload: dict) -> JSONResponse:
+    email = normalize_email(str(payload.get("email", "")))
+    password = str(payload.get("password", ""))
+    user = accounts.create_user(email, password)
+    token, expires = accounts.open_session(user.id)
+    return _with_session(_account_body(user), token, expires, status=201)
+
+
+@app.post("/api/v1/auth/login")
+async def login(payload: dict) -> JSONResponse:
+    email = normalize_email(str(payload.get("email", "")))
+    password = str(payload.get("password", ""))
+    user = accounts.authenticate(email, password)
+    token, expires = accounts.open_session(user.id)
+    return _with_session(_account_body(user), token, expires)
+
+
+@app.post("/api/v1/auth/logout")
+async def logout(request: Request) -> JSONResponse:
+    accounts.close_session(request.cookies.get(SESSION_COOKIE))
+    response = JSONResponse(content={"ok": True})
+    # 만료만 시키지 않고 **지운다.** 만료된 쿠키가 남아 있으면 다음 요청에
+    # 그대로 실려 가고, 서버는 매번 세션을 찾다 실패한다.
+    response.delete_cookie(
+        SESSION_COOKIE, path="/", httponly=True, secure=COOKIE_SECURE, samesite=COOKIE_SAMESITE
+    )
+    return response
+
+
+@app.get("/api/v1/auth/me")
+async def me(request: Request) -> dict:
+    """로그인 상태. **로그인 안 했으면 401 이 아니라 `user: null` 이다.**
+
+    화면이 뜨자마자 부르는 자리라, 로그아웃 상태를 오류로 만들면 콘솔이
+    401 로 가득 차고 진짜 오류가 그 사이에 묻힌다.
+    """
+    user = _current_user(request)
+    return {
+        "user": _account_body(user) if user else None,
+        "storage": STORAGE.to_dict(),
+    }
+
+
+@app.get("/api/v1/checks/mine")
+async def my_checks(request: Request) -> dict:
+    user = _require_user(request)
+    return {"checks": store.list_for_owner(user.id)}
 
 
 @app.get("/api/v1/usage")
@@ -210,6 +381,7 @@ async def _accept(field: str, upload: UploadFile) -> bytes:
 
 @app.post("/api/v1/checks", status_code=201)
 async def create_check(
+    request: Request,
     netlist: UploadFile | None = File(default=None),
     bom: UploadFile | None = File(default=None),
     firmware: UploadFile | None = File(default=None),
@@ -249,12 +421,52 @@ async def create_check(
         previous_netlist_filename=previous_name,
         fact_store=facts,
     )
-    store.save(result)
+    # 로그인했으면 주인을 붙이고, 아니면 안 붙인다. **로그인을 요구하지 않는다** —
+    # 로그아웃 상태에서도 검사가 되어야 한다 (헌법 4절 단서 1).
+    user = _current_user(request)
+    store.save(result, owner_id=user.id if user else None)
 
     # 검사는 밀리초 단위로 끝난다. 만들자마자 done 이다.
-    return {"check_id": result["check_id"], "status": result["status"]}
+    return {
+        "check_id": result["check_id"],
+        "status": result["status"],
+        # 주인이 붙었는지 화면이 알아야 "내 검사"에 뜬다는 말을 할 수 있다.
+        "owned": user is not None,
+    }
 
 
 @app.get("/api/v1/checks/{check_id}")
-async def get_check(check_id: str) -> dict:
+async def get_check(check_id: str, request: Request) -> dict:
+    """결과 조회.
+
+    주인이 **없는** 검사는 예전 그대로 누구나 연다 — 주소를 아는 사람만
+    알 수 있고, 그 링크로 공유하라고 만든 것이다.
+
+    주인이 **있는** 검사는 주인만 연다. 남이 부르면 **403 이 아니라 404** 다.
+    403 은 "그 ID 는 존재한다"는 것을 알려 주기 때문에, 그것만으로도 ID 를
+    훑어 어떤 검사가 있는지 목록을 만들 수 있다.
+    """
+    owner = store.owner_of(check_id)
+    if owner is not None:
+        user = _current_user(request)
+        if user is None or user.id != owner:
+            raise service.check_not_found(check_id)
     return store.get(check_id)
+
+
+@app.delete("/api/v1/checks/{check_id}")
+async def delete_check(check_id: str, request: Request) -> dict:
+    """내 검사를 내린다.
+
+    로그인을 만들기 전에는 **올린 결과를 내릴 방법이 아예 없었다.** 재배포 때
+    사라지긴 했지만 그건 정책이 아니라 사고다.
+
+    주인 없는 검사는 여기서 지울 수 없다. 누구의 것인지 알 방법이 없어서,
+    지우게 두면 남의 결과를 아무나 지운다.
+    """
+    user = _require_user(request)
+    owner = store.owner_of(check_id)
+    if owner is None or owner != user.id:
+        raise service.check_not_found(check_id)
+    store.delete(check_id)
+    return {"deleted": check_id}

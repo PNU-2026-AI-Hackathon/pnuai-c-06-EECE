@@ -42,6 +42,8 @@ venv/
 # 검사 결과 SQLite (배포 인스턴스마다 새로 만들어진다)
 *.db
 prefab.db
+# 저장소가 재시작을 견디는지 재려고 DB 옆에 남기는 표식 (web/storage.py)
+*.db.boot
 
 # 부트스트랩 전개 잔재 — 지우면 됩니다
 _to_delete/

@@ -21,8 +21,10 @@ export function PrivacyPage() {
           올리신 파일을 어떻게 다루는지
         </h1>
         <p className="mb-10 text-[16px] leading-relaxed text-sub">
-          이 도구는 회로도와 펌웨어를 받습니다. 남에게 보여주기 어려운 파일이라는 것을 압니다.
-          그래서 <strong className="font-bold text-ink">코드가 실제로 하는 일</strong>만 적습니다.
+          이 도구는 회로도와 펌웨어를 받습니다. 남에게 보여주기 어려운
+          파일이라는 것을 압니다. 그래서{" "}
+          <strong className="font-bold text-ink">코드가 실제로 하는 일</strong>
+          만 적습니다.
         </p>
 
         <Item
@@ -33,27 +35,81 @@ export function PrivacyPage() {
           head="저장하는 것은 검사 결과입니다"
           body={
             <>
-              결과에는 <strong className="font-bold text-ink">근거로 인용된 코드 줄</strong>과{" "}
-              <strong className="font-bold text-ink">네트·부품 이름</strong>이 들어갑니다. 판정마다
-              어디를 보고 그렇게 말했는지 확인하실 수 있어야 하기 때문입니다. 파일 전체가 아니라
-              인용된 부분입니다.
+              결과에는{" "}
+              <strong className="font-bold text-ink">
+                근거로 인용된 코드 줄
+              </strong>
+              과 <strong className="font-bold text-ink">네트·부품 이름</strong>
+              이 들어갑니다. 판정마다 어디를 보고 그렇게 말했는지 확인하실 수
+              있어야 하기 때문입니다. 파일 전체가 아니라 인용된 부분입니다.
             </>
           }
         />
         <Item
-          head="서버가 다시 뜨면 결과도 사라집니다"
-          body="영구 저장 장치를 쓰지 않습니다. 배포하거나 서버가 재시작되면 그동안의 검사 결과가 함께 지워집니다. 남겨야 할 결과는 따로 저장해 두세요."
+          head="서버가 다시 뜨면 결과도 계정도 사라집니다"
+          tone="warn"
+          body="영구 저장 장치를 쓰지 않습니다. 배포하거나 서버가 재시작되면 그동안의 검사 결과와 계정이 함께 지워집니다. 남겨야 할 결과는 따로 저장해 두세요. 저장소가 재시작을 견디는 것이 실제로 확인되면 이 문구를 고치겠습니다."
         />
         <Item
           head="결과 주소를 아는 사람은 볼 수 있습니다"
           tone="warn"
           body={
             <>
-              로그인이 없습니다. 검사 결과 주소는 추측할 수 없는 무작위 값이지만,{" "}
-              <strong className="font-bold text-ink">그 주소를 받은 사람은 누구나 열 수 있습니다.</strong>{" "}
+              로그인이 없습니다. 검사 결과 주소는 추측할 수 없는 무작위
+              값이지만,{" "}
+              <strong className="font-bold text-ink">
+                그 주소를 받은 사람은 누구나 열 수 있습니다.
+              </strong>{" "}
               공유하실 때 이 점을 고려해 주세요.
             </>
           }
+        />
+        <Item
+          head="계정을 만드시면 이메일과 비밀번호를 받습니다"
+          body={
+            <>
+              <strong className="font-bold text-ink">계정은 선택입니다</strong>{" "}
+              — 로그인하지 않아도 검사는 그대로 됩니다. 계정을 만드시면 받는
+              것은{" "}
+              <strong className="font-bold text-ink">이메일 주소 하나</strong>와
+              비밀번호뿐입니다. 이름·전화번호·소속은 받지 않습니다.
+              <br />
+              <br />
+              비밀번호는 <span className="data">scrypt</span> 로 해싱해
+              저장합니다. 원문은 저장하지 않고 저희도 볼 수 없습니다. 로그인
+              상태는{" "}
+              <strong className="font-bold text-ink">
+                스크립트가 읽을 수 없는 쿠키
+              </strong>
+              로 유지하며, 그 값도 서버에는 해시로만 들어 있습니다.
+              <br />
+              <br />
+              인증 메일을 보내지 않으므로 이메일은 신원 확인이 아니라
+              이름표입니다.{" "}
+              <strong className="font-bold text-ink">
+                저희가 보내는 메일은 하나도 없습니다.
+              </strong>
+            </>
+          }
+        />
+        <Item
+          head="로그인하고 검사하시면 그 결과는 나만 봅니다"
+          body={
+            <>
+              로그인 상태에서 만든 검사에는 주인이 붙습니다. 주소를 아는 사람도
+              열 수 없고,{" "}
+              <strong className="font-bold text-ink">
+                「내 검사」에서 직접 내리실 수 있습니다.
+              </strong>{" "}
+              로그아웃 상태에서 만든 검사는 예전처럼 주소를 아는 사람이면 열 수
+              있습니다 — 공유하라고 만든 것이기 때문입니다.
+            </>
+          }
+        />
+        <Item
+          head="비밀번호를 잊으면 되돌릴 방법이 없습니다"
+          tone="warn"
+          body="메일을 보낼 수단이 없어서 재설정 기능을 만들지 못했습니다. 있는 척하지 않겠습니다. 비밀번호 관리자에 저장해 두시길 권합니다."
         />
         <Item
           head="데이터시트 읽기에만 외부 모델을 씁니다"
@@ -61,11 +117,13 @@ export function PrivacyPage() {
         />
 
         <div className="mt-12 rounded-card border border-line bg-surface px-5 py-5">
-          <h2 className="mb-2 text-[17px] font-bold">아직 정식 약관이 아닙니다</h2>
+          <h2 className="mb-2 text-[17px] font-bold">
+            아직 정식 약관이 아닙니다
+          </h2>
           <p className="text-[15px] leading-relaxed text-sub">
-            이 문서는 지금 코드가 하는 일을 적은 것이고, 법률 문서가 아닙니다. 정식 서비스로
-            운영하게 되면 이용약관과 개인정보처리방침을 따로 갖추겠습니다. 그때까지는 이 안내가
-            사실과 다르지 않도록 유지합니다 —{" "}
+            이 문서는 지금 코드가 하는 일을 적은 것이고, 법률 문서가 아닙니다.
+            정식 서비스로 운영하게 되면 이용약관과 개인정보처리방침을 따로
+            갖추겠습니다. 그때까지는 이 안내가 사실과 다르지 않도록 유지합니다 —{" "}
             <a
               href="https://github.com/PNU-2026-AI-Hackathon/pnuai-c-06-EECE"
               className="font-bold text-brand-strong underline"

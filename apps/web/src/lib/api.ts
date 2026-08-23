@@ -86,11 +86,85 @@ async function unwrap(res: Response) {
 async function request(path: string, init?: RequestInit) {
   let res: Response;
   try {
-    res = await fetch(`${BASE}${path}`, init);
+    res = await fetch(`${BASE}${path}`, { credentials: "include", ...init });
   } catch {
     throw new ApiFailure(UNREACHABLE, "NETWORK_UNREACHABLE");
   }
   return unwrap(res);
+}
+
+/**
+ * `credentials: "include"` 를 **한 곳에서** 붙인다.
+ *
+ * 호출하는 쪽마다 적게 두면 반드시 한 군데를 빠뜨리고, 그러면 그 요청만
+ * 로그아웃 상태로 간다. 증상이 고약하다 — 화면은 로그인돼 있는데 어떤
+ * 버튼 하나만 "로그인이 필요합니다"라고 한다.
+ */
+async function send(path: string, body: unknown) {
+  return request(path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+/** 저장소가 재시작을 견디는지. `unknown` 은 **"안전"이 아니라 "모름"** 이다. */
+export type StorageState = {
+  state: "unknown" | "persistent";
+  boots: number;
+  first_seen: string | null;
+  survives_restart: boolean;
+};
+
+export type Account = {
+  email: string;
+  created_at: string;
+  storage: StorageState;
+};
+
+export type CheckSummaryRow = {
+  check_id: string;
+  created_at: string;
+  summary: { critical: number; warning: number; info: number; cleared: number };
+  netlist_filename: string | null;
+};
+
+export async function signup(email: string, password: string): Promise<Account> {
+  return send("/api/v1/auth/signup", { email, password });
+}
+
+export async function login(email: string, password: string): Promise<Account> {
+  return send("/api/v1/auth/login", { email, password });
+}
+
+export async function logout(): Promise<void> {
+  await send("/api/v1/auth/logout", {});
+}
+
+/**
+ * 로그인 상태. **로그아웃은 오류가 아니라 `null` 이다.**
+ *
+ * 화면이 뜨자마자 부르는 자리라, 로그아웃을 예외로 만들면 콘솔이 401 로
+ * 가득 차고 진짜 오류가 그 사이에 묻힌다.
+ */
+export async function fetchMe(): Promise<{ user: Account | null; storage: StorageState } | null> {
+  if (!BASE) return null;
+  try {
+    const res = await fetch(`${BASE}/api/v1/auth/me`, { credentials: "include" });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchMyChecks(): Promise<CheckSummaryRow[]> {
+  const body = await request("/api/v1/checks/mine");
+  return body.checks ?? [];
+}
+
+export async function deleteCheck(id: string): Promise<void> {
+  await request(`/api/v1/checks/${id}`, { method: "DELETE" });
 }
 
 /** 이 서버의 실측 사용량. 요금 안내 화면이 숫자를 손으로 안 적으려고 쓴다. */

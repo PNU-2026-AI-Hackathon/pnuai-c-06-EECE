@@ -309,6 +309,17 @@ def seed_sample(store: "Store") -> str | None:
 
 # --------------------------------------------------------------------- 저장
 
+def _netlist_name(body: dict[str, Any]) -> str | None:
+    netlist = (body.get("inputs") or {}).get("netlist")
+    if isinstance(netlist, dict):
+        return netlist.get("filename")
+    return netlist if isinstance(netlist, str) else None
+
+
+def _columns(conn: sqlite3.Connection, table: str) -> set[str]:
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+
+
 class Store:
     """SQLite 한 개. Postgres 를 쓰지 않는다 (CLAUDE.md 9절)."""
 
@@ -347,13 +358,73 @@ class Store:
                 )
                 """
             )
+            # 로그인 없이 만든 검사는 주인이 없다 (`NULL`). **그게 정상이다** —
+            # 로그아웃 상태에서도 검사가 되어야 하기 때문이다 (헌법 4절).
+            #
+            # `ALTER TABLE` 로 붙이는 이유: 이미 검사가 들어 있는 DB 가 돌아가고
+            # 있다. 표를 새로 만들면 그 결과들이 사라진다.
+            if "owner_id" not in _columns(conn, "checks"):
+                conn.execute("ALTER TABLE checks ADD COLUMN owner_id TEXT")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS checks_owner ON checks (owner_id, created_at)"
+            )
 
-    def save(self, result: dict[str, Any]) -> None:
+    def save(self, result: dict[str, Any], owner_id: str | None = None) -> None:
         with self._session() as conn:
             conn.execute(
-                "INSERT OR REPLACE INTO checks (id, created_at, payload) VALUES (?, ?, ?)",
-                (result["check_id"], result["created_at"], json.dumps(result, ensure_ascii=False)),
+                "INSERT OR REPLACE INTO checks (id, created_at, payload, owner_id)"
+                " VALUES (?, ?, ?, ?)",
+                (
+                    result["check_id"],
+                    result["created_at"],
+                    json.dumps(result, ensure_ascii=False),
+                    owner_id,
+                ),
             )
+
+    def delete(self, check_id: str) -> None:
+        with self._session() as conn:
+            conn.execute("DELETE FROM checks WHERE id = ?", (check_id,))
+
+    def owner_of(self, check_id: str) -> str | None:
+        """이 검사의 주인. 없으면 `None` (로그인 없이 만든 검사)."""
+        with self._session() as conn:
+            row = conn.execute(
+                "SELECT owner_id FROM checks WHERE id = ?", (check_id,)
+            ).fetchone()
+        return row["owner_id"] if row else None
+
+    def list_for_owner(self, owner_id: str, limit: int = 50) -> list[dict[str, Any]]:
+        """한 사람의 검사 목록. 최신순.
+
+        **본문(payload)을 통째로 싣지 않는다.** 목록 한 번에 검사 50건의 전체
+        결과를 내려보내면 수 MB 가 된다. 요약만 꺼낸다.
+        """
+        with self._session() as conn:
+            rows = conn.execute(
+                "SELECT id, created_at, payload FROM checks WHERE owner_id = ?"
+                " ORDER BY created_at DESC LIMIT ?",
+                (owner_id, limit),
+            ).fetchall()
+
+        out: list[dict[str, Any]] = []
+        for row in rows:
+            try:
+                body = json.loads(row["payload"])
+            except json.JSONDecodeError:
+                # 읽지 못한 결과 하나 때문에 목록 전체를 포기하지 않는다.
+                continue
+            out.append(
+                {
+                    "check_id": row["id"],
+                    "created_at": row["created_at"],
+                    "summary": body.get("summary", {}),
+                    # `inputs.netlist` 는 문자열이 아니라 {filename, nets, parts} 다.
+                    # 그대로 실었더니 목록에 사전이 통째로 나갔다.
+                    "netlist_filename": _netlist_name(body),
+                }
+            )
+        return out
 
     def get(self, check_id: str) -> dict[str, Any]:
         with self._session() as conn:
