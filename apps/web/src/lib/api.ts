@@ -93,6 +93,62 @@ async function request(path: string, init?: RequestInit) {
   return unwrap(res);
 }
 
+/** 이 서버의 실측 사용량. 요금 안내 화면이 숫자를 손으로 안 적으려고 쓴다. */
+export type Usage = {
+  parts: number;
+  facts: number;
+  checks: number;
+  cleared_by_facts: number;
+  /** 사실 DB 를 만드느라 부른 횟수. 부품당 한 번, 검사와 무관하게 미리. */
+  llm_calls_building_db: number;
+  /** 검사를 처리하느라 부른 횟수. **구조적으로 0**. 서버가 그렇게 답한다. */
+  llm_calls_serving_checks: number;
+};
+
+/**
+ * **못 가져오면 `null` 이다. 0 이 아니다.**
+ *
+ * 0 으로 채우면 "부품 0개"라고 적힌 요금 안내가 뜬다 — 서버가 안 뜬 것과
+ * DB 가 비어 있는 것은 다른 사실인데 화면에는 똑같이 보인다 (헌법 2-2).
+ */
+export async function fetchUsage(): Promise<Usage | null> {
+  if (!BASE) return null;
+  try {
+    const res = await fetch(`${BASE}/api/v1/usage`);
+    if (!res.ok) return null;
+    return asUsage(await res.json());
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 모양이 맞는지 본 뒤에 돌려준다. 아니면 `null`.
+ *
+ * 안 보다가 한 번 당했다. 서버가 아직 옛 판이라 새 항목이 없었는데, 화면은
+ * 그걸 `undefined` 로 받아 **"부른 AI 호출은 번입니다"** 라고 출력했다.
+ * 숫자만 쏙 빠진 문장이 아무 경고 없이 떠 있었다.
+ *
+ * 배포가 갈리는 몇 초 동안만 생기는 일이지만, 조용히 틀린 문장을 띄우느니
+ * 못 가져왔다고 말하는 편이 낫다 (헌법 2-3).
+ */
+function asUsage(body: unknown): Usage | null {
+  if (!body || typeof body !== "object") return null;
+  const fields = [
+    "parts",
+    "facts",
+    "checks",
+    "cleared_by_facts",
+    "llm_calls_building_db",
+    "llm_calls_serving_checks",
+  ] as const;
+  const row = body as Record<string, unknown>;
+  for (const key of fields) {
+    if (typeof row[key] !== "number" || !Number.isFinite(row[key])) return null;
+  }
+  return body as Usage;
+}
+
 /** 검사 생성 */
 export async function createCheck(files: {
   netlist: File;

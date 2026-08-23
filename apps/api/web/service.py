@@ -126,6 +126,34 @@ def unsupported_file_type(field: str) -> ApiError:
     )
 
 
+def too_many_requests(window: str, retry_after: int) -> ApiError:
+    """한도 초과. **막힌 이유와 언제 다시 되는지를 같이 말한다.**
+
+    "요청이 너무 많습니다"만 돌려주면 받는 쪽은 자기가 무엇을 잘못했는지도,
+    기다리면 풀리는 건지도 모른다. 그러면 새로고침을 연타하게 되고, 그건
+    한도를 만든 이유를 정확히 거스른다.
+    """
+    return ApiError(
+        "RATE_LIMITED",
+        f"같은 주소에서 짧은 시간에 너무 많이 올렸습니다({window} 한도). "
+        f"{retry_after}초 뒤에 다시 시도해 주세요.",
+        429,
+    )
+
+
+def body_too_large() -> ApiError:
+    """본문 전체가 상한을 넘음 — **파일을 읽기 전에** 끊을 때 쓴다.
+
+    `file_too_large` 와 달리 어느 칸이 컸는지 모른다. 아직 안 읽었기 때문이다.
+    """
+    mb = MAX_UPLOAD_BYTES // (1024 * 1024)
+    return ApiError(
+        "FILE_TOO_LARGE",
+        f"올린 파일이 {mb}MB를 넘습니다. 줄여서 다시 올려 주세요.",
+        413,
+    )
+
+
 def check_not_found(check_id: str) -> ApiError:
     return ApiError("CHECK_NOT_FOUND", f"검사 {check_id} 를 찾지 못했습니다. 주소를 확인해 주세요.", 404)
 

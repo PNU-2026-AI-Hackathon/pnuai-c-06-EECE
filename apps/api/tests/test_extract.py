@@ -58,14 +58,18 @@ class _Block:
 class _Response:
     content: list[_Block]
     stop_reason: str = "end_turn"
+    #: 실제 SDK 응답에는 항상 있다. 없는 판도 있을 수 있어 기본은 None 이다.
+    usage: Any = None
 
 
 class FakeClient:
     """모델이 이렇게 답했다고 치고 돌린다. 보낸 요청도 기록한다."""
 
-    def __init__(self, reply: Any, *, stop_reason: str = "end_turn") -> None:
+    def __init__(
+        self, reply: Any, *, stop_reason: str = "end_turn", usage: Any = None
+    ) -> None:
         text = reply if isinstance(reply, str) else json.dumps(reply)
-        self._response = _Response([_Block(text)], stop_reason=stop_reason)
+        self._response = _Response([_Block(text)], stop_reason=stop_reason, usage=usage)
         self.sent: dict[str, Any] = {}
 
     @property
@@ -303,3 +307,27 @@ def test_env가_없어도_죽지_않는다(tmp_path):
     from prefab.__main__ import _load_env
 
     assert _load_env(tmp_path) is None
+
+
+# ── 원가 계측 ────────────────────────────────────────────────────────
+
+def test_토큰_사용량을_기록한다():
+    """부품 하나 읽는 값이 이 서비스 원가의 전부다. **재지 않으면 지어내게 된다.**"""
+
+    @dataclass
+    class _Usage:
+        input_tokens: int = 41_233
+        output_tokens: int = 1_802
+
+    client = FakeClient({"facts": [_item()]}, usage=_Usage())
+    result = extract(client, mpn="HLK-LD2410C", pages=PAGES, source_url=URL)
+    assert result.input_tokens == 41_233
+    assert result.output_tokens == 1_802
+
+
+def test_사용량이_없으면_0_이_아니라_모른다고_한다():
+    """0 으로 적으면 **공짜였다는 뜻**이 된다. 모르는 것과 다르다 (헌법 2-2)."""
+    client = FakeClient({"facts": [_item()]}, usage=None)
+    result = extract(client, mpn="HLK-LD2410C", pages=PAGES, source_url=URL)
+    assert result.input_tokens is None
+    assert result.output_tokens is None

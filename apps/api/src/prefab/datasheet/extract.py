@@ -91,6 +91,14 @@ class Extraction:
     dropped: list[Dropped] = field(default_factory=list)
     #: 모델이 실제로 돌려준 원본. 검증 전 상태를 되짚을 수 있어야 한다.
     raw: dict[str, Any] = field(default_factory=dict)
+    #: 이번 호출이 쓴 토큰. **원가를 추정하지 않고 재려고 둔다.**
+    #:
+    #: 부품 하나를 읽는 데 얼마가 드는지가 이 서비스 원가의 전부인데,
+    #: 그동안 아무 데도 안 적었다. 안 적으면 나중에 "대략 얼마쯤"이라고
+    #: 말하게 되고, 그건 헌법 2-2 가 금지하는 종류의 문장이다.
+    #: 응답에 사용량이 없으면 `None` — 0 으로 적으면 공짜였다는 뜻이 된다.
+    input_tokens: int | None = None
+    output_tokens: int | None = None
 
     @property
     def facts(self) -> list[dict[str, Any]]:
@@ -207,9 +215,23 @@ def extract(
     )
 
     raw = _read_json(response)
-    return _verify(
+    extraction = _verify(
         raw, mpn=mpn, pages=pages, source_url=source_url, source_tier=source_tier
     )
+    extraction.input_tokens, extraction.output_tokens = _token_usage(response)
+    return extraction
+
+
+def _token_usage(response: Any) -> tuple[int | None, int | None]:
+    """응답에서 토큰 수를 꺼낸다. 없으면 `None` 둘.
+
+    SDK 판이 바뀌어 모양이 달라져도 **추출 자체를 실패시키지 않는다.**
+    사용량은 곁다리고, 곁다리 때문에 본 일이 죽으면 안 된다.
+    """
+    used = getattr(response, "usage", None)
+    if used is None:
+        return None, None
+    return getattr(used, "input_tokens", None), getattr(used, "output_tokens", None)
 
 
 def _read_json(response: Any) -> dict[str, Any]:

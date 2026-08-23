@@ -55,14 +55,18 @@ function Section({
   tone?: "plain" | "raised";
 }) {
   return (
-    <section className={tone === "raised" ? "border-y border-line bg-surface" : ""}>
+    <section
+      className={tone === "raised" ? "border-y border-line bg-surface" : ""}
+    >
       <div className="mx-auto max-w-5xl px-5 py-16 md:py-24">{children}</div>
     </section>
   );
 }
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
-  return <p className="mb-3 text-[13px] font-bold text-brand-strong">{children}</p>;
+  return (
+    <p className="mb-3 text-[13px] font-bold text-brand-strong">{children}</p>
+  );
 }
 
 function Hero() {
@@ -72,12 +76,13 @@ function Hero() {
         <h1 className="mb-5 text-[32px] font-extrabold leading-[1.25] md:text-[52px] md:leading-[1.15]">
           보드를 발주하기 전에,
           <br />
-          <span className="text-brand-strong">코드와 회로도가 어긋난 곳</span>을 찾습니다.
+          <span className="text-brand-strong">코드와 회로도가 어긋난 곳</span>을
+          찾습니다.
         </h1>
         <p className="mb-8 text-[17px] leading-relaxed text-sub md:text-[19px]">
-          컴파일도 되고 업로드도 되는데 보드가 안 도는 버그가 있습니다. 문제가 코드와 회로도{" "}
-          <strong className="font-bold text-ink">사이</strong>에 있어서 어느 쪽 검사에도 안 걸리기
-          때문입니다.
+          컴파일도 되고 업로드도 되는데 보드가 안 도는 버그가 있습니다. 문제가
+          코드와 회로도 <strong className="font-bold text-ink">사이</strong>에
+          있어서 어느 쪽 검사에도 안 걸리기 때문입니다.
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <Link to="/r/chk_sample01" className="btn-primary">
@@ -107,8 +112,9 @@ function Problem() {
           제일 비싼 버그는 컴파일도 되고 업로드도 됩니다.
         </h2>
         <p className="mb-6 text-[16px] leading-relaxed text-sub">
-          코드는 회로도를 모르고, 회로도 검사는 코드를 모릅니다. 그래서 둘 사이에 생긴 어긋남은
-          누구도 안 봅니다. 보드가 도착해서 안 켜질 때 알게 됩니다.
+          코드는 회로도를 모르고, 회로도 검사는 코드를 모릅니다. 그래서 둘
+          사이에 생긴 어긋남은 누구도 안 봅니다. 보드가 도착해서 안 켜질 때 알게
+          됩니다.
         </p>
         <div className="rounded-card border border-line bg-bg px-5 py-4">
           <pre className="data overflow-x-auto whitespace-pre text-sub">{`// config.h
@@ -118,7 +124,8 @@ function Problem() {
 pinMode(LED_PIN, OUTPUT);   // 컴파일 통과. 업로드 성공. LED는 안 켜짐.`}</pre>
         </div>
         <p className="mt-4 text-[14px] leading-relaxed text-mute">
-          구형 ESP32의 GPIO34는 입력 전용입니다. 컴파일러도, 회로도 DRC도 이걸 모릅니다.
+          구형 ESP32의 GPIO34는 입력 전용입니다. 컴파일러도, 회로도 DRC도 이걸
+          모릅니다.
         </p>
       </div>
     </Section>
@@ -156,13 +163,16 @@ function RealCase() {
               <span className="w-[72px] shrink-0 pt-0.5 text-[13px] font-bold text-mute">
                 {s.when}
               </span>
-              <span className="text-[16px] leading-relaxed text-sub">{s.text}</span>
+              <span className="text-[16px] leading-relaxed text-sub">
+                {s.text}
+              </span>
             </li>
           ))}
         </ol>
         <p className="mt-6 rounded-block bg-crit-weak px-4 py-3.5 text-[14px] leading-relaxed text-crit">
-          <strong className="font-bold">PCB는 이미 발주한 뒤였습니다.</strong> 그래서 그 보드는
-          손으로 고쳐야 했습니다. 발주 전에 잡는 것이 이 도구가 하려는 일입니다.
+          <strong className="font-bold">PCB는 이미 발주한 뒤였습니다.</strong>{" "}
+          그래서 그 보드는 손으로 고쳐야 했습니다. 발주 전에 잡는 것이 이 도구가
+          하려는 일입니다.
         </p>
       </div>
     </Section>
@@ -213,12 +223,14 @@ function Evidence() {
             <span className="rounded-chip bg-crit-weak px-2 py-0.5 text-[11px] font-bold text-crit">
               치명
             </span>
-            <span className="text-[13px] font-semibold text-sub">실제 검사 결과에서</span>
+            <span className="text-[13px] font-semibold text-sub">
+              실제 검사 결과에서
+            </span>
           </figcaption>
           <div className="px-5 py-4">
             <p className="mb-3 text-[15px] leading-relaxed">
-              코드가 <span className="data">D10</span> 핀을 출력으로 구동합니다. 그런데 회로도에서
-              이 핀은 아무 데도 이어져 있지 않습니다.
+              코드가 <span className="data">D10</span> 핀을 출력으로 구동합니다.
+              그런데 회로도에서 이 핀은 아무 데도 이어져 있지 않습니다.
             </p>
             <dl className="grid gap-2 text-[13px] sm:grid-cols-2">
               <div className="rounded-block bg-surface-2 px-3 py-2.5">
@@ -238,10 +250,11 @@ function Evidence() {
         </figure>
 
         <p className="text-[16px] leading-relaxed text-sub">
-          데이터시트에서 읽은 값에는 <strong className="font-bold text-ink">쪽 번호와 원문</strong>
-          이 붙습니다. 확인하지 못한 것은{" "}
-          <strong className="font-bold text-ink">모른다고 적습니다</strong> — 넘겨짚어 “이상 없음”
-          이라고 하지 않습니다.
+          데이터시트에서 읽은 값에는{" "}
+          <strong className="font-bold text-ink">쪽 번호와 원문</strong>이
+          붙습니다. 확인하지 못한 것은{" "}
+          <strong className="font-bold text-ink">모른다고 적습니다</strong> —
+          넘겨짚어 “이상 없음” 이라고 하지 않습니다.
         </p>
       </div>
     </Section>
@@ -256,7 +269,15 @@ function Closing() {
           먼저 결과부터 보세요.
         </h2>
         <p className="mb-7 text-[16px] leading-relaxed text-sub">
-          실제 보드를 검사한 결과가 그대로 열려 있습니다. 파일을 올리지 않아도 됩니다.
+          실제 보드를 검사한 결과가 그대로 열려 있습니다. 파일을 올리지 않아도
+          됩니다.{" "}
+          <Link
+            to="/pricing"
+            className="font-bold text-brand-strong hover:underline"
+          >
+            검사는 무료입니다
+          </Link>{" "}
+          — 원가가 그렇게 생겼기 때문이고, 그 원가를 그대로 적어 뒀습니다.
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <Link to="/r/chk_sample01" className="btn-primary">
@@ -279,7 +300,16 @@ function Footer() {
     <footer className="border-t border-line">
       <div className="mx-auto max-w-5xl px-5 py-10 text-[13px] text-mute">
         <div className="mb-4 flex flex-wrap items-center gap-x-5">
-          <Link to="/privacy" className="inline-flex min-h-[44px] items-center font-semibold hover:text-ink">
+          <Link
+            to="/pricing"
+            className="inline-flex min-h-[44px] items-center font-semibold hover:text-ink"
+          >
+            요금
+          </Link>
+          <Link
+            to="/privacy"
+            className="inline-flex min-h-[44px] items-center font-semibold hover:text-ink"
+          >
             데이터 처리 안내
           </Link>
           <a
