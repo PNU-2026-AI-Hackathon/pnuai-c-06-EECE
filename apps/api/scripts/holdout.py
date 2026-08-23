@@ -149,13 +149,23 @@ def main() -> int:
     ap.add_argument("--out", required=True, help="작업 폴더 (저장소 밖)")
     ap.add_argument("--skip-clone", action="store_true")
     ap.add_argument("--json", help="결과를 이 파일에 쓴다")
+    # **표본은 코드가 아니라 데이터다.** 두 번째 홀드아웃을 돌리려고 위 상수를 고치면
+    # 첫 번째 측정을 다시 못 돌린다 — 그러면 before/after 비교가 성립하지 않는다.
+    ap.add_argument("--repos", help="저장소 목록 파일 (한 줄에 하나). 없으면 REPOS 를 쓴다")
     args = ap.parse_args()
 
     work = Path(args.out)
     (work / "nets").mkdir(parents=True, exist_ok=True)
 
+    repos = REPOS
+    if args.repos:
+        repos = tuple(
+            line.strip() for line in Path(args.repos).read_text().splitlines()
+            if line.strip() and not line.startswith("#")
+        )
+
     boards: list[dict] = []
-    for repo in REPOS:
+    for repo in repos:
         name = repo.split("/")[-1]
         root = work / name
         if not args.skip_clone:

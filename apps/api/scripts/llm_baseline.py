@@ -110,13 +110,24 @@ def build_prompt(
     return "".join(parts)
 
 
-def ask(client, prompt: str) -> dict:
+def ask(client, prompt: str, *, thinking: bool = True) -> dict:
+    """`thinking=False` 면 적응형 사고를 끈다.
+
+    **끄는 이유는 속도가 아니라 재기 위해서다.** 사고를 켜면 큰 보드에서 출력 상한을
+    생각에 다 써서 답을 못 내고, 그 보드가 통째로 숫자에서 빠진다 — 처음 돌렸을 때
+    10개 중 2개가 그랬다. 못 잰 보드는 "발견 0건" 이 아니라 **모르는 보드**다.
+
+    Sonnet 5 에는 API 의 fast mode(`speed="fast"`)가 없다 — 그건 Opus 5·4.8 전용이다.
+    여기서 할 수 있는 빠른 쪽은 이것뿐이고, **조건이 달라졌으니 따로 적어서 비교한다.**
+    """
+    extra = {} if thinking else {"thinking": {"type": "disabled"}}
     response = client.messages.create(
         model=MODEL,
         max_tokens=MAX_TOKENS,
         system=SYSTEM,
         output_config={"format": {"type": "json_schema", "schema": SCHEMA}},
         messages=[{"role": "user", "content": prompt}],
+        **extra,
     )
     if getattr(response, "stop_reason", None) == "refusal":
         raise RuntimeError("모델이 거절했습니다")
@@ -136,6 +147,8 @@ def main() -> int:
     ap.add_argument("--boards", required=True, help="holdout.py 가 쓴 작업 폴더")
     ap.add_argument("--engine", help="holdout.py --json 결과 (보드 목록을 여기서 읽는다)")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--no-thinking", action="store_true",
+                    help="적응형 사고를 끈다 (큰 보드에서 답을 못 내는 것을 막는다)")
     args = ap.parse_args()
 
     _load_env(Path.cwd())
@@ -171,7 +184,7 @@ def main() -> int:
             continue
 
         try:
-            got = ask(client, prompt)
+            got = ask(client, prompt, thinking=not args.no_thinking)
         except Exception as exc:
             print(f"?? {name}: {type(exc).__name__}: {str(exc)[:120]}", file=sys.stderr)
             results.append({"board": name, "repo": board["repo"],
@@ -190,7 +203,8 @@ def main() -> int:
     skipped = [r["board"] for r in results if r.get("skipped")]
 
     print("=" * 66)
-    print(f"보드 {len(results)}개 · 엔진 {eng_total}건 · LLM {llm_total}건")
+    mode = "사고 끔" if args.no_thinking else "적응형 사고"
+    print(f"보드 {len(results)}개 · 엔진 {eng_total}건 · LLM {llm_total}건 ({MODEL} · {mode})")
     if skipped:
         print(f"LLM 이 못 본 보드 {len(skipped)}개: {', '.join(skipped)} — 숫자에서 빠져 있습니다")
     cost = spend["input"] / 1e6 * 2 + spend["output"] / 1e6 * 10  # Sonnet 5 도입가

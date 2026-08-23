@@ -47,6 +47,13 @@ IO_SUPPLY_PIN_PATTERN = re.compile(r"^VDDIO", re.I)
 #: 그래서 다른 전원 핀이 있으면 이쪽은 로직 전압 투표에서 뺀다.
 SUPPLY_INPUT_PIN_PATTERN = re.compile(r"^(VIN|VBUS|V\+)", re.I)
 
+#: 「레일 소속」 추론(마지막 단계)을 쓰려면 이 부품의 핀 중 전원·접지가 차지하는 최소 비율.
+#:
+#: 이 추론의 뜻은 "이 부품은 저 레일에서 전원을 받는다" 다. 커넥터처럼 신호를 잔뜩
+#: 나르는 부품에서는 그 말이 성립하지 않는다 — 40핀 헤더의 4핀이 전원이라고
+#: 나머지 36핀이 그 전압인 것이 아니다.
+RAIL_INFERENCE_MIN_POWER_SHARE = 0.5
+
 #: 이름 안에 박힌 전압 토큰. `5V` · `3V3` · `1V8` · `12V` · `+3.3V` · `0.9V`
 #:
 #: **소수점 표기를 한동안 못 읽었다.** 유럽식(`3V3`)만 보고 있어서 KiCad 가 흔히 쓰는
@@ -444,15 +451,30 @@ class Graph:
         #    **이 부품이 어느 레일에 닿아 있는지**로 마지막 추론을 한다 (요청서 A+1).
         #    KiCad 넷리스트는 핀 이름이 숫자(`1` · `2`)라 1~3단계가 전부 빗나간다.
         #    전압을 아는 레일이 **정확히 하나**일 때만 쓴다. 둘이면 어느 쪽이 IO 인지 모른다.
+        nets_of = list(self.part_pins.get(ref, {}).values())
         rails = {
             n
-            for n in {net for net in self.part_pins.get(ref, {}).values()}
+            for n in set(nets_of)
             if volts(n) and not GND_PATTERN.match(local_name(n)) and self.is_power_rail(n)
         }
-        touches_ground = any(
-            GND_PATTERN.match(local_name(n)) for n in self.part_pins.get(ref, {}).values()
+        touches_ground = any(GND_PATTERN.match(local_name(n)) for n in nets_of)
+
+        # **"이 부품은 그 레일에서 전원을 받는다" 는 부품이 작을 때만 믿을 만하다.**
+        #
+        # 40핀 라즈베리파이 헤더가 +5V 와 GND 에 닿는다는 이유로 5V 부품이 됐고,
+        # 거기 물린 3.3V 마이크가 전부 "5V 가 3.3V 를 직결" 로 떴다 — 한 보드에서 10건.
+        # 헤더의 나머지 36핀은 전부 3.3V 신호다. R11 은 이 전제를 이미 막고 있었는데
+        # (「커넥터는 핀마다 다른 신호를 나른다」) R12 는 안 막고 있었다.
+        #
+        # 핀 개수로 자르지 않고 **비율로** 본다 — 2핀 저항은 100%, 3핀 센서는 67%,
+        # 40핀 헤더는 10% 다. 개수는 부품마다 다르지만 비율은 성질을 말한다.
+        power_pins = sum(
+            1 for n in nets_of
+            if GND_PATTERN.match(local_name(n)) or (volts(n) and self.is_power_rail(n))
         )
-        if len(rails) == 1 and touches_ground:
+        mostly_power = nets_of and power_pins / len(nets_of) >= RAIL_INFERENCE_MIN_POWER_SHARE
+
+        if len(rails) == 1 and touches_ground and mostly_power:
             rail = rails.pop()
             return Domain(volts(rail), f"{ref} → {rail} (레일 소속)", CONFIDENCE_INFERRED)
 

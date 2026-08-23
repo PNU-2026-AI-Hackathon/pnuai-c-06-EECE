@@ -39,6 +39,20 @@ NEEDS = ["netlist", "firmware"]
 #: USB-C 커넥터의 핀은 그 자신이 `D+` · `D-` 다.
 PERIPHERAL_PIN_NAMES = frozenset({"D+", "D-", "DP", "DM", "USB_D+", "USB_D-", "USBDP", "USBDM"})
 
+#: **버스 라이브러리가 자기 핀을 직접 잡는다.** `SPI.begin()` 을 부르면 MISO·MOSI·SCK 에
+#: `pinMode` 를 쓰지 않는 것이 정상이다 — 라이브러리가 주변장치에 넘긴다.
+#:
+#: 오픈소스 보드에서 W5500 이더넷 두 개를 SPI 로 붙인 판이 이 오탐을 6건 냈다.
+#: USB 때와 같은 종류인데 **반대쪽을 못 본다** — 커넥터 핀이 `Pin_12` 라 이름이 없다.
+#:
+#: 그래서 네트 이름을 쓰되 **그것만으로 지우지는 않는다.** 네트 이름은 아무렇게나
+#: 붙일 수 있어서 그것 하나로 경고를 없애면 진짜를 놓친다 (헌법 11절).
+#: 코드가 그 버스를 실제로 쓰고 있을 때만, 그리고 **지우지 않고 미결로** 내린다.
+BUS_SIGNALS: dict[str, frozenset[str]] = {
+    "SPI": frozenset({"MISO", "MOSI", "SCK", "SCLK", "SS", "CIPO", "COPI"}),
+    "Wire": frozenset({"SDA", "SCL"}),
+}
+
 
 def check(ctx: Context) -> list[Finding]:
     """순수 함수. 네트워크·LLM·파일 IO 금지."""
@@ -63,6 +77,17 @@ def check(ctx: Context) -> list[Finding]:
     # 칩을 알면 **커넥터 핀 이름이 없어도** USB 핀을 안다. 모르면 아래 상대편 이름으로 본다.
     chip = chip_of(ctx)
 
+    # **"다 읽어봤는데 없더라" 가 이 규칙의 주장이다.** 못 읽은 자리가 있으면 그 주장이
+    # 성립하지 않는다 — 그 핀이 거기 들어 있을 수 있다.
+    #
+    # 실제로 걸렸다. 키보드 펌웨어가 `int key_pins[] = {D4, D1, ...}` 로 20개를 적고
+    # `pinMode(key_pins[i], INPUT_PULLUP)` 로 돌린다. 파서는 `key_pins[i]` 를 못 읽고
+    # **그 사실을 이미 기록해 두는데**(`Unreadable`), 이 규칙이 그걸 안 봤다.
+    # 보드 하나에서 확신에 찬 경고 18건이 나왔다.
+    #
+    # 조용히 넘기지 않는다 — 발견은 그대로 내되 **미결로 낸다** (헌법 2-2 · 2-4).
+    blind = firmware.unresolved_summary if firmware.unresolved else None
+
     findings: list[Finding] = []
 
     for pad in pinmap.gpio_pads():
@@ -79,9 +104,30 @@ def check(ctx: Context) -> list[Finding]:
         if firmware.find(silk=pad.silk, gpio=pad.gpio) is not None:
             continue  # 코드가 이미 쓴다
 
-        findings.append(_finding(graph, pad, net, netlist, firmware))
+        findings.append(
+            _finding(graph, pad, net, netlist, firmware, blind or _bus_blind(firmware, net))
+        )
 
     return findings
+
+
+def _bus_blind(firmware, net: str | None) -> str | None:
+    """이 네트가 **코드가 실제로 쓰는 버스**의 신호선으로 보이는가.
+
+    두 가지가 다 맞아야 한다 — 코드가 그 라이브러리를 들여왔고, 네트 이름이
+    그 버스의 신호다. 하나만으로는 아무 말도 하지 않는다.
+    """
+    name = (net or "").rsplit("/", 1)[-1].strip().upper()
+    if not name:
+        return None
+    have = {h.lower() for h in firmware.includes}
+    for lib, signals in BUS_SIGNALS.items():
+        if lib.lower() in have and name in signals:
+            return (
+                f"코드가 {lib} 라이브러리를 씁니다. 그 버스의 핀은 라이브러리가 직접 잡으므로 "
+                f"`pinMode` 가 없는 것이 정상일 수 있습니다 — 우리는 그 안을 못 봅니다"
+            )
+    return None
 
 
 def _peripheral_driven(netlist: Netlist, net: str, mcu_ref: str) -> bool:
@@ -127,7 +173,7 @@ def _gpio(pad) -> str:
     return f"GPIO{pad.gpio}" if pad.gpio is not None else "GPIO 미상"
 
 
-def _finding(graph, pad, net: str, netlist: Netlist, firmware) -> Finding:
+def _finding(graph, pad, net: str, netlist: Netlist, firmware, blind: str | None) -> Finding:
     labels = " · ".join(firmware.labels) or "없음"
 
     evidence = [
@@ -152,7 +198,9 @@ def _finding(graph, pad, net: str, netlist: Netlist, firmware) -> Finding:
         title=TITLE,
         tier=TIER,
         severity=SEVERITY,
-        verdict=Verdict.FAIL,
+        # **못 읽은 자리가 있으면 판정도 미결이다.** 사유만 달고 FAIL 로 두면
+        # 화면에서는 그대로 결함으로 보인다 — 숨기는 것의 반대쪽 실패다.
+        verdict=Verdict.FAIL if blind is None else Verdict.UNRESOLVED,
         net=net,
         claim=(
             f"회로도는 {pad.silk}({_gpio(pad)})"
@@ -165,6 +213,10 @@ def _finding(graph, pad, net: str, netlist: Netlist, firmware) -> Finding:
             "초기화하지 않으면 부팅 후 핀이 뜬 상태로 남아 연결된 부품이 임의로 동작할 수 있습니다. "
             "아직 쓸 계획이 없는 미래용 배선이라면 그대로 두셔도 됩니다."
         ),
-        # 배선이 있고 코드에 없다는 것은 양쪽 다 확인된 사실이다. 보류하지 않는다.
-        unresolved_reason=None,
+        # 배선이 있고 코드에 없다는 것은 **다 읽었을 때만** 양쪽 다 확인된 사실이다.
+        unresolved_reason=(
+            None if blind is None else
+            f"코드에 우리가 못 읽은 핀 표현이 있습니다 — {blind}. "
+            f"{eun(pad.silk)} 거기 들어 있을 수 있어서 '안 쓴다' 고 단정하지 않습니다."
+        ),
     )

@@ -120,3 +120,74 @@ def test_제어_신호_이름은_전압_주장이_아니다():
 
     ctx = Context(netlist=g, firmware=None, bom=None, datasheet=None)
     assert [f for f in r11.check(ctx) if f.net == "24V_ON"] == []
+
+
+# ---------------------------------------------------------------- 두 번째 홀드아웃
+#
+# 새 보드 28개. 위 셋을 고친 뒤에 처음 돌린 표본이라 **또 겹치지 않는다.**
+
+def test_못_읽은_핀_표현이_있으면_R08은_단정하지_않는다():
+    """R08 의 주장은 "다 읽어봤는데 없더라" 다.
+
+    키보드 펌웨어가 `int key_pins[] = {D4, D1, ...}` 로 20개를 적고
+    `pinMode(key_pins[i], INPUT_PULLUP)` 로 돌린다. 파서는 `key_pins[i]` 를 못 읽고
+    **그 사실을 이미 기록해 두는데**, 규칙이 그걸 안 봐서 확신에 찬 경고가 18건 났다.
+    """
+    from prefab.firmware.arduino import analyze as fw_analyze
+
+    src = {
+        "main.cpp": (
+            "int key_pins[] = {4, 5, 6};\n"
+            "void setup() {\n"
+            "  for (int i = 0; i < 3; i++) pinMode(key_pins[i], INPUT_PULLUP);\n"
+            "  pinMode(2, OUTPUT);\n"
+            "}\n"
+        )
+    }
+    fw = fw_analyze(src)
+    assert fw.unresolved, "배열 인덱스를 못 읽었다는 것을 파서가 알아야 한다"
+    assert "배열" in fw.unresolved_summary
+
+
+def test_버스_라이브러리는_코드와_라이브러리_둘_다_봐야_한다():
+    """네트 이름 하나로 경고를 지우지 않는다.
+
+    `SPI.h` 를 들여왔고 네트 이름이 `MISO` 일 때만 "우리가 못 보는 자리" 라고 말한다.
+    네트 이름만 맞으면 아무 말도 안 한다 — 이름은 아무렇게나 붙일 수 있다 (헌법 11절).
+    """
+    from prefab.rules.r08_connected_but_unused import _bus_blind
+
+    class FW:
+        includes = ("spi", "arduino")
+
+    class NoSPI:
+        includes = ("arduino",)
+
+    assert _bus_blind(FW(), "/MISO") is not None
+    assert _bus_blind(FW(), "/SCK") is not None
+    assert _bus_blind(NoSPI(), "/MISO") is None    # 라이브러리를 안 쓰면 모른다
+    assert _bus_blind(FW(), "/RELAY_IN") is None   # 버스 신호가 아니다
+
+
+HEADER_40PIN = """<?xml version="1.0" encoding="UTF-8"?>
+<export version="E">
+  <components><comp ref="J14"><value>RPi_Header</value></comp></components>
+  <nets>
+    <net code="1" name="/+5V"><node ref="J14" pin="2" pinfunction="Pin_2"/></net>
+    <net code="2" name="/GND"><node ref="J14" pin="6" pinfunction="Pin_6"/></net>
+""" + "".join(
+    f'    <net code="{i}" name="/SIG{i}"><node ref="J14" pin="{i}" pinfunction="Pin_{i}"/></net>\n'
+    for i in range(10, 40)
+) + """  </nets>
+</export>
+"""
+
+
+def test_커넥터는_레일에_닿았다고_그_전압_부품이_아니다():
+    """40핀 헤더가 +5V·GND 에 닿는다고 5V 부품이 되면 안 된다.
+
+    그렇게 판정해서 거기 물린 3.3V 마이크가 전부 오탐이 됐다 — 한 보드에서 10건.
+    나머지 36핀은 전부 3.3V 신호다. R11 은 이 전제를 이미 막고 있었다.
+    """
+    g = Graph(parse_any(HEADER_40PIN, filename="b.net.xml"))
+    assert g.domain("J14").volts is None
