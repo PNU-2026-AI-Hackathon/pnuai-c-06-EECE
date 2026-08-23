@@ -152,3 +152,25 @@ def _finding(chip: Chip, pad, net: str, loads: list[str], graph, bom) -> Finding
         ),
         unresolved_reason=_unresolved(loads, bom),
     )
+
+
+def blocked(ctx) -> str | None:
+    """어느 칩인지 모르면 이 규칙은 **시작도 못 한다.**
+
+    조용히 빈 목록을 돌려주면 화면에 "규칙 실행됨" 으로 세어져서, 사용자는 검사해서
+    깨끗한 줄 안다. 실제로는 아무것도 안 본 것이다 (헌법 2-4).
+
+    푸는 법은 사용자가 할 수 있는 일로 적는다 — 우리 표에 없는 칩이면 그것도 말한다.
+    """
+    chip = chip_of(ctx)
+    if chip is None:
+        return (
+            "어느 칩인지 알아내지 못했습니다 — 부품번호(MPN)를 BOM 이나 회로도 심볼에 "
+            "채우면 판정합니다. 채워져 있는데도 이 문구가 보이면 그 칩이 아직 우리 표에 "
+            "없는 것입니다 (docs/CHIPS.md)."
+        )
+    if not chip.boot_output:
+        # **칩은 알아냈는데 그 칸이 비어 있다.** 둘 중 하나인데 둘 다 「판정 안 함」이다.
+        # 표에 이유를 적어 뒀다 — RP2040 은 진짜로 없고, C6 의 부팅 출력은 못 찾은 것이다.
+        return f"{chip.name} 에 대해 이 규칙이 볼 핀 목록이 표에 없습니다 (docs/CHIPS.md)."
+    return None

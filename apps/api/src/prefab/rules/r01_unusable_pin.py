@@ -17,7 +17,7 @@ R02 는 같은 것을 **회로도 쪽에서** 본다. 여기는 **코드 쪽**�
 
 from __future__ import annotations
 
-from ..chips import CHIPS, MODULES, Chip
+from ..chips import BOARD_TO_CHIP, CHIPS, MODULES, Chip
 from ..mpn import known_mpns
 from ..text import eul, eun
 from ..types import Context, Evidence, Finding, Severity, Verdict
@@ -88,7 +88,34 @@ def chip_of(ctx) -> Chip | None:
         chip = _chip_from_mpn(mpn)
         if chip is not None:
             return chip
+
+    # **부품번호 칸이 비어도 이름은 회로도에 적혀 있다.**
+    #
+    # 실측: 남의 보드 28개 중 부품번호가 나온 것은 5개뿐이었다. 나머지는 `MPN` 칸을
+    # 안 채웠을 뿐, 부품 값에는 `luat-esp32-c3_socket` · `ESP32-H2 SuperMini` 라고
+    # 그대로 적혀 있었다. 그걸 안 보는 바람에 칩을 모른다고 하고 규칙 5개가 죽었다.
+    #
+    # **부품번호로 취급하지는 않는다.** 값 칸에는 `10k 0.1%` · `Conn_01x04_Male` 같은
+    # 것이 더 많아서, 그걸 부품번호라고 하면 사실 DB 조회가 쓰레기로 찬다.
+    # 여기서는 **우리 표에 있는 칩 이름이 그 안에 들어 있는지만** 본다 —
+    # 아는 것만 알아보는 것이라 지어낼 여지가 없다 (헌법 2-2).
+    for part in getattr(netlist, "components", {}).values():
+        chip = _chip_from_mpn(getattr(part, "value", "") or "")
+        if chip is not None:
+            return chip
+
+    # 회로도가 칩 이름 대신 **보드 이름**을 적은 경우. `Pico` 는 칩이 아니라 보드다.
+    # 여기만 **정확 일치**다 — 부분일치로 하면 `Pico 2`(RP2350)가 RP2040 으로 샌다.
+    for part in getattr(netlist, "components", {}).values():
+        key = _normalize(getattr(part, "value", "") or "")
+        chip_id = BOARD_TO_CHIP.get(key)
+        if chip_id is not None:
+            return CHIPS.get(chip_id)
     return None
+
+
+def _normalize(text: str) -> str:
+    return "".join(ch for ch in text.lower() if ch.isalnum())
 
 
 def _chip_from_mpn(mpn: str) -> Chip | None:
@@ -96,7 +123,7 @@ def _chip_from_mpn(mpn: str) -> Chip | None:
 
     긴 id 부터 본다 — `esp32c6` 가 `esp32` 보다 먼저 걸려야 한다.
     """
-    key = "".join(ch for ch in mpn.lower() if ch.isalnum())
+    key = _normalize(mpn)
     for chip_id in sorted(CHIPS, key=len, reverse=True):
         if chip_id in key:
             return CHIPS[chip_id]
@@ -156,4 +183,21 @@ def _finding(chip: Chip, gpio: int, use, severity: Severity, what: str, why: str
             f"`docs/CHIPS.md` 에 표로 있습니다."
         ),
         unresolved_reason=None,
+    )
+
+
+def blocked(ctx) -> str | None:
+    """어느 칩인지 모르면 이 규칙은 **시작도 못 한다.**
+
+    조용히 빈 목록을 돌려주면 화면에 "규칙 실행됨" 으로 세어져서, 사용자는 검사해서
+    깨끗한 줄 안다. 실제로는 아무것도 안 본 것이다 (헌법 2-4).
+
+    푸는 법은 사용자가 할 수 있는 일로 적는다 — 우리 표에 없는 칩이면 그것도 말한다.
+    """
+    if chip_of(ctx) is not None:
+        return None
+    return (
+        "어느 칩인지 알아내지 못했습니다 — 부품번호(MPN)를 BOM 이나 회로도 심볼에 "
+        "채우면 판정합니다. 채워져 있는데도 이 문구가 보이면 그 칩이 아직 우리 표에 "
+        "없는 것입니다 (docs/CHIPS.md)."
     )

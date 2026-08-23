@@ -88,6 +88,9 @@ ESP32S3 = Chip(
     id="esp32s3",
     name="ESP32-S3",
     input_only=(),  # S3 는 입력 전용 핀이 없다 — 모든 GPIO 가 양방향
+    # ESP32-S3 데이터시트 Recommended Operating Conditions: VDD 3.0~3.6V (typ 3.3V).
+    # C6·C3 와 같은 이유로 넣는다 — 빠져 있어서 S3 보드의 도메인 추론이 배선에만 기댔다.
+    logic_volts=3.3,
     # 내장 플래시·PSRAM 전용. **옥타 플래시 핀 GPIO33~37 은 일부러 뺐다** —
     # 옥타를 쓰는 보드에만 해당하는데, 표에 넣으면 쿼드 보드에서 R02 가 오탐을 낸다.
     spi_flash=tuple(range(26, 33)),
@@ -103,7 +106,104 @@ ESP32S3 = Chip(
     usb=(19, 20),
 )
 
-CHIPS: dict[str, Chip] = {c.id: c for c in (ESP32, ESP32C6, ESP32S3)}
+ESP32C3 = Chip(
+    id="esp32c3",
+    name="ESP32-C3",
+    input_only=(),  # C3 는 입력 전용 핀이 없다
+    # ESP32-C3 데이터시트 Recommended Operating Conditions: VDD 3.0~3.6V.
+    logic_volts=3.3,
+    # **GPIO12·13 을 일부러 뺐다.** ESP-IDF 는 "GPIO12 ~ GPIO17 are **usually** used
+    # for SPI flash" 라고 쓰는데, 그 "usually" 가 이 두 핀이다 —
+    # GPIO12=SPIHD · GPIO13=SPIWP 는 **쿼드(QIO) 모드에서만** 쓰인다.
+    # 2선(DIO) 모드로 플래시를 다는 보드에서는 남는 GPIO 다.
+    #
+    # 넣었다가 실측에서 바로 데였다. LuatOS CORE-ESP32-C3 가 DIO 모드라 그 둘을
+    # LED 로 뽑아 쓰는데, 우리가 "부팅이 실패한다" 고 치명 3건을 냈다 — **전부 오탐**이다.
+    # 넷리스트는 플래시 모드를 말해 주지 않으므로 우리는 모른다 (헌법 2-2).
+    #
+    # 남긴 넷은 모드와 무관하게 항상 플래시다 —
+    # GPIO14=SPICS0 · GPIO15=SPICLK · GPIO16=SPID · GPIO17=SPIQ (데이터시트 Table 2-4).
+    spi_flash=(14, 15, 16, 17),
+    strapping=(2, 8, 9),  # ESP-IDF: "GPIO2, GPIO8 and GPIO9 are strapping pins."
+    adc1=(0, 1, 2, 3, 4),  # 데이터시트 Table 2-6: ADC1_CH0~CH4
+    adc2=(5,),             # 같은 표: ADC2_CH0 = GPIO5
+    # 데이터시트 Table 2-4 에서 U0TXD = GPIO21. **다른 부팅 글리치 핀은 못 찾았다** —
+    # C6·S3 와 같다. 없어서 비운 게 아니라 출처를 못 찾아서 비웠다.
+    boot_output=(21,),
+    boot_log_tx=21,
+    # ESP-IDF: "GPIO18 and GPIO19 are used by USB-JTAG by default."
+    usb=(18, 19),
+)
+
+ESP32H2 = Chip(
+    id="esp32h2",
+    name="ESP32-H2",
+    input_only=(),  # H2 도 입력 전용 핀이 없다
+    logic_volts=3.3,
+    # ESP-IDF GPIO 문서: "GPIO15-21 are usually used for SPI flash and not
+    # recommended for other uses." 같은 문서가 GPIO15~21 과 GPIO6~7 은 외부 핀으로
+    # 나오지 않는다고 밝힌다 — 회로도에 안 보이는 것이 정상이다.
+    spi_flash=tuple(range(15, 22)),
+    # ESP-IDF: "GPIO2, GPIO3, GPIO8, GPIO9, and GPIO25 are strapping pins."
+    strapping=(2, 3, 8, 9, 25),
+    adc1=(1, 2, 3, 4, 5),  # 데이터시트: ADC1_CH0~CH4 = GPIO1~5
+    adc2=(),               # 데이터시트에 ADC2 가 없다 ("up to five channels")
+    boot_output=(24,),     # 데이터시트: U0TXD = GPIO24. 나머지는 못 찾았다
+    boot_log_tx=24,
+    # ESP-IDF: "GPIO 26 and 27 are used by USB-Serial-JTAG by default."
+    usb=(26, 27),
+)
+
+RP2040 = Chip(
+    id="rp2040",
+    name="RP2040",
+    #: **이 칩은 우리 표의 칸 대부분이 진짜로 비어 있다.** 못 찾아서가 아니다.
+    #: ESP32 는 플래시·USB·스트래핑이 전부 일반 GPIO 를 빌려 쓰는데,
+    #: RP2040 은 그것들을 **따로 뽑아 놨다.** 그래서 GPIO 를 쓰다가 밟을 지뢰가 적다.
+    #: 이 빈칸들은 「이 보드는 그 위험이 없다」는 뜻이고, 규칙은 조용히 넘어가는 게 맞다.
+    input_only=(),  # 모든 GPIO 가 양방향
+    logic_volts=3.3,  # 데이터시트: IOVDD 1.8~3.3V, 보드는 관례적으로 3.3V
+    # QSPI 플래시는 **별도 뱅크**다 (QSPI_SD0~3 · SCLK · SS). GPIO0~29 와 번호가
+    # 겹치지 않으므로 R02 가 볼 것이 없다. ESP32 처럼 GPIO 를 뺏기지 않는다.
+    spi_flash=(),
+    # 스트래핑 핀이 없다. 부팅 모드는 BOOTSEL 버튼(QSPI CS)으로 고르고 GPIO 가 아니다.
+    strapping=(),
+    adc1=(26, 27, 28, 29),  # 데이터시트: GPIO26~29 가 ADC 입력
+    adc2=(),                # ADC 가 하나뿐이다 (멀티플렉서로 채널을 고른다)
+    # 부트롬이 UART 로 로그를 뿌리지 않는다 (USB 대용량저장으로 올라온다).
+    # 부팅 순간 GPIO 를 구동한다는 1차 출처를 못 찾았다 — 지어내지 않는다.
+    boot_output=(),
+    # USB 는 전용 핀(USB_DP · USB_DM)이라 GPIO 와 안 겹친다. ESP32 와 다른 이유의 빈칸이다.
+    usb=(),
+)
+
+CHIPS: dict[str, Chip] = {
+    c.id: c for c in (ESP32, ESP32C3, ESP32C6, ESP32H2, ESP32S3, RP2040)
+}
+
+
+#: 개발보드 이름 → 그 위에 얹힌 칩.
+#:
+#: 회로도는 칩 이름을 안 적고 **보드 이름을 적는다.** 실측 28개 보드에서 RP2040 계열
+#: 6개가 전부 `Pico` · `RaspberryPi_Pico` 라고만 적혀 있었다.
+#:
+#: **부분일치로 하면 안 된다.** `Pico 2` 는 RP2040 이 아니라 **RP2350** 이고,
+#: 그건 우리 표에 없는 칩이다. `pico` 가 `pico2` 에 걸리면 다른 칩의 핀 제약으로
+#: 판정하게 되는데, 그건 못 잡는 것보다 나쁘다. 그래서 **정규화 후 정확히 같을 때만**
+#: 인정한다. 모르는 보드는 모르는 채로 둔다 (헌법 2-2).
+#:
+#: 출처: https://www.raspberrypi.com/documentation/microcontrollers/pico-series.html
+#: — Pico · Pico H · Pico W · Pico WH = RP2040 / Pico 2 계열 = RP2350
+BOARD_TO_CHIP: dict[str, str] = {
+    "pico": "rp2040",
+    "picoh": "rp2040",
+    "picow": "rp2040",
+    "picowh": "rp2040",
+    "raspberrypipico": "rp2040",
+    "raspberrypipicoh": "rp2040",
+    "raspberrypipicow": "rp2040",
+    "raspberrypipicowh": "rp2040",
+}
 
 
 # --------------------------------------------------------------------- 모듈

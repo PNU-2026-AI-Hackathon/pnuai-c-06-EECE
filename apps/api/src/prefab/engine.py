@@ -20,6 +20,13 @@ from .types import (
 #: 건너뛴 이유
 SKIP_NOT_IMPLEMENTED = "not_implemented"
 SKIP_MISSING_INPUT = "missing_input"
+#: 입력은 다 있는데 **규칙 자신이 못 돌린 경우.**
+#:
+#: 칩을 못 알아본 것이 그렇다. 넷리스트도 펌웨어도 있는데 어느 칩인지 모르면
+#: 스트래핑 핀도 플래시 핀도 모른다. 그동안 그 규칙들이 조용히 빈 목록을 돌려줬고,
+#: 화면에는 **"규칙 14개 실행"** 이라고 떴다 — 사용자는 다 검사해서 깨끗한 줄 읽는다.
+#: 남의 보드 22개에서 규칙 5개가 그렇게 죽어 있었다. 헌법 2-4 정면 위반이다.
+SKIP_PRECONDITION = "precondition"
 
 
 @dataclass(frozen=True)
@@ -47,6 +54,10 @@ class EngineResult:
     def skipped_missing_input(self) -> list[Skipped]:
         return [s for s in self.skipped if s.reason == SKIP_MISSING_INPUT]
 
+    @property
+    def skipped_precondition(self) -> list[Skipped]:
+        return [s for s in self.skipped if s.reason == SKIP_PRECONDITION]
+
 
 def run(ctx: Context) -> EngineResult:
     """카탈로그 전체를 훑는다. 실행한 것과 건너뛴 것이 언제나 합쳐서 카탈로그 전체다."""
@@ -66,6 +77,14 @@ def run(ctx: Context) -> EngineResult:
             result.skipped.append(
                 Skipped(spec.id, SKIP_MISSING_INPUT, f"{' · '.join(missing)} 없음")
             )
+            continue
+
+        # **규칙이 스스로 "못 돌리겠다" 고 말할 수 있다.** 선택 사항이라 안 두면 그냥 돈다.
+        # 입력 목록만으로는 못 거르는 조건이 있다 — 어느 칩인지 모르는 것이 그렇다.
+        blocked = getattr(module, "blocked", None)
+        reason = blocked(ctx) if blocked is not None else None
+        if reason:
+            result.skipped.append(Skipped(spec.id, SKIP_PRECONDITION, reason))
             continue
 
         result.findings.extend(module.check(ctx))
