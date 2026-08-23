@@ -51,8 +51,17 @@ def check(ctx: Context) -> list[Finding]:
         if len(actives) < MIN_ACTIVE_PARTS:
             continue
 
-        hi = max(actives, key=lambda r: graph.domain(r).volts)
+        # **받는 쪽 핀은 자기 레일을 이 네트에 못 올린다.** 상위로 뽑으면 안 된다.
+        # 레벨 시프터가 정확히 그 모양이다 — 5V VCC 에 `IN` 핀이 3.3V 를 받는다.
+        # 그걸 "5V 가 3.3V 를 직결" 이라고 읽으면 **해결책을 결함으로 지목하게 된다.**
+        sources = [r for r in actives if not graph.receives(r, net)]
+        if not sources:
+            continue
+
+        hi = max(sources, key=lambda r: graph.domain(r).volts)
         lo = min(actives, key=lambda r: graph.domain(r).volts)
+        if hi == lo:
+            continue
         hi_v = graph.domain(hi).volts
         lo_v = graph.domain(lo).volts
         if hi_v - lo_v <= DOMAIN_EPSILON_V:
