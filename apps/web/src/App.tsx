@@ -1,6 +1,7 @@
 import { Navigate, Route, BrowserRouter as Router, Routes } from "react-router-dom";
 
 import { LandingPage } from "./routes/Landing";
+import { PrivacyPage } from "./routes/Privacy";
 import { ProgressPage } from "./routes/Progress";
 import { ReportPage } from "./routes/Report";
 import { UploadPage } from "./routes/Upload";
@@ -15,6 +16,8 @@ export default function App() {
         */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/check" element={<UploadPage />} />
+        {/* 남의 회로도를 받는 도구다. 무엇을 저장하는지 말하지 않으면 아무도 안 올린다 */}
+        <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/c/:id" element={<ProgressPage />} />
         <Route path="/r/:id" element={<ReportPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

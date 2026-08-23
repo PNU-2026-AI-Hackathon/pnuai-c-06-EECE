@@ -8,6 +8,23 @@
       name="description"
       content="이미 짜놓은 펌웨어가 바뀐 회로도를 따라가고 있는지 보드 발주 전에 검사합니다."
     />
+    <!--
+      공유했을 때 미리보기가 나오게 한다. 카카오톡·슬랙에 링크를 붙이는 일이
+      실제로 생기는데, 없으면 주소만 덩그러니 뜬다.
+      절대 주소를 쓰는 이유는 OG 가 상대 주소를 안 받기 때문이다.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Prefab" />
+    <meta property="og:title" content="Prefab — 보드 발주 전에 코드와 회로도가 어긋난 곳을 찾습니다" />
+    <meta
+      property="og:description"
+      content="컴파일도 되고 업로드도 되는데 보드가 안 도는 버그가 있습니다. 문제가 코드와 회로도 사이에 있어서 어느 쪽 검사에도 안 걸리기 때문입니다."
+    />
+    <meta property="og:url" content="https://prefab-web.onrender.com/" />
+    <meta property="og:locale" content="ko_KR" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="theme-color" content="#F7F8FA" />
+
     <!-- 본문: Pretendard(가변) · 데이터: JetBrains Mono -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <link

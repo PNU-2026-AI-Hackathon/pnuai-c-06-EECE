@@ -304,6 +304,16 @@ export function UploadPage() {
           {busy ? "시작하는 중" : "검사 실행"}
         </button>
         {/*
+          **파일을 올리는 자리에서 말한다.** 정책 페이지에만 두면 아무도 안 본다 —
+          그리고 이 도구가 받는 것은 남의 회로도와 펌웨어, 곧 지적재산이다.
+        */}
+        <Link
+          to="/privacy"
+          className="inline-flex min-h-[44px] items-center rounded-block px-3 text-[13px] text-mute underline hover:text-sub"
+        >
+          올린 파일은 저장하지 않습니다
+        </Link>
+        {/*
           예시 보기는 **히어로로 올라갔다.** 파일이 없는 사람이 대부분이라 그 사람의
           유일한 길이 폼 아래 고스트 버튼일 이유가 없다. 여기서 또 내보내면
           같은 화면에 주 행동이 둘이 된다.

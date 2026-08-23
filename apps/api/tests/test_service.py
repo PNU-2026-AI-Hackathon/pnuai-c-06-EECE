@@ -185,3 +185,25 @@ def test_error_payload_shape_matches_the_contract():
     payload = service.netlist_required().to_dict()
     assert set(payload) == {"error"}
     assert set(payload["error"]) == {"code", "message"}
+
+
+def test_검사_ID_는_추측할_수_없어야_한다():
+    """**이 값이 접근 통제의 전부다.**
+
+    `GET /api/v1/checks/{id}` 에는 인증이 없고, 결과에는 사용자의 실제 소스 코드
+    줄과 회로도 전체가 들어 있다. ID 를 못 맞히는 것이 유일한 방어선이다.
+
+    3바이트(16진수 6자리)로 뒀었다 — 1,670만 조합이라 **초당 100회면 47시간에
+    전수 조사가 끝난다.**
+    """
+    from web.service import CHECK_ID_BYTES, new_check_id
+
+    assert CHECK_ID_BYTES >= 16, "16바이트 미만은 훑어서 뚫린다"
+
+    ids = {new_check_id() for _ in range(200)}
+    assert len(ids) == 200, "같은 ID 가 두 번 나왔다"
+    for i in ids:
+        assert i.startswith("chk_")
+        body = i[len("chk_"):]
+        assert len(body) == CHECK_ID_BYTES * 2
+        assert all(c in "0123456789abcdef" for c in body)
