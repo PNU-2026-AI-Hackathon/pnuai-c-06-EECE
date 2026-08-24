@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 
 import { Header } from "../components/Layout";
+import { ReportPreview } from "../components/ReportPreview";
 
 /**
  * 홍보 화면 — **검사 앱보다 앞에 선다.**
@@ -87,14 +88,14 @@ function Hero() {
           있어서 어느 쪽 검사에도 안 걸리기 때문입니다.
         </p>
         <div className="flex flex-wrap items-center gap-3">
-          <Link to="/r/chk_sample01" className="btn-primary">
-            예시 검사 결과 보기
+          <Link to="/signup" className="btn-primary">
+            무료로 시작하기
           </Link>
           <Link
-            to="/check"
+            to="/login"
             className="inline-flex min-h-[44px] items-center rounded-block px-3 text-[15px] font-bold text-sub hover:text-ink"
           >
-            내 파일로 검사하기
+            로그인
           </Link>
         </div>
         {/*
@@ -105,10 +106,18 @@ function Hero() {
         <p className="mt-4 text-[13px] leading-relaxed text-mute">
           ESP32 · Raspberry Pi Pico 계열 보드를 만드는 분들을 위한 도구입니다.
           <br />
-          가입도 설치도 없습니다 — 회로도 도구에서 내보낸{" "}
+          설치는 없습니다 — 회로도 도구에서 내보낸{" "}
           <strong className="font-semibold text-sub">넷리스트 파일</strong> 하나면 시작합니다
           (KiCad · Altium · EasyEDA · Flux).
         </p>
+
+        {/* **무엇을 받는지 먼저 보여준다.** 로그인 벽이 생긴 만큼 더 필요해졌다 */}
+        <div className="mt-10 max-w-2xl">
+          <ReportPreview />
+          <p className="mt-3 text-[13px] text-mute">
+            실제 보드를 검사한 결과입니다. 판정마다 회로도 · 코드 · 부품 근거가 붙습니다.
+          </p>
+        </div>
       </div>
     </Section>
   );
@@ -294,11 +303,14 @@ function VsLlm() {
       <div className="max-w-3xl">
         <Eyebrow>그냥 LLM에 물어보면 안 되나요</Eyebrow>
         <h2 className="mb-5 text-[24px] font-extrabold leading-snug md:text-[32px]">
-          재봤습니다. 같은 보드 28개를 Claude Sonnet 5와 나란히 돌렸습니다.
+          같은 보드 28개를 Claude Sonnet 5와 나란히 돌렸습니다.
         </h2>
         <p className="mb-9 text-[16px] leading-relaxed text-sub">
-          한 번도 검사에 써본 적 없는 공개 회로도 28개입니다. 양쪽에 같은 파일,
-          같은 규칙 목록을 줬습니다.
+          한 번도 검사에 써본 적 없는 공개 회로도 28개에 양쪽 다 같은 파일을 넣었습니다.
+          <strong className="font-bold text-ink">
+            {" "}큰 보드는 LLM 이 여섯 개를 통째로 건너뛰었고, 낸 경고 넷 중 하나는
+            근거를 못 댔습니다.
+          </strong>
         </p>
 
         <div className="grid gap-8 sm:grid-cols-2">
@@ -363,11 +375,7 @@ function VsLlm() {
 
         <p className="mt-5 text-[13px] leading-relaxed text-mute">
           측정 조건 — 공개 저장소 28곳, 2026년 8월. 회로도와 펌웨어를 양쪽에 똑같이
-          넣었습니다. 막대는 양쪽이 다 읽은 22개 보드 기준입니다.{" "}
-          <strong className="font-semibold text-sub">
-            정답표가 없는 실제 보드라 “누가 더 많이 맞혔나”는 재지 못했습니다
-          </strong>{" "}
-          — 위 두 가지는 셀 수 있는 것만 적은 것입니다.{" "}
+          넣었고, 막대는 양쪽이 다 읽은 22개 보드 기준입니다. 셀 수 있는 것만 적었습니다.{" "}
           <a
             href="https://github.com/PNU-2026-AI-Hackathon/pnuai-c-06-EECE/blob/main/apps/api/scripts/llm_baseline.py"
             className="font-semibold text-brand-strong hover:underline"
@@ -457,11 +465,10 @@ function Closing() {
     <Section tone="raised">
       <div className="max-w-3xl">
         <h2 className="mb-4 text-[26px] font-extrabold leading-snug md:text-[34px]">
-          먼저 결과부터 보세요.
+          지금 검사해 보세요.
         </h2>
         <p className="mb-7 text-[16px] leading-relaxed text-sub">
-          실제 보드를 검사한 결과가 그대로 열려 있습니다. 파일을 올리지 않아도
-          됩니다.{" "}
+          넷리스트 파일 하나면 시작합니다. 이메일만 있으면 계정이 만들어집니다.{" "}
           <Link
             to="/pricing"
             className="font-bold text-brand-strong hover:underline"
@@ -471,14 +478,14 @@ function Closing() {
           — 원가가 그렇게 생겼기 때문이고, 그 원가를 그대로 적어 뒀습니다.
         </p>
         <div className="flex flex-wrap items-center gap-3">
-          <Link to="/r/chk_sample01" className="btn-primary">
-            예시 검사 결과 보기
+          <Link to="/signup" className="btn-primary">
+            무료로 시작하기
           </Link>
           <Link
-            to="/check"
+            to="/login"
             className="inline-flex min-h-[44px] items-center rounded-block px-3 text-[15px] font-bold text-sub hover:text-ink"
           >
-            내 파일로 검사하기
+            로그인
           </Link>
         </div>
       </div>

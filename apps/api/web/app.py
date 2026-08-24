@@ -417,6 +417,21 @@ async def create_check(
     firmware: UploadFile | None = File(default=None),
     previous_netlist: UploadFile | None = File(default=None),
 ) -> dict:
+    # **검사는 로그인해야 만들 수 있다** (8/24 팀장 결정 · CLAUDE.md 4절).
+    #
+    # 결과를 *보는* 것은 안 막는다 — 주소를 아는 사람은 그대로 열린다.
+    # 그 선을 지켜야 요금표가 파는 「결과 링크 공유」가 참이 된다.
+    #
+    # **파일을 받기 전에 막는다.** 핸들러 안쪽에서 검사하면 멀티파트 파서가
+    # 이미 파일을 다 메모리에 올린 뒤라, 막으려던 비용을 그대로 치른다.
+    user = _current_user(request)
+    if user is None:
+        raise ApiError(
+            "LOGIN_REQUIRED",
+            "검사를 실행하려면 로그인이 필요합니다. 계정은 이메일 하나면 만들 수 있습니다.",
+            401,
+        )
+
     if netlist is None or not netlist.filename:
         raise service.netlist_required()
 
@@ -453,8 +468,7 @@ async def create_check(
     )
     # 로그인했으면 주인을 붙이고, 아니면 안 붙인다. **로그인을 요구하지 않는다** —
     # 로그아웃 상태에서도 검사가 되어야 한다 (헌법 4절 단서 1).
-    user = _current_user(request)
-    store.save(result, owner_id=user.id if user else None)
+    store.save(result, owner_id=user.id)
 
     # 검사는 밀리초 단위로 끝난다. 만들자마자 done 이다.
     return {
@@ -467,20 +481,23 @@ async def create_check(
 
 @app.get("/api/v1/checks/{check_id}")
 async def get_check(check_id: str, request: Request) -> dict:
-    """결과 조회.
+    """결과 조회 — **주소를 아는 사람은 연다.** 로그인은 필요 없다.
 
-    주인이 **없는** 검사는 예전 그대로 누구나 연다 — 주소를 아는 사람만
-    알 수 있고, 그 링크로 공유하라고 만든 것이다.
+    검사를 *만드는* 것은 로그인해야 하지만(8/24 결정), 결과를 *보는* 것은 안 막는다.
+    그 선이 로그인 벽의 범위다 — 링크를 받은 사람까지 가입시키면
+    요금표가 파는 「결과 링크 공유」가 거짓말이 되고, "링크 하나로 근거까지 보인다"는
+    최대 강점이 사라진다.
 
-    주인이 **있는** 검사는 주인만 연다. 남이 부르면 **403 이 아니라 404** 다.
-    403 은 "그 ID 는 존재한다"는 것을 알려 주기 때문에, 그것만으로도 ID 를
-    훑어 어떤 검사가 있는지 목록을 만들 수 있다.
+    **한동안 주인 있는 검사를 주인만 열게 해 뒀다.** 그때는 로그아웃 검사가
+    가능해서 "공유용"과 "내 것"이 자연히 갈렸는데, 로그인 벽이 생기면서 모든 검사에
+    주인이 붙었다. 그 규칙을 그대로 두면 **아무도 공유를 못 한다.**
+
+    비공개 링크는 요금표의 **Pro 항목**이다. 지금은 만들지 않았으므로
+    "없는 것을 있는 척" 하지 않는다 — 무료에서는 주소가 곧 접근 권한이고,
+    그 사실을 `/privacy` 가 그대로 적는다 (헌법 2-2 · 2-4).
+
+    접근 통제는 **ID 를 못 맞히는 것**이 전부다. 그래서 16바이트(32자리)를 쓴다.
     """
-    owner = store.owner_of(check_id)
-    if owner is not None:
-        user = _current_user(request)
-        if user is None or user.id != owner:
-            raise service.check_not_found(check_id)
     return store.get(check_id)
 
 

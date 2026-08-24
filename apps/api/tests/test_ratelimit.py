@@ -179,12 +179,17 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+from conftest import sign_in  # noqa: E402
+
 LOCAL_ORIGIN = "http://localhost:5173"
 
 
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("PREFAB_DB", str(tmp_path / "rl.db"))
+    # **쿠키가 `Secure` 면 TestClient(http)가 버린다.** 그러면 로그인이 조용히
+    # 안 되고, 검사가 401 로 막힌다 — 로그인 벽이 생기면서 실제로 그랬다.
+    monkeypatch.setenv("COOKIE_SECURE", "0")
     monkeypatch.setenv("ALLOWED_ORIGINS", LOCAL_ORIGIN)
     monkeypatch.setenv("RATE_LIMIT_PER_MINUTE", "3")
     monkeypatch.setenv("RATE_LIMIT_PER_HOUR", "100")
@@ -204,10 +209,10 @@ def _post(client, ip="203.0.113.7", **extra):
     )
 
 
-def test_한도를_넘으면_429_와_retry_after_를_준다(client):
+def test_한도를_넘으면_429_와_retry_after_를_준다(signed_in):
     for _ in range(3):
-        assert _post(client).status_code == 201
-    r = _post(client)
+        assert _post(signed_in).status_code == 201
+    r = _post(signed_in)
     assert r.status_code == 429
     assert r.json()["error"]["code"] == "RATE_LIMITED"
     assert int(r.headers["Retry-After"]) >= 1
@@ -232,10 +237,10 @@ def test_429_에도_CORS_헤더가_붙는다(client):
     assert r.headers["access-control-allow-origin"] == LOCAL_ORIGIN
 
 
-def test_다른_주소는_한도를_나눠_쓰지_않는다(client):
+def test_다른_주소는_한도를_나눠_쓰지_않는다(signed_in):
     for _ in range(4):
-        _post(client, ip="203.0.113.7")
-    assert _post(client, ip="198.51.100.2").status_code == 201
+        _post(signed_in, ip="203.0.113.7")
+    assert _post(signed_in, ip="198.51.100.2").status_code == 201
 
 
 def test_통과한_응답은_남은_횟수를_알려준다(client):
@@ -243,11 +248,11 @@ def test_통과한_응답은_남은_횟수를_알려준다(client):
     assert int(r.headers["X-RateLimit-Remaining"]) == 2
 
 
-def test_결과_조회는_제한하지_않는다(client):
+def test_결과_조회는_제한하지_않는다(signed_in):
     """공유된 링크를 여는 것까지 막으면 안 된다 — 그건 비싼 일이 아니다."""
-    check_id = _post(client).json()["check_id"]
+    check_id = _post(signed_in).json()["check_id"]
     for _ in range(30):
-        assert client.get(f"/api/v1/checks/{check_id}").status_code == 200
+        assert signed_in.get(f"/api/v1/checks/{check_id}").status_code == 200
 
 
 def test_본문이_상한을_넘으면_읽기_전에_끊는다(client):
@@ -288,6 +293,7 @@ def test_업로드는_디스크로_넘어가지_않는다(client):
 def test_한도를_끌_수_있다(tmp_path, monkeypatch):
     """시연 중에 한도가 걸리는 것만큼 나쁜 사고가 없다."""
     monkeypatch.setenv("PREFAB_DB", str(tmp_path / "off.db"))
+    monkeypatch.setenv("COOKIE_SECURE", "0")
     monkeypatch.setenv("RATE_LIMIT_PER_MINUTE", "1")
     monkeypatch.setenv("RATE_LIMIT_ENABLED", "0")
     import importlib
@@ -296,5 +302,6 @@ def test_한도를_끌_수_있다(tmp_path, monkeypatch):
 
     importlib.reload(app_module)
     c = TestClient(app_module.app)
+    sign_in(c)  # 검사를 만들려면 로그인해야 한다 (8/24)
     for _ in range(5):
         assert _post(c).status_code == 201

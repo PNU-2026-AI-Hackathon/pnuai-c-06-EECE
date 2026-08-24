@@ -21,6 +21,9 @@ LOCAL_ORIGIN = "http://localhost:5173"
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("PREFAB_DB", str(tmp_path / "test.db"))
+    # **쿠키가 `Secure` 면 TestClient(http)가 버린다.** 그러면 로그인이 조용히
+    # 안 되고, 검사가 401 로 막힌다 — 로그인 벽이 생기면서 실제로 그랬다.
+    monkeypatch.setenv("COOKIE_SECURE", "0")
     monkeypatch.setenv("ALLOWED_ORIGINS", LOCAL_ORIGIN)
     import importlib
 
@@ -51,8 +54,8 @@ def test_rules_exposes_every_rule_with_its_state(client):
     assert r12["needs"] == ["netlist"]
 
 
-def test_create_then_fetch(client):
-    res = client.post(
+def test_create_then_fetch(signed_in):
+    res = signed_in.post(
         "/api/v1/checks",
         files={"netlist": (FIXTURE.name, FIXTURE.read_bytes(), "text/plain")},
     )
@@ -60,15 +63,15 @@ def test_create_then_fetch(client):
     body = res.json()
     assert body["status"] == "done"
 
-    got = client.get(f"/api/v1/checks/{body['check_id']}")
+    got = signed_in.get(f"/api/v1/checks/{body['check_id']}")
     assert got.status_code == 200
     result = got.json()
     assert len(result["findings"]) == 2
     assert [f["rule"] for f in result["findings"]] == ["R12", "R12"]
 
 
-def test_missing_netlist_returns_contract_error(client):
-    res = client.post("/api/v1/checks", files={})
+def test_missing_netlist_returns_contract_error(signed_in):
+    res = signed_in.post("/api/v1/checks", files={})
     assert res.status_code == 422
     assert res.json()["error"]["code"] == "NETLIST_REQUIRED"
 
@@ -106,12 +109,12 @@ def test_cors_header_on_actual_post(client):
 XML_FIXTURE = Path(__file__).parent / "fixtures" / "schematic-gpio-named.net.xml"
 
 
-def test_회로도_넷리스트도_업로드된다(client):
+def test_회로도_넷리스트도_업로드된다(signed_in):
     """계약 확장 — `netlist` 슬롯이 kicadxml 도 받는다.
 
     형식은 확장자가 아니라 **내용으로** 가른다. 사용자는 파일 이름을 바꾼다.
     """
-    res = client.post(
+    res = signed_in.post(
         "/api/v1/checks",
         files={"netlist": (XML_FIXTURE.name, XML_FIXTURE.read_bytes(), "text/xml")},
     )
@@ -119,26 +122,26 @@ def test_회로도_넷리스트도_업로드된다(client):
     body = res.json()
     assert body["status"] == "done"
 
-    result = client.get(f"/api/v1/checks/{body['check_id']}").json()
+    result = signed_in.get(f"/api/v1/checks/{body['check_id']}").json()
     assert result["inputs"]["netlist"]["nets"] > 0
     # 회로도 넷리스트라는 것을 파이프라인이 그대로 말한다 (헌법 2-4)
     parse_step = result["pipeline"][0]
     assert "좌표 없음" in parse_step["detail"]
 
 
-def test_확장자가_txt_여도_내용으로_가른다(client):
+def test_확장자가_txt_여도_내용으로_가른다(signed_in):
     """계약이 `.txt` 를 허용한다. 그 안에 무엇이 들었는지는 내용만 안다."""
-    res = client.post(
+    res = signed_in.post(
         "/api/v1/checks",
         files={"netlist": ("board.txt", XML_FIXTURE.read_bytes(), "text/plain")},
     )
     assert res.status_code == 201
-    result = client.get(f"/api/v1/checks/{res.json()['check_id']}").json()
+    result = signed_in.get(f"/api/v1/checks/{res.json()['check_id']}").json()
     assert "좌표 없음" in result["pipeline"][0]["detail"]
 
 
-def test_받지_않는_확장자는_그대로_거절한다(client):
-    res = client.post(
+def test_받지_않는_확장자는_그대로_거절한다(signed_in):
+    res = signed_in.post(
         "/api/v1/checks",
         files={"netlist": ("board.kicad_sch", b"(kicad_sch)", "text/plain")},
     )
@@ -179,6 +182,7 @@ def test_사실_폴더가_없어도_서버는_뜬다(tmp_path, monkeypatch):
 def deployed_client(tmp_path, monkeypatch):
     """배포 상태를 그대로 흉내낸다 — 환경변수에 배포 주소만 들어 있다."""
     monkeypatch.setenv("PREFAB_DB", str(tmp_path / "deployed.db"))
+    monkeypatch.setenv("COOKIE_SECURE", "0")
     monkeypatch.setenv("ALLOWED_ORIGINS", "https://prefab-web.onrender.com")
     import importlib
 
@@ -216,6 +220,7 @@ def test_배포_주소가_허용된다(deployed_client):
 def test_환경변수가_없어도_개발_포트는_열려_있다(tmp_path, monkeypatch):
     """아무것도 안 넣은 상태가 곧 로컬 개발 상태다."""
     monkeypatch.setenv("PREFAB_DB", str(tmp_path / "bare.db"))
+    monkeypatch.setenv("COOKIE_SECURE", "0")
     monkeypatch.delenv("ALLOWED_ORIGINS", raising=False)
     import importlib
 
@@ -270,33 +275,33 @@ def _engine_step(result) -> str:
     return next(p["detail"] for p in result["pipeline"] if "규칙" in p["name"])
 
 
-def test_이전_회로도를_주면_드리프트가_잡힌다(client):
-    r = _upload(client, previous=FIXTURE.read_bytes())
+def test_이전_회로도를_주면_드리프트가_잡힌다(signed_in):
+    r = _upload(signed_in, previous=FIXTURE.read_bytes())
     r10 = [f for f in r["findings"] if f["rule"] == "R10"]
     assert r10, [f["rule"] for f in r["findings"]]
     # 어디서 어디로 옮겼는지 문구에 그대로 있어야 사용자가 고칠 자리를 안다
     assert "D2" in r10[0]["claim"] and "D4" in r10[0]["claim"], r10[0]["claim"]
 
 
-def test_이전_회로도가_없으면_R10_이_조용하다(client):
-    r = _upload(client)
+def test_이전_회로도가_없으면_R10_이_조용하다(signed_in):
+    r = _upload(signed_in)
     assert not [f for f in r["findings"] if f["rule"] == "R10"]
 
 
-def test_이전_회로도가_없으면_리포트가_그_사실을_말한다(client):
+def test_이전_회로도가_없으면_리포트가_그_사실을_말한다(signed_in):
     """**"12개 중 12개 실행" 만 적으면 R10 이 볼 것도 없이 돈 것을 숨기는 것이다.**"""
-    r = _upload(client)
+    r = _upload(signed_in)
     assert "이전 회로도가 없어" in _engine_step(r), _engine_step(r)
 
 
-def test_이전_회로도를_주면_그_문구가_사라진다(client):
-    r = _upload(client, previous=FIXTURE.read_bytes())
+def test_이전_회로도를_주면_그_문구가_사라진다(signed_in):
+    r = _upload(signed_in, previous=FIXTURE.read_bytes())
     assert "이전 회로도가 없어" not in _engine_step(r)
 
 
-def test_깨진_이전_회로도는_조용히_버리지_않는다(client):
+def test_깨진_이전_회로도는_조용히_버리지_않는다(signed_in):
     """조용히 버리면 사용자가 "드리프트 없음" 으로 읽는다. 실제로는 비교를 안 한 것이다."""
-    res = client.post(
+    res = signed_in.post(
         "/api/v1/checks",
         files={
             "netlist": ("now.d356", MOVED.read_bytes(), "text/plain"),
@@ -310,9 +315,9 @@ def test_깨진_이전_회로도는_조용히_버리지_않는다(client):
     assert "before.xml" in body["message"], body["message"]
 
 
-def test_이전_회로도_없이도_검사는_그대로_된다(client):
+def test_이전_회로도_없이도_검사는_그대로_된다(signed_in):
     """선택 입력이다. 안 줬다고 실패하면 안 된다."""
-    r = _upload(client)
+    r = _upload(signed_in)
     assert r["status"] == "done"
     assert r["summary"]["rules_run"] > 0
 
