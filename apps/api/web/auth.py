@@ -160,8 +160,11 @@ def validate_credentials(email: str, password: str) -> None:
     if len(password) < MIN_PASSWORD_LENGTH:
         raise AuthError(
             "WEAK_PASSWORD",
-            f"비밀번호는 {MIN_PASSWORD_LENGTH}자 이상이어야 합니다. "
-            "길수록 강합니다 — 기억하기 쉬운 문장을 쓰셔도 됩니다.",
+            # **오류 문구에 조언을 붙이지 않는다.** "길수록 강합니다 — 기억하기 쉬운
+            # 문장을 쓰셔도 됩니다" 가 붙어 있었는데, 그건 규칙이 아니라 우리 의견이고
+            # 지금 뭘 해야 하는지를 안 알려준다. 화면 쪽 안내는 이미 고쳤는데
+            # **서버 문구를 같이 안 고쳐서** 여기만 남아 있었다.
+            f"비밀번호는 {MIN_PASSWORD_LENGTH}자 이상이어야 합니다.",
             422,
         )
     if len(password) > MAX_PASSWORD_LENGTH:
