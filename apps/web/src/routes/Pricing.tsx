@@ -163,12 +163,12 @@ export function PricingPage() {
 
         <div className="rounded-card border border-warn/25 bg-warn-weak p-6">
           <p className="mb-2 text-[15px] font-extrabold text-ink">
-            아직 결제 기능이 없습니다.
+            가격은 확정입니다. 결제만 아직 열지 않았습니다.
           </p>
           <p className="text-[14px] leading-relaxed text-sub">
-            "준비 중"이라고 적은 것은 아직 만들지 않았다는 뜻입니다. 되는 것처럼 보이는 결제 화면을
-            먼저 만들지 않았습니다. 지금 쓰실 수 있는 것은 무료 항목 전부이고, 그건 로그인 없이 바로
-            됩니다.
+            되는 것처럼 보이는 결제 화면을 먼저 만들지 않았습니다. 준비되면 위에서 알림을
+            신청하신 분께 먼저 알려드립니다. 계정은 지금도 만드실 수 있고, 없어도 검사는
+            그대로 됩니다.
           </p>
         </div>
 
