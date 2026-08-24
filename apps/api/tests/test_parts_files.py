@@ -147,11 +147,18 @@ def test_K1_은_해제됐다가_되돌아왔다(tmp_path):
     # 양쪽 데이터시트 값으로 말한다 — 추정이 아니다
     assert "5V" in f.claim and "3.6V" in f.claim, f.claim
 
-    cite = next(e for e in f.evidence if e.kind == "datasheet")
-    assert cite.quote
+    # **되돌린 근거가 실측이라는 것이 화면에 남아야 한다.**
+    #
+    # 한동안 이걸 `suggestion` 문자열에서 봤는데, 처방이 길어져서 정작 "레벨 시프터를
+    # 넣으세요" 가 묻히는 바람에 출처를 처방에서 뺐다. 출처가 사라진 게 아니라
+    # **근거 레인으로 옮겨간 것**이고, 사용자가 보는 자리는 오히려 거기다.
+    # 그래서 검사도 그 자리를 본다 — 문구가 아니라 근거를 지킨다.
+    cites = [e for e in f.evidence if e.kind == "datasheet"]
+    assert cites, "부품 근거가 하나도 안 붙었다"
+    assert all(e.quote for e in cites), "인용 없는 근거가 있다"
 
-    # 되돌린 근거가 실측이라는 것이 화면에 남아야 한다
-    assert "실측" in f.suggestion, f.suggestion
+    provenance = " ".join(e.table or "" for e in cites)
+    assert "실측" in provenance, provenance
 
 
 def test_저항_측정_자체는_그대로_살아_있다(tmp_path):

@@ -23,10 +23,48 @@ import type { CheckResult } from "../types/api";
  */
 export function ReportActions({ check }: { check: CheckResult }) {
   return (
-    <div className="mb-8 flex flex-wrap items-center gap-2">
+    <div className="no-print mb-8 flex flex-wrap items-center gap-2">
       <CopyLink />
       <DownloadJson check={check} />
+      <PrintReport />
     </div>
+  );
+}
+
+/**
+ * 인쇄 — **PDF 로 내보내는 유일한 길.**
+ *
+ * 결과 링크를 못 여는 자리가 실제로 있다. 사내망, 발주처에 첨부하는 메일,
+ * 나중에 다시 열어볼 보관본. 그때 JSON 은 사람이 읽는 물건이 아니다.
+ *
+ * 별도 화면을 만들지 않는다 — **리포트 자체가 이미 보고서**다. 인쇄 스타일이
+ * 화면 장식만 걷어내고, 브라우저의 「PDF 로 저장」이 곧 내보내기가 된다.
+ *
+ * ## 접힌 것을 먼저 펼친다
+ *
+ * 「해제된 항목」과 「코드가 거른 후보」는 `<details>` 로 접혀 있다.
+ * **종이에서는 못 펼친다.** CSS 로 여는 방법은 브라우저마다 다르게 동작해서,
+ * 인쇄를 부르기 전에 **DOM 에서 직접 연다.** 그리고 인쇄가 끝나면 되돌린다 —
+ * 사용자가 접어 둔 것을 우리가 마음대로 펴 놓고 두지 않는다.
+ */
+function PrintReport() {
+  const print = () => {
+    const closed = [...document.querySelectorAll<HTMLDetailsElement>("details:not([open])")];
+    closed.forEach((d) => (d.open = true));
+
+    // `onafterprint` 가 안 오는 브라우저가 있어서 타이머로도 되돌린다.
+    // 두 번 실행돼도 문제 없다 — 같은 상태로 되돌릴 뿐이다.
+    const restore = () => closed.forEach((d) => (d.open = false));
+    window.addEventListener("afterprint", restore, { once: true });
+    window.setTimeout(restore, 1000);
+
+    window.print();
+  };
+
+  return (
+    <button type="button" onClick={print} className="btn-ghost min-h-[44px]">
+      인쇄 · PDF
+    </button>
   );
 }
 
@@ -132,7 +170,7 @@ function DownloadJson({ check }: { check: CheckResult }) {
  */
 export function ReportNext({ isSample }: { isSample: boolean }) {
   return (
-    <div className="mt-10 rounded-card border border-line bg-surface px-5 py-6 sm:px-6">
+    <div className="no-print mt-10 rounded-card border border-line bg-surface px-5 py-6 sm:px-6">
       <p className="mb-1 text-[17px] font-extrabold">
         {isSample ? "이제 내 보드로 해보세요" : "회로도를 고치셨나요?"}
       </p>
