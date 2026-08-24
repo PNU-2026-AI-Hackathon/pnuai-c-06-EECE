@@ -209,7 +209,7 @@ export function UploadPage() {
           검사할 파일을 올려 주세요
         </h1>
         <p className="text-[15px] leading-relaxed text-sub">
-          넷리스트만 있어도 시작합니다. 부품 목록과 펌웨어가 함께 있으면 더 많이 봅니다.{" "}
+          넷리스트만 있어도 시작합니다. 부품 목록과 펌웨어가 함께 있으면 더 많이 봅니다. 파일 하나에 10MB까지.{" "}
           <Link to={`/r/${sampleCheck.check_id}`} className="font-bold text-brand-strong underline">
             먼저 예시 결과를 보시겠어요?
           </Link>
@@ -230,7 +230,7 @@ export function UploadPage() {
           accept=".csv"
           file={bom}
           onPick={setBom}
-          missingNote="없으면 부품을 식별할 수 없어 데이터시트 판정이 전부 보류됩니다."
+          missingNote="없으면 부품을 알아볼 수 없어, 데이터시트로 확인하는 판정이 「확인 필요」로 남습니다."
           impact={impactOf(rules, "bom")}
         />
         <Slot

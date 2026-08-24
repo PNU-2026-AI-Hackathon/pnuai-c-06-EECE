@@ -92,7 +92,7 @@ export function PricingPage() {
                   입니다. 부품 <strong className="font-bold text-ink">{usage.parts}개</strong>는 검사와
                   무관하게 미리 한 번씩 읽어 뒀고, 모든 검사가 그 사실을 그대로 씁니다.{" "}
                   <span className="text-mute">
-                    검사가 100만 건이어도 이 숫자는 0입니다 — 비율이 아니라 구조입니다.
+                    검사가 늘어도 이 숫자는 0입니다. 비용은 검사 횟수가 아니라 처음 보는 부품에서만 늡니다.
                   </span>
                 </p>
                 <p className="mt-3 text-[13px] leading-relaxed text-mute">
@@ -127,7 +127,7 @@ export function PricingPage() {
               "검사 무제한",
               "공개 부품 사실 DB 전부",
               "판정마다 근거와 출처",
-              "결과 링크 공유",
+              "결과 링크 공유와 JSON 내려받기",
             ]}
             limit="같은 주소에서 분당 20회 · 시간당 200회까지 올릴 수 있습니다."
             highlight
@@ -158,7 +158,7 @@ export function PricingPage() {
 
         <div className="rounded-card border border-warn/25 bg-warn-weak p-6">
           <p className="mb-2 text-[15px] font-extrabold text-ink">
-            아직 결제 기능이 없습니다. 회원가입도 없습니다.
+            아직 결제 기능이 없습니다.
           </p>
           <p className="text-[14px] leading-relaxed text-sub">
             "준비 중"이라고 적은 것은 아직 만들지 않았다는 뜻입니다. 되는 것처럼 보이는 결제 화면을

@@ -97,8 +97,17 @@ function Hero() {
             내 파일로 검사하기
           </Link>
         </div>
-        <p className="mt-4 text-[13px] text-mute">
-          가입도 설치도 없습니다. 넷리스트 파일 하나면 시작합니다.
+        {/*
+          **누구를 위한 것인지 한 번도 말하지 않고 있었다.** 그리고 「넷리스트」가
+          설명 없이 등장한다 — KiCad 사용자는 알지만 다른 도구를 쓰는 사람은
+          자기 파일 중 무엇을 올려야 하는지 모른다. 여기서 둘 다 해결한다.
+        */}
+        <p className="mt-4 text-[13px] leading-relaxed text-mute">
+          ESP32 · Raspberry Pi Pico 계열 보드를 만드는 분들을 위한 도구입니다.
+          <br />
+          가입도 설치도 없습니다 — 회로도 도구에서 내보낸{" "}
+          <strong className="font-semibold text-sub">넷리스트 파일</strong> 하나면 시작합니다
+          (KiCad · Altium · EasyEDA · Flux).
         </p>
       </div>
     </Section>
@@ -477,11 +486,34 @@ function Closing() {
   );
 }
 
+/**
+ * 푸터 — **정식 서비스의 얼굴이다.**
+ *
+ * 대회·학교·팀원 이름을 여기 두지 않는다. 처음 온 사람에게 그 정보는
+ * "이건 과제물이구나" 라는 신호이고, 돈을 낼 이유를 스스로 지운다.
+ *
+ * ## 유료로 전환하기 전에 반드시 채워야 하는 것
+ *
+ * 전자상거래법상 **유료 판매를 시작하는 순간** 아래가 푸터에 있어야 한다.
+ * 지금은 사업자 등록 전이라 **비워 두었다. 지어내지 않는다** (헌법 2-2).
+ *
+ *   상호 · 대표자명 · 사업자등록번호 · 통신판매업 신고번호
+ *   사업장 주소 · 고객문의 전화 · 이메일
+ *   이용약관 · 개인정보처리방침(별도 문서) · 환불 정책
+ *
+ * 등록이 끝나면 `BUSINESS` 를 채우고 아래 주석을 지운다.
+ * **채우기 전에는 결제 화면을 열지 않는다.**
+ */
+//: 지금 실제로 사람이 읽는 문의 창구. 유료 전환 시 지원 메일로 교체한다.
+const SUPPORT_URL =
+  "https://github.com/PNU-2026-AI-Hackathon/pnuai-c-06-EECE/issues/new";
+
 function Footer() {
+  const year = new Date().getFullYear();
   return (
     <footer className="border-t border-line">
       <div className="mx-auto max-w-5xl px-5 py-10 text-[13px] text-mute">
-        <div className="mb-4 flex flex-wrap items-center gap-x-5">
+        <div className="mb-5 flex flex-wrap items-center gap-x-5">
           <Link
             to="/pricing"
             className="inline-flex min-h-[44px] items-center font-semibold hover:text-ink"
@@ -494,23 +526,26 @@ function Footer() {
           >
             데이터 처리 안내
           </Link>
-          <a
-            href="https://github.com/PNU-2026-AI-Hackathon/pnuai-c-06-EECE"
+          <Link
+            to="/check"
             className="inline-flex min-h-[44px] items-center font-semibold hover:text-ink"
           >
-            소스 보기
-          </a>
+            검사하기
+          </Link>
+          {/* **실제로 닿는 창구만 건다.** 안 가는 메일 주소를 그럴듯하게 적는 것이
+              제일 나쁘다 — 유료 사용자가 환불을 요청할 때 그 주소로 보낸다.
+              도메인과 지원 메일이 준비되면 여기를 mailto 로 바꾼다. */}
           <a
-            href="https://github.com/PNU-2026-AI-Hackathon/pnuai-c-06-EECE/issues/new"
+            href={SUPPORT_URL}
+            target="_blank"
+            rel="noreferrer"
             className="inline-flex min-h-[44px] items-center font-semibold hover:text-ink"
           >
             문의하기
           </a>
         </div>
         <p className="leading-relaxed">
-          Prefab · 부산대학교 2026 AI 해커톤 창업트랙 C-06 전전컴
-          <br />
-          박강현 · 조우진 · 유동훈 · 한지양 · 권지효
+          © {year} Prefab · 발주 전에 회로도와 펌웨어를 대조합니다
         </p>
       </div>
     </footer>

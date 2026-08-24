@@ -55,9 +55,16 @@ function haveSource(kind: EvidenceKind, inputs?: CheckInputs): boolean {
   return inputs.bom !== null; // 데이터시트는 BOM의 부품번호로 찾는다
 }
 
+/**
+ * 레인 상태 라벨.
+ *
+ * **`none` 을 「근거 없음」이라고 적고 있었다.** 설명문은 "이 판정은 코드를 근거로
+ * 쓰지 않았습니다" 로 맞는데, 라벨만 읽으면 **이 판정 자체에 근거가 없다**로 읽힌다.
+ * 라벨과 설명이 반대 방향을 가리키면 사용자는 라벨을 믿는다.
+ */
 const STATE_LABEL: Record<SourceState, string> = {
   read: "읽음",
-  none: "근거 없음",
+  none: "해당 없음",
   unknown: "모름",
 };
 
@@ -123,7 +130,7 @@ function Lane({
 type Foot = "unresolved" | "cleared" | "next";
 
 const FOOTER_LABEL: Record<Foot, string> = {
-  unresolved: "판정 보류 사유",
+  unresolved: "확인이 필요한 이유",
   cleared: "해제 근거",
   next: "다음 단계",
 };

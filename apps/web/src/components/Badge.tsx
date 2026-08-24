@@ -38,7 +38,7 @@ export function TierBadge({ tier }: { tier: Tier }) {
 const VERDICT_LABEL: Record<Verdict, string> = {
   FAIL: "어긋남",
   PASS: "해제됨",
-  UNRESOLVED: "판정 보류",
+  UNRESOLVED: "확인 필요",
 };
 
 const VERDICT_STYLE: Record<Verdict, string> = {
@@ -47,7 +47,7 @@ const VERDICT_STYLE: Record<Verdict, string> = {
   UNRESOLVED: "bg-warn-weak text-warn",
 };
 
-/** 심각도와 별개로 "판정을 내렸는가"를 따로 말한다. 보류를 실패처럼 보이게 하지 않는다 */
+/** 심각도와 별개로 "판정을 내렸는가"를 따로 말한다. 확인 필요를 실패처럼 보이게 하지 않는다 */
 export function VerdictBadge({ verdict }: { verdict: Verdict }) {
   return <span className={`${CHIP} ${VERDICT_STYLE[verdict]}`}>{VERDICT_LABEL[verdict]}</span>;
 }
