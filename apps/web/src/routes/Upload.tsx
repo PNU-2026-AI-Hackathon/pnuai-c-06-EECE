@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { Page, SectionTitle } from "../components/Layout";
 import { SourceMark } from "../components/Mark";
-import { ApiFailure, createCheck, getRules, sampleCheck, usingMock } from "../lib/api";
+import { ApiFailure, createCheck, getRules, usingMock } from "../lib/api";
+import { useSession } from "../lib/session";
 import type { RuleInfo } from "../types/api";
 
 /**
@@ -159,6 +160,7 @@ export function UploadPage() {
    */
   const [previousNetlist, setPreviousNetlist] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { user, loading: sessionLoading } = useSession();
   const [busy, setBusy] = useState(false);
   /** 서버가 잠들어 있어 기다리는 중인가. 판정이 느린 것과 구분해서 말한다 */
   const [waking, setWaking] = useState(false);
@@ -220,6 +222,44 @@ export function UploadPage() {
     }
   }
 
+  // **검사는 로그인해야 만들 수 있다** (8/24 · CLAUDE.md 4절).
+  //
+  // 서버가 401 로 막지만, 파일을 다 고르고 나서 튕기면 그건 시간을 뺏은 것이다.
+  // 확인 중에는 아무것도 안 그린다 — "로그인하세요" 가 잠깐 떴다 사라지면 깜빡임이다.
+  if (sessionLoading) {
+    return (
+      <Page>
+        <p className="text-[15px] text-mute">확인하는 중입니다.</p>
+      </Page>
+    );
+  }
+
+  if (!user) {
+    return (
+      <Page>
+        <section className="mx-auto max-w-md py-10 text-center">
+          <h1 className="mb-3 text-[24px] font-extrabold leading-snug md:text-[30px]">
+            검사하려면 로그인이 필요합니다
+          </h1>
+          <p className="mb-7 text-[15px] leading-relaxed text-sub">
+            이메일 하나면 계정이 만들어집니다. 카드 등록은 필요 없습니다.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link to="/signup" className="btn-primary">
+              무료로 시작하기
+            </Link>
+            <Link
+              to="/login"
+              className="inline-flex min-h-[44px] items-center rounded-block px-3 text-[15px] font-bold text-sub hover:text-ink"
+            >
+              로그인
+            </Link>
+          </div>
+        </section>
+      </Page>
+    );
+  }
+
   return (
     <Page>
       {/*
@@ -233,10 +273,8 @@ export function UploadPage() {
           검사할 파일을 올려 주세요
         </h1>
         <p className="text-[15px] leading-relaxed text-sub">
-          넷리스트만 있어도 시작합니다. 부품 목록과 펌웨어가 함께 있으면 더 많이 봅니다. 파일 하나에 10MB까지.{" "}
-          <Link to={`/r/${sampleCheck.check_id}`} className="font-bold text-brand-strong underline">
-            먼저 예시 결과를 보시겠어요?
-          </Link>
+          넷리스트만 있어도 시작합니다. 부품 목록과 펌웨어가 함께 있으면 더 많이 봅니다.
+          파일 하나에 10MB까지.
         </p>
       </section>
 

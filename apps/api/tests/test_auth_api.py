@@ -58,14 +58,27 @@ def _check(client):
 
 # ── 로그인이 막으면 안 되는 것 (헌법 4절 단서 1) ───────────────────
 
-def test_로그인_없이도_검사가_된다(client):
-    assert _check(client).status_code == 201
+def test_로그인_없이는_검사를_못_만든다(client):
+    """**8/24 팀장 결정으로 검사에 로그인 벽을 세웠다** (CLAUDE.md 4절).
+
+    전에는 로그아웃 상태에서도 검사가 됐다. 그 전제가 바뀌었으니 여기도 바뀐다 —
+    다만 **왜 막혔는지와 어떻게 푸는지**를 문구가 말해야 한다.
+    """
+    res = _check(client)
+    assert res.status_code == 401
+    err = res.json()["error"]
+    assert err["code"] == "LOGIN_REQUIRED"
+    assert "로그인" in err["message"]
 
 
-def test_로그인_없이_만든_결과는_누구나_연다(client, other):
-    """**주소를 아는 사람이 여는 것**이 이 서비스의 공유 방식이다."""
+def test_로그인해서_만든_결과는_주소를_아는_사람이_연다(client, other):
+    """**공유는 그대로 열어 둔다.** 이 선이 로그인 벽의 범위다.
+
+    링크를 받은 사람까지 가입시키면 요금표가 파는 「결과 링크 공유」가 거짓말이 되고,
+    "링크 하나로 근거까지 보인다"는 최대 강점이 사라진다.
+    """
+    _signup(client)
     made = _check(client).json()
-    assert made["owned"] is False
     assert other.get(f"/api/v1/checks/{made['check_id']}").status_code == 200
 
 
@@ -145,19 +158,28 @@ def test_로그인하고_만든_검사에는_주인이_붙는다(client):
     assert _check(client).json()["owned"] is True
 
 
-def test_남의_검사는_403_이_아니라_404_다(client, other):
-    """403 은 **"그 ID 는 존재한다"** 를 알려 준다. 그것만으로 목록을 만들 수 있다."""
+def test_없는_검사는_403_이_아니라_404_다(client):
+    """403 은 **"그 ID 는 존재한다"** 를 알려 준다. 그것만으로 목록을 만들 수 있다.
+
+    조회는 이제 로그인을 안 보므로(주소가 곧 접근 권한) 지킬 것은 이것 하나다 —
+    **없는 ID 와 있는 ID 를 응답으로 구분할 수 없어야 한다.**
+    """
     _signup(client)
     mine = _check(client).json()["check_id"]
-    r = other.get(f"/api/v1/checks/{mine}")
-    assert r.status_code == 404
+    assert client.get(f"/api/v1/checks/{mine}").status_code == 200
+    assert client.get("/api/v1/checks/chk_00000000000000000000000000000000").status_code == 404
 
 
-def test_로그아웃하면_내_검사도_안_보인다(client):
+def test_로그아웃해도_내가_만든_결과_링크는_열린다(client):
+    """**주소가 곧 접근 권한이다.** 무료에서는 그게 공유 방식이고, 숨기지 않는다.
+
+    비공개 링크는 요금표의 Pro 항목이다. 만들지 않았으므로 있는 척하지 않고,
+    `/privacy` 가 "주소를 아는 사람은 볼 수 있습니다" 라고 그대로 적는다.
+    """
     _signup(client)
     mine = _check(client).json()["check_id"]
     client.post("/api/v1/auth/logout")
-    assert client.get(f"/api/v1/checks/{mine}").status_code == 404
+    assert client.get(f"/api/v1/checks/{mine}").status_code == 200
 
 
 def test_내_검사_목록은_내_것만_담는다(client, other):
@@ -212,12 +234,19 @@ def test_남의_검사는_못_지운다(client, other):
     assert client.get(f"/api/v1/checks/{mine}").status_code == 200
 
 
-def test_주인_없는_검사는_아무나_못_지운다(client, other):
-    """지우게 두면 **남의 결과를 아무나 지운다.**"""
-    anon = _check(client).json()["check_id"]
+def test_남의_검사는_아무나_못_지운다(client, other):
+    """지우게 두면 **남의 결과를 아무나 지운다.**
+
+    로그인 벽이 생기면서 주인 없는 검사는 더 이상 만들어지지 않는다.
+    지켜야 할 것은 그대로다 — **내 것이 아니면 못 지운다.**
+    """
+    _signup(client)
+    mine = _check(client).json()["check_id"]
+
     _signup(other, email="lee@example.com")
-    assert other.delete(f"/api/v1/checks/{anon}").status_code == 404
-    assert client.get(f"/api/v1/checks/{anon}").status_code == 200
+    assert other.delete(f"/api/v1/checks/{mine}").status_code == 404
+    # 지우지 못했다는 것을 주인이 확인한다
+    assert client.get(f"/api/v1/checks/{mine}").status_code == 200
 
 
 # ── 저장소 고지 (헌법 4절 단서 2) ──────────────────────────────────

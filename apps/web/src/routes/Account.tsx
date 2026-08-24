@@ -90,9 +90,7 @@ export function AccountPage({ mode }: { mode: "login" | "signup" }) {
           />
           {joining && (
             <p className="mt-2 text-[13px] leading-relaxed text-mute">
-              10자 이상이면 됩니다. 대문자·숫자·특수문자를 섞으라고 하지 않습니다 —{" "}
-              <strong className="font-semibold text-sub">길이가 훨씬 강합니다.</strong> 기억하기 쉬운
-              문장을 쓰셔도 됩니다.
+              10자 이상. 기억하기 쉬운 문장이면 됩니다.
             </p>
           )}
 
@@ -114,23 +112,26 @@ export function AccountPage({ mode }: { mode: "login" | "signup" }) {
           </button>
         </form>
 
+        {/*
+          **경고를 세 블록에서 한 줄로 줄였다.**
+
+          이득 한 문장에 경고가 세 덩어리라 가입 화면이 아니라 면책 고지처럼 읽혔다.
+          그렇다고 지우지는 않는다 — 비밀번호를 되살릴 수 없다는 것은 **가입 전에**
+          알아야 하고, 다 쓰고 나서 알게 되면 그건 속인 것이다 (헌법 2-4).
+
+          계정 소멸 경고는 **서버가 실제로 재시작을 견디면 저절로 사라진다**
+          (`web/storage.py` 가 표식으로 확인한다). 추측으로 안 띄운다.
+        */}
         {joining && (
-          <div className="mt-7 space-y-3">
-            <Caveat head="비밀번호를 잊으면 되돌릴 수 없습니다">
-              메일을 보낼 수단이 없어서 재설정 기능을 만들지 못했습니다. 있는 척하지 않겠습니다 —
-              비밀번호 관리자에 저장해 두시길 권합니다.
-            </Caveat>
+          <div className="mt-6 space-y-2 text-[13px] leading-relaxed text-mute">
+            <p>
+              비밀번호 재설정 기능이 아직 없습니다. 비밀번호 관리자에 저장해 두세요.
+            </p>
             {storage?.survives_restart === false && (
-              <Caveat head="계정이 사라질 수 있습니다" tone="warn">
-                지금 서버는 영구 저장 장치를 쓰지 않습니다. 다시 배포하면 계정과 검사 결과가 함께
-                지워집니다. 이 문구는 서버가 재시작을 견디는 것이 <strong className="font-bold text-ink">실제로
-                확인되면</strong> 저절로 사라집니다.
-              </Caveat>
+              <p className="rounded-block bg-warn-weak px-3 py-2.5 text-warn">
+                지금은 서버를 다시 배포하면 계정과 검사 결과가 지워집니다.
+              </p>
             )}
-            <Caveat head="이메일은 확인하지 않습니다">
-              인증 메일을 보내지 않으므로 이메일은 신원 확인이 아니라 이름표입니다. 받는 메일은
-              하나도 없습니다.
-            </Caveat>
           </div>
         )}
 
@@ -163,27 +164,6 @@ export function AccountPage({ mode }: { mode: "login" | "signup" }) {
           </Link>
         </p>
       </main>
-    </div>
-  );
-}
-
-function Caveat({
-  head,
-  children,
-  tone,
-}: {
-  head: string;
-  children: React.ReactNode;
-  tone?: "warn";
-}) {
-  return (
-    <div
-      className={`rounded-block border p-4 ${
-        tone === "warn" ? "border-warn/25 bg-warn-weak" : "border-line bg-surface-2"
-      }`}
-    >
-      <p className="mb-1 text-[13.5px] font-extrabold text-ink">{head}</p>
-      <p className="text-[13px] leading-relaxed text-sub">{children}</p>
     </div>
   );
 }

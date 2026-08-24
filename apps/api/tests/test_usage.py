@@ -104,15 +104,21 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+from conftest import sign_in  # noqa: E402
+
 
 def test_엔드포인트가_실측을_그대로_내려준다(tmp_path, monkeypatch):
     monkeypatch.setenv("PREFAB_DB", str(tmp_path / "api.db"))
+    # **쿠키가 `Secure` 면 TestClient(http)가 버린다.** 그러면 로그인이 조용히
+    # 안 되고, 검사가 401 로 막힌다 — 로그인 벽이 생기면서 실제로 그랬다.
+    monkeypatch.setenv("COOKIE_SECURE", "0")
     import importlib
 
     from web import app as app_module
 
     importlib.reload(app_module)
     client = TestClient(app_module.app)
+    sign_in(client)  # 검사를 만들려면 로그인해야 한다 (8/24)
 
     body = client.get("/api/v1/usage").json()
     # 기동 때 커밋된 사실 파일을 심으므로 부품이 0 이 아니어야 한다.
