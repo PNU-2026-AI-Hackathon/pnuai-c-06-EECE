@@ -315,3 +315,44 @@ def test_이전_회로도_없이도_검사는_그대로_된다(client):
     r = _upload(client)
     assert r["status"] == "done"
     assert r["summary"]["rules_run"] > 0
+
+
+# ─────────────────────────────────────────── 출시 알림 대기 명단
+
+
+def test_대기_명단은_이메일_하나만_받는다(client):
+    """받는 것을 늘리지 않는다 — 이름·소속·전화번호는 물어볼 이유가 없다."""
+    res = client.post("/api/v1/waitlist", json={"email": "me@example.com", "plan": "pro"})
+    assert res.status_code == 201
+    assert res.json() == {"joined": True}
+
+
+def test_대기_명단은_인원_수를_안_돌려준다(client):
+    """「3명 대기 중」 같은 숫자가 화면에 뜨면 오히려 안 팔리는 제품처럼 보인다."""
+    body = client.post(
+        "/api/v1/waitlist", json={"email": "a@example.com", "plan": "team"}
+    ).json()
+    assert "count" not in body and "total" not in body
+
+
+def test_대기_명단_중복은_그대로_성공이다(client):
+    """이미 등록했다고 알려 주면, 그 주소가 명단에 있다는 사실을 아무에게나 말하는 셈이다."""
+    for _ in range(2):
+        res = client.post("/api/v1/waitlist", json={"email": "me@example.com", "plan": "pro"})
+        assert res.status_code == 201
+
+
+def test_대기_명단_거절은_사유_코드를_그대로_준다(client):
+    res = client.post("/api/v1/waitlist", json={"email": "아님", "plan": "pro"})
+    assert res.status_code == 400
+    assert res.json()["error"]["code"] == "EMAIL_INVALID"
+
+    res = client.post("/api/v1/waitlist", json={"email": "a@b.co", "plan": "gold"})
+    assert res.status_code == 400
+    assert res.json()["error"]["code"] == "PLAN_UNKNOWN"
+
+
+def test_대기_명단_본문이_객체가_아니면_거절한다(client):
+    res = client.post("/api/v1/waitlist", json="문자열")
+    assert res.status_code == 400
+    assert res.json()["error"]["code"] == "BAD_REQUEST"

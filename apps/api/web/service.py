@@ -26,6 +26,8 @@ from prefab.datasheet.store import FactStore
 from prefab.runner import analyze
 from prefab.samples import SAMPLE_CHECK_ID, load_sample
 
+from . import waitlist
+
 # --------------------------------------------------------------------- 상수
 
 #: 파일 하나당 상한
@@ -347,6 +349,16 @@ class Store:
         finally:
             conn.close()
 
+    @contextmanager
+    def session(self) -> "Iterator[sqlite3.Connection]":
+        """같은 DB 파일을 쓰는 다른 표(대기 명단 등)를 위한 공개 통로.
+
+        **연결을 새로 만들지 않는다.** 이 클래스가 이미 여는 방식(트랜잭션 · 닫기)을
+        그대로 쓰게 해서, 파일 핸들이 새는 자리를 하나로 유지한다.
+        """
+        with self._session() as conn:
+            yield conn
+
     def _init(self) -> None:
         with self._session() as conn:
             conn.execute(
@@ -368,6 +380,8 @@ class Store:
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS checks_owner ON checks (owner_id, created_at)"
             )
+            # 대기 명단은 같은 DB 파일 안에 둔다 (헌법 9절 — SQLite 하나)
+            waitlist.init(conn)
 
     def save(self, result: dict[str, Any], owner_id: str | None = None) -> None:
         with self._session() as conn:

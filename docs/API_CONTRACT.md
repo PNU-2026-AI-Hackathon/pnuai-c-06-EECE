@@ -11,6 +11,7 @@
 POST   /api/v1/checks          검사 생성 (multipart)
 GET    /api/v1/checks/{id}     결과 조회
 GET    /api/v1/rules           규칙 카탈로그
+POST   /api/v1/waitlist        출시 알림 대기 명단
 GET    /healthz                헬스체크
 ```
 
@@ -229,6 +230,35 @@ GET    /healthz                헬스체크
 - `evidence` 객체는 `kind` 에 해당하는 키만 담는다. 다른 kind 의 키를 `null` 로 채우지 않는다.
 - `kind: "firmware"` 의 `file` 은 **업로드한 zip 내부의 상대 경로**다.
   절대 경로나 서버 임시 디렉터리 경로가 섞여 나가지 않는다.
+
+---
+
+## POST /api/v1/waitlist
+
+**결제를 만들기 전에 살 사람이 있는지 재는 자리다.** 요금표가 「준비 중」이라고만
+적혀 있는 동안은 방문자가 반응할 대상이 없어서, 가격이 비싼지 싼지도 알 수 없다.
+
+```json
+{ "email": "you@example.com", "plan": "pro" }
+```
+
+- `plan` 은 `"pro"` 또는 `"team"` 뿐이다. **다른 값은 400 으로 거절한다** —
+  프론트가 오타를 내면 조용히 저장되고 나중에 집계가 틀린다
+- 이메일은 앞뒤 공백을 떼고 소문자로 저장한다. `Me@Example.COM` 과
+  `me@example.com` 을 **두 명으로 세면 수요를 부풀려 읽는다**
+- 같은 (이메일, 요금제)를 다시 보내도 **201 이다.** "이미 등록하셨습니다" 는
+  사용자에게 쓸모가 없고, 그 주소가 명단에 있다는 사실을 아무에게나 알려주는 셈이다
+
+성공 응답 — **인원 수를 돌려주지 않는다.** 화면에 "3명 대기 중" 이 뜨면
+오히려 안 팔리는 제품처럼 보인다.
+
+```json
+{ "joined": true }
+```
+
+거절 코드: `EMAIL_REQUIRED` · `EMAIL_INVALID` · `EMAIL_TOO_LONG` · `PLAN_UNKNOWN` · `BAD_REQUEST`
+
+검사·인증과 같은 요청 제한을 받는다.
 
 ---
 

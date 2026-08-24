@@ -135,6 +135,14 @@ function Slot({
   );
 }
 
+/**
+ * 이 시간이 지나도록 응답이 없으면 "서버를 깨우는 중" 이라고 말한다.
+ *
+ * 배포본 실측 — 잠들었을 때 12.6초, 따뜻할 때 0.15초. 3초는 그 사이의 안전한 선이다.
+ * 더 짧으면 정상 요청에도 경고가 뜨고, 더 길면 사용자가 이미 고장이라고 판단한 뒤다.
+ */
+const WAKE_NOTICE_AFTER_MS = 3000;
+
 export function UploadPage() {
   const navigate = useNavigate();
   const [netlist, setNetlist] = useState<File | null>(null);
@@ -152,6 +160,8 @@ export function UploadPage() {
   const [previousNetlist, setPreviousNetlist] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** 서버가 잠들어 있어 기다리는 중인가. 판정이 느린 것과 구분해서 말한다 */
+  const [waking, setWaking] = useState(false);
   /**
    * 카탈로그를 못 받은 것과 애초에 없는 것은 다르다.
    * 못 받았으면 그 사실을 말한다 — 조용히 기능을 잃으면 그게 숨기는 것이다 (CLAUDE.md 2-2).
@@ -181,6 +191,18 @@ export function UploadPage() {
     }
     setError(null);
     setBusy(true);
+    setWaking(false);
+
+    // **잠든 서버를 깨우는 데 실측 12.6초가 걸린다.**
+    //
+    // 무료 호스팅은 15분 놀면 인스턴스를 내린다. 그 다음 첫 요청은 컨테이너가 다시
+    // 뜰 때까지 기다린다 — 배포본에서 재 보니 12.6초, 따뜻할 때는 0.15초였다.
+    //
+    // 그 동안 버튼만 「시작하는 중」으로 있으면 사용자는 **고장으로 읽는다.**
+    // 검사가 원래 오래 걸리는 것처럼 말하지도 않는다 — 판정은 밀리초다.
+    // 사실대로, 그리고 **한 번만 그렇다**는 것까지 말한다.
+    const wakeTimer = window.setTimeout(() => setWaking(true), WAKE_NOTICE_AFTER_MS);
+
     try {
       const created = await createCheck({ netlist, bom, firmware, previousNetlist });
       navigate(`/c/${created.check_id}`);
@@ -192,6 +214,8 @@ export function UploadPage() {
           : "검사를 시작하지 못했습니다. 잠시 후 다시 시도해 주세요."
       );
     } finally {
+      window.clearTimeout(wakeTimer);
+      setWaking(false);
       setBusy(false);
     }
   }
@@ -296,6 +320,21 @@ export function UploadPage() {
           className="mb-4 rounded-block bg-crit-weak px-4 py-3 text-[14px] font-semibold text-crit"
         >
           {error}
+        </p>
+      )}
+
+      {/*
+        기다림의 **이유**를 말한다. "잠시만 기다려 주세요" 는 아무것도 안 알려준다.
+        `role="status"` 라 화면 낭독기도 이 변화를 읽는다.
+      */}
+      {waking && (
+        <p
+          role="status"
+          className="mb-4 rounded-block bg-warn-weak px-4 py-3 text-[14px] leading-relaxed text-warn"
+        >
+          <strong className="font-bold">서버를 깨우는 중입니다.</strong> 한동안 검사가 없으면
+          서버가 절전 상태로 내려갑니다 — 다시 뜨는 데 최대 1분이 걸립니다.{" "}
+          <strong className="font-bold">처음 한 번만 그렇고</strong>, 검사 자체는 1초도 안 걸립니다.
         </p>
       )}
 
