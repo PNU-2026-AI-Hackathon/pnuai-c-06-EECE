@@ -22,8 +22,21 @@
     />
     <meta property="og:url" content="https://prefab-web.onrender.com/" />
     <meta property="og:locale" content="ko_KR" />
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="theme-color" content="#F7F8FA" />
+
+    <!--
+      파비콘은 SVG 하나다. 크기별 PNG 를 여러 장 두면 마크를 고칠 때마다 전부
+      다시 뽑아야 하고, 한 장만 빠뜨려도 탭마다 다른 로고가 뜬다.
+      SVG 안에서 다크 모드를 스스로 처리한다.
+    -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <!-- 링크를 붙였을 때 뜨는 미리보기 이미지. 결과 링크를 공유하는 제품이라 실전이다 -->
+    <meta property="og:image" content="https://prefab-web.onrender.com/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Prefab — 보드 발주 전에 코드와 회로도가 어긋난 곳을 찾습니다" />
 
     <!-- 본문: Pretendard(가변) · 데이터: JetBrains Mono -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />

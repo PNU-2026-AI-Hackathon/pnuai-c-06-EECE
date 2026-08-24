@@ -6,6 +6,7 @@ import { Page, SectionTitle } from "../components/Layout";
 import { NetlistAppendix } from "../components/NetlistAppendix";
 import { Discovery } from "../components/Discovery";
 import { Pipeline } from "../components/Pipeline";
+import { Logo } from "../components/Logo";
 import { ReportActions, ReportNext } from "../components/ReportActions";
 import { InputsTable, SummaryTiles } from "../components/Summary";
 import { ApiFailure, checkNotice, getCheck } from "../lib/api";
@@ -136,6 +137,17 @@ export function ReportPage() {
         화면 낭독기로 열면 무슨 검사인지 알 수 없었다. 상단 바의 메타 칩은
         좁은 화면에서 숨겨지므로 모바일에서는 보드 이름조차 안 보였다.
       */}
+      {/*
+        **인쇄본에만 나오는 머리.** 화면에는 상단 바가 이미 로고를 달고 있는데,
+        그 바는 인쇄에서 사라진다(`no-print`). 그러면 PDF 첫 장에 이게 어디서 나온
+        문서인지가 없다 — 발주처에 첨부하는 순간 출처 없는 종이가 된다.
+      */}
+      <div className="mb-5 hidden items-center gap-2 print:flex">
+        <Logo size={18} />
+        <span className="text-[15px] font-extrabold tracking-tight">Prefab</span>
+        <span className="text-[12px] text-mute">펌웨어와 회로도 대조 검사</span>
+      </div>
+
       <h1 className="mb-1 text-[24px] font-extrabold leading-snug tracking-tight md:text-[30px]">
         검사 결과
         {check.inputs.netlist && (

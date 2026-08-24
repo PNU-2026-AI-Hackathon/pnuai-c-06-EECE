@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 
+import { Logo } from "./Logo";
 import { useSession } from "../lib/session";
 
 /** 상단 바 — 왼쪽 제품명, 오른쪽 메타 칩 */
@@ -17,6 +18,7 @@ export function Header({
           to="/"
           className="-mx-2 flex min-h-[44px] items-center gap-2 rounded-block px-2"
         >
+          <Logo size={22} className="shrink-0" />
           <span className="text-[19px] font-extrabold tracking-tight">
             Prefab
           </span>
