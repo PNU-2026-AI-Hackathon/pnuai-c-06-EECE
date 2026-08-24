@@ -15,7 +15,7 @@ from starlette.formparsers import MultiPartParser
 
 from prefab.datasheet.store import FactStore
 
-from . import service, storage, usage
+from . import service, storage, usage, waitlist
 from .auth import AuthError, AuthStore, normalize_email
 from .ratelimit import RateLimiter, client_key
 from .service import ApiError
@@ -131,7 +131,13 @@ async def guard(request: Request, call_next):
     메모리에 올려 둔 뒤다. 막으려던 비용을 이미 치른 것이다.
     """
     path = request.url.path
-    guarded = path.startswith("/api/v1/checks") or path.startswith("/api/v1/auth/")
+    # **대기 명단도 여기서 막는다.** 남의 이메일을 대신 넣어 명단을 오염시키는
+    # 장난이 제일 쉬운 자리이고, 그 숫자가 곧 우리 수요 판단 근거다.
+    guarded = (
+        path.startswith("/api/v1/checks")
+        or path.startswith("/api/v1/auth/")
+        or path.startswith("/api/v1/waitlist")
+    )
     if request.method != "POST" or not guarded:
         return await call_next(request)
 
@@ -362,6 +368,30 @@ async def usage_stats() -> dict:
     이 차이를 화면도 그대로 말한다 (헌법 2-4).
     """
     return usage.collect(DB_PATH).to_dict()
+
+
+@app.post("/api/v1/waitlist", status_code=201)
+async def join_waitlist(request: Request) -> dict:
+    """출시 알림 대기 명단.
+
+    **결제를 만들기 전에 살 사람이 있는지 재는 자리다.** 요금표가 「준비 중」이라고만
+    적혀 있는 동안은 방문자가 반응할 대상이 없어서, 비싼지 싼지조차 알 수 없다.
+
+    받는 것은 **이메일 하나뿐**이다. 이름·소속·전화번호는 물어볼 이유가 없다.
+    """
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise ApiError("BAD_REQUEST", "요청 본문이 올바르지 않습니다.", 400)
+
+    try:
+        with store.session() as conn:
+            waitlist.join(conn, str(body.get("email") or ""), str(body.get("plan") or ""))
+    except waitlist.WaitlistError as exc:
+        raise ApiError(exc.code, exc.message, 400) from exc
+
+    # **몇 명인지는 안 돌려준다.** 대기 인원은 우리 내부 지표이고,
+    # 화면에 "3명 대기 중" 같은 숫자가 뜨면 오히려 안 팔리는 제품처럼 보인다.
+    return {"joined": True}
 
 
 @app.get("/api/v1/rules")

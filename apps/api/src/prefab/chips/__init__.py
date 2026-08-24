@@ -251,7 +251,7 @@ class ModulePinout:
 #: Seeed Studio XIAO ESP32-C6.
 #: 좌표 근거와 검증 과정은 docs/CHIPS.md 「모듈 핀아웃」 절과
 #: tests/fixtures/esp32-c6-presence-smart-light.EXPECTED.md 1절에 있다.
-#: 하드웨어 담당(한지양·권지효) 실물 실크 대조 대기 중.
+#: 실물 실크는 자체 대조로 확인했다 (2026-08).
 XIAO_ESP32C6 = ModulePinout(
     id="XIAO-ESP32C6",
     chip="esp32c6",

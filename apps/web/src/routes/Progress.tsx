@@ -44,6 +44,11 @@ export function ProgressPage() {
 
   return (
     <Page meta={[{ label: "검사", value: id }, { label: "상태", value: check?.status ?? "조회 중" }]}>
+      {/* 리포트와 같은 이유로 `h1` 이 필요하다 — 화면 낭독 시 무슨 화면인지 알 수 없었다 */}
+      <h1 className="mb-6 text-[24px] font-extrabold leading-snug tracking-tight md:text-[30px]">
+        검사하는 중입니다
+      </h1>
+
       <SectionTitle no="02">진행</SectionTitle>
 
       {error && (

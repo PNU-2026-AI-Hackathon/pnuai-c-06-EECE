@@ -2,14 +2,31 @@ import type { CheckInputs, CheckSummary } from "../types/api";
 
 import { SourceMark } from "./Mark";
 
-/** 숫자 타일 하나. API가 0을 주면 0으로, null이면 —로 적는다 */
-function Tile({ label, value, tone }: { label: string; value: number | string; tone?: string }) {
+/**
+ * 숫자 타일 하나. API가 0을 주면 0으로, null이면 —로 적는다.
+ *
+ * `hint` 는 라벨 아래 작은 글씨다. **「해제됨」이 이 제품에만 있는 말**이라
+ * 처음 보는 사람은 무슨 뜻인지 모른다 — 숫자만 크게 보여 주고 뜻을 안 말하면
+ * 요약이 아니라 암호가 된다.
+ */
+function Tile({
+  label,
+  value,
+  tone,
+  hint,
+}: {
+  label: string;
+  value: number | string;
+  tone?: string;
+  hint?: string;
+}) {
   return (
     <div className="card px-5 py-4">
       <p className="label">{label}</p>
       <p className={`mt-1 text-[30px] font-extrabold tracking-tight ${tone ?? "text-ink"}`}>
         {value}
       </p>
+      {hint && <p className="mt-1 text-[12px] leading-snug text-mute">{hint}</p>}
     </div>
   );
 }
@@ -21,10 +38,20 @@ export function SummaryTiles({ summary }: { summary: CheckSummary }) {
       <Tile label="경고" value={summary.warning} tone="text-warn" />
       {/* 정보는 결함이 아니다. 0 이면 타일을 만들지 않는다 — 빈 칸이 늘면 요약이 흐려진다 */}
       {summary.info > 0 && <Tile label="정보" value={summary.info} tone="text-sub" />}
-      <Tile label="해제됨" value={summary.cleared} tone="text-ok" />
+      <Tile
+        label="해제됨"
+        value={summary.cleared}
+        tone="text-ok"
+        hint="경고였다가 데이터시트로 안전이 확인된 항목"
+      />
       <Tile
         label="실행한 규칙"
         value={`${summary.rules_run}/${summary.rules_total}`}
+        hint={
+          summary.rules_skipped > 0
+            ? `${summary.rules_skipped}개는 돌리지 못했습니다`
+            : "전부 돌렸습니다"
+        }
       />
     </div>
   );
@@ -43,7 +70,7 @@ export function InputsTable({ inputs, summary }: { inputs: CheckInputs; summary:
       label: "부품 목록",
       file: inputs.bom,
       note: inputs.bom ? `부품 식별 ${summary.parts_identified}/${summary.parts_total}` : null,
-      missing: "없어서 부품을 식별하지 못했습니다. 데이터시트 규칙이 전부 보류됩니다.",
+      missing: "없어서 부품을 알아보지 못했습니다. 데이터시트로 확인하는 규칙이 「확인 필요」로 남습니다.",
     },
     {
       label: "펌웨어",

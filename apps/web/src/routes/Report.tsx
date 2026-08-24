@@ -6,11 +6,15 @@ import { Page, SectionTitle } from "../components/Layout";
 import { NetlistAppendix } from "../components/NetlistAppendix";
 import { Discovery } from "../components/Discovery";
 import { Pipeline } from "../components/Pipeline";
+import { ReportActions, ReportNext } from "../components/ReportActions";
 import { InputsTable, SummaryTiles } from "../components/Summary";
 import { ApiFailure, checkNotice, getCheck } from "../lib/api";
 import type { CheckResult, Finding, Severity } from "../types/api";
 
 const SEVERITY_ORDER: Record<Severity, number> = { CRITICAL: 0, WARNING: 1, INFO: 2 };
+
+/** 서버가 기동할 때 심어 두는 실측 보드 예시. 랜딩의 「예시 검사 결과 보기」가 여기로 온다 */
+const SAMPLE_CHECK_ID = "chk_sample01";
 
 /**
  * `created_at` 은 계약상 UTC(`Z`)다. 서버는 시간대를 정하지 않고 화면이 변환한다.
@@ -58,12 +62,26 @@ export function ReportPage() {
           */}
           {error.code === "CHECK_NOT_FOUND" && (
             <p className="mt-2 text-[14px] leading-relaxed text-sub">
-              링크가 오래됐거나 검사 결과가 사라졌을 수 있습니다.
+              {/*
+                원인을 사용자 쪽으로 미루지 않는다. 실제 원인은 대부분 재배포이고,
+                그건 우리 사정이다. 사용자가 자기 실수로 오해하면 문의로 온다.
+              */}
+              서버를 다시 배포하면 그동안의 검사 결과가 지워집니다. 링크가 그 전에
+              만들어졌다면 그래서입니다.
             </p>
           )}
-          <Link to="/" className="btn-primary mt-6">
-            처음으로
-          </Link>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            {/* 죽은 링크를 밟은 사람을 되돌리는 가장 싼 방법 */}
+            <Link to="/check" className="btn-primary">
+              다시 검사하기
+            </Link>
+            <Link
+              to="/"
+              className="inline-flex min-h-[44px] items-center rounded-block px-3 text-[15px] font-bold text-sub hover:text-ink"
+            >
+              처음으로
+            </Link>
+          </div>
         </div>
       </Page>
     );
@@ -112,6 +130,25 @@ export function ReportPage() {
           <strong className="font-bold">실제 검사 결과가 아닙니다.</strong> {notice}
         </p>
       )}
+
+      {/*
+        **`h1` 이 없었다.** 이 화면이 이 제품의 산출물인데 문서 제목이 비어 있어서,
+        화면 낭독기로 열면 무슨 검사인지 알 수 없었다. 상단 바의 메타 칩은
+        좁은 화면에서 숨겨지므로 모바일에서는 보드 이름조차 안 보였다.
+      */}
+      <h1 className="mb-1 text-[24px] font-extrabold leading-snug tracking-tight md:text-[30px]">
+        검사 결과
+        {check.inputs.netlist && (
+          <span className="text-sub">
+            {" "}— {check.inputs.netlist.filename.replace(/\.[^.]+$/, "")}
+          </span>
+        )}
+      </h1>
+      <p className="mb-6 text-[14px] text-mute">
+        {toKstDate(check.created_at)} · <span className="data">{check.check_id}</span>
+      </p>
+
+      <ReportActions check={check} />
 
       <SectionTitle no="01">요약</SectionTitle>
       <div className="mb-8">
@@ -209,6 +246,14 @@ export function ReportPage() {
 
       <SectionTitle no={check.discovery ? "06" : "05"}>부록 · 넷리스트</SectionTitle>
       <NetlistAppendix netlist={check.netlist} />
+
+      {/* 읽고 나서 갈 곳을 준다. 예시를 본 사람과 자기 보드를 본 사람은 다음이 다르다 */}
+      {/*
+        **`notice` 는 목 모드 경고이지 "예시인가" 가 아니다.** 서버에 붙으면 항상 null 이라
+        예시를 보고 있는 사람에게 "다시 검사하기" 가 뜬다 — 아직 한 번도 안 올린 사람에게.
+        예시 여부는 검사 ID 로 가른다 (서버가 기동 때 심는 그 하나다).
+      */}
+      <ReportNext isSample={check.check_id === SAMPLE_CHECK_ID} />
     </Page>
   );
 }

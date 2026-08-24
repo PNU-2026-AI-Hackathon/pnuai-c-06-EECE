@@ -223,6 +223,26 @@ function asUsage(body: unknown): Usage | null {
   return body as Usage;
 }
 
+/**
+ * 출시 알림 대기 명단.
+ *
+ * **목 모드에서는 서버에 안 보낸다.** 백엔드 없이 화면만 띄운 상태에서 눌렀을 때
+ * "등록했습니다" 라고 하면 그건 거짓말이다 — 아무 데도 안 갔다.
+ */
+export async function joinWaitlist(email: string, plan: "pro" | "team"): Promise<void> {
+  if (!BASE) {
+    throw new ApiFailure(
+      "지금은 서버에 연결되어 있지 않아 등록하지 못했습니다.",
+      "NO_BACKEND"
+    );
+  }
+  await request("/api/v1/waitlist", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email, plan }),
+  });
+}
+
 /** 검사 생성 */
 export async function createCheck(files: {
   netlist: File;
