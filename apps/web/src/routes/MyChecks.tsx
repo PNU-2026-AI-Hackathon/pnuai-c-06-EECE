@@ -76,8 +76,15 @@ export function MyChecksPage() {
     <Shell>
       <h1 className="mb-2 text-[26px] font-extrabold tracking-tight md:text-[30px]">내 검사</h1>
       <p className="mb-7 text-[15px] leading-relaxed text-sub">
-        {user.email} · 여기 있는 결과는 <strong className="font-bold text-ink">나만 볼 수 있습니다.</strong>{" "}
-        주소를 아는 사람도 열 수 없습니다.
+        {/*
+          **이 목록이 비공개인 것과, 결과 링크가 비공개인 것은 다르다.**
+          전에는 "주소를 아는 사람도 열 수 없습니다" 라고 적혀 있었는데 **사실이 아니었다** —
+          결과 조회는 로그인 없이 열린다(`web/app.py` 의 `get_check`). 공유가 살아 있어야
+          해서 그렇게 둔 것이고, 요금 안내도 그렇게 적혀 있다(무료 = 링크 공유).
+          같은 사실이 `Privacy.tsx` 에도 있는데 그쪽만 맞고 여기가 틀어져 있었다 (헌법 10절).
+        */}
+        {user.email} · 이 목록은 <strong className="font-bold text-ink">나에게만 보입니다.</strong>{" "}
+        결과 주소를 받은 사람은 로그인 없이 열 수 있습니다.
       </p>
 
       {storage?.survives_restart === false && (

@@ -408,3 +408,19 @@ def test_로그인_실패는_무엇이_틀렸는지_안_알려준다(client):
     )
     assert wrong_pw.status_code == no_user.status_code == 401
     assert wrong_pw.json()["error"] == no_user.json()["error"], "응답이 갈리면 계정 존재를 알려준다"
+
+
+def test_secure_없이는_samesite_none_을_안_쓴다():
+    """`SameSite=None` + `Secure` 없음 = **브라우저가 버리는 쿠키**다.
+
+    이 조합이 나오면 서버는 200 을 주는데 화면만 로그인된 것처럼 보이고
+    다음 요청부터 익명으로 간다. 증상이 로그인 버그처럼 안 생겨서 오래 걸린다.
+    """
+    from web.app import _samesite
+
+    with pytest.warns(UserWarning):
+        assert _samesite(secure=False, asked="none") == "lax"
+
+    # 나머지 조합은 그대로 둔다
+    assert _samesite(secure=True, asked="none") == "none"
+    assert _samesite(secure=False, asked="lax") == "lax"
