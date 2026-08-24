@@ -108,3 +108,75 @@ def test_normalize_strips_one_suffix_only():
     assert normalize("tft_bl_pin") == "TFT_BL"
     # 두 번 떼면 `TFT_BL` 과 `TFT` 가 뭉친다 — 그러면 서로 다른 신호가 같아 보인다
     assert normalize("TFT_BL_PIN_PIN") == "TFT_BL_PIN"
+
+
+# ── 회로도가 있으면 어느 쪽이 맞는지 말한다 (8/25) ────────────────────
+
+from prefab.netlist.detect import parse_any  # noqa: E402
+from prefab.netlist.graph import Graph  # noqa: E402
+
+
+def _netlist(net: str, label: str) -> Graph:
+    """네트 하나에 라벨 붙은 핀 하나. 라벨이 곧 회로도가 말하는 핀이다."""
+    return Graph(parse_any(
+        f'''<?xml version="1.0" encoding="UTF-8"?>
+        <export version="E">
+          <components>
+            <comp ref="U1"><value>MOD</value></comp>
+            <comp ref="U2"><value>DISP</value></comp>
+          </components>
+          <nets>
+            <net code="1" name="{net}">
+              <node ref="U1" pin="25" pinfunction="{label}"/>
+              <node ref="U2" pin="7" pinfunction="LED"/>
+            </net>
+          </nets>
+        </export>''',
+        filename="b.net.xml",
+    ))
+
+
+def _run_with(sources, net: str, label: str):
+    return r14.check(Context(
+        netlist=_netlist(net, label),
+        firmware=analyze_firmware(sources),
+        bom=None,
+        datasheet=None,
+    ))
+
+
+SOURCES = {
+    "User_Setup.h": "#define TFT_BL 19\nvoid a(){ pinMode(TFT_BL, OUTPUT); }",
+    "config.h": "#define TFT_BL_PIN 25\nvoid b(){ pinMode(TFT_BL_PIN, OUTPUT); }",
+}
+
+
+def test_제안이_고칠_파일과_줄을_짚는다():
+    """**답을 손에 쥐고 「가서 찾아보세요」 라고 하지 않는다.**
+
+    회로도를 이미 읽었으면 어느 쪽이 맞는지도 안다. 이걸 안 말하면
+    사용자는 우리가 방금 읽은 것을 처음부터 다시 찾아야 한다.
+    """
+    f = _run_with(SOURCES, "/TFT_BL", "D19")[0]
+    assert "D19" in f.suggestion
+    assert "User_Setup.h:1" in f.suggestion   # 맞는 쪽
+    assert "config.h:1" in f.suggestion        # 고칠 쪽
+
+
+def test_라벨을_GPIO로_옮겨_적지_않는다():
+    """`D19` 가 정말 GPIO19 인지는 보드 나름이다. 우리가 단정하지 않는다 (헌법 2-2)."""
+    f = _run_with(SOURCES, "/TFT_BL", "D19")[0]
+    assert "GPIO19" not in f.suggestion
+
+
+def test_회로도가_어느_값과도_안_맞으면_그렇게_말한다():
+    """세 값이 다 다르면 어느 한쪽을 고르라고 하지 않는다."""
+    f = _run_with(SOURCES, "/TFT_BL", "D33")[0]
+    assert "D33" in f.suggestion
+    assert "User_Setup.h:1" not in f.suggestion
+
+
+def test_회로도가_없으면_원래대로_되묻는다():
+    """모르면 모른다고 한다. 넷리스트 없이도 이 규칙은 나야 한다."""
+    f = _run(SOURCES)[0]
+    assert "회로도에서 확인하고" in f.suggestion
