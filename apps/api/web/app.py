@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import os
+import warnings
 
 from fastapi import FastAPI, File, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -97,7 +98,31 @@ AUTH_LIMIT_PER_HOUR = int(os.getenv("AUTH_LIMIT_PER_HOUR", "60"))
 #: 읽을 수 있고, 그러면 XSS 한 번이 곧 계정 탈취가 된다.
 SESSION_COOKIE = "prefab_session"
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "1") not in ("0", "false", "False")
-COOKIE_SAMESITE = os.getenv("COOKIE_SAMESITE", "none")
+
+
+def _samesite(secure: bool, asked: str) -> str:
+    """`SameSite` 를 정한다 — **`Secure` 와 어긋나지 못하게.**
+
+    둘을 각각 환경변수로 받으면 반드시 어긋나는 날이 온다. 그리고 어긋난
+    쿠키(`SameSite=None` 인데 `Secure` 없음)는 **브라우저가 저장조차 하지
+    않는다.** 서버는 200 을 주고 화면은 로그인된 것처럼 그려지는데, 다음
+    요청부터 익명으로 간다 — 로컬 개발에서 이 조합으로 한 번 당했다.
+
+    그래서 `Secure` 가 꺼져 있으면(로컬 http) `lax` 로 내린다. 로컬은
+    5173 과 8000 이 **포트만 다른 같은 site** 라서 `lax` 로도 실려 간다.
+    """
+    if asked == "none" and not secure:
+        # 조용히 내리지 않는다 — 배포에서 이걸 보면 설정이 틀린 것이다
+        warnings.warn(
+            "COOKIE_SECURE 가 꺼져 있어 SameSite 를 none → lax 로 내렸습니다. "
+            "none 은 Secure 없이는 브라우저가 쿠키를 버립니다.",
+            stacklevel=2,
+        )
+        return "lax"
+    return asked
+
+
+COOKIE_SAMESITE = _samesite(COOKIE_SECURE, os.getenv("COOKIE_SAMESITE", "none"))
 
 #: 멀티파트를 **메모리에만** 둔다.
 #:
