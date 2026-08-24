@@ -14,12 +14,22 @@ import { useSession } from "../lib/session";
  * (메일 보낼 수단이 없다), 계정이 사라질 수도 있다 (영구 디스크가 없다).
  * 둘 다 가입 버튼 근처에 적는다 — 다 쓰고 나서 알게 되면 그건 속인 것이다.
  */
+/**
+ * 비밀번호 최소 길이.
+ *
+ * **서버(`web/auth.py`의 `MIN_PASSWORD_LENGTH`)가 진실이고 여기는 사본이다.**
+ * 화면이 더 느슨하면 사용자가 다 치고 나서 거절당하고, 더 빡빡하면
+ * 쓸 수 있는 비밀번호를 막는다. 서버 값을 바꾸면 여기도 같이 바꾼다.
+ */
+const MIN_PASSWORD = 10;
+
 export function AccountPage({ mode }: { mode: "login" | "signup" }) {
   const navigate = useNavigate();
   const { setUser, storage } = useSession();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,14 +61,22 @@ export function AccountPage({ mode }: { mode: "login" | "signup" }) {
         <h1 className="mb-2 text-[26px] font-extrabold leading-snug tracking-tight md:text-[32px]">
           {joining ? "계정 만들기" : "로그인"}
         </h1>
+        {/*
+          **토스 라이팅 원칙 2「잡초 자르기」** — 넣든 빼든 뜻이 안 바뀌는 말을 없앤다.
+          전에는 "내 것으로 남고, 나만 볼 수 있고, 직접 내릴 수 있습니다" 였는데
+          가운데는 **사실도 아니었다** (결과 링크는 주소를 알면 열린다).
+
+          남긴 것은 **사용자가 지금 결정하는 데 필요한 것 둘**이다 —
+          무엇이 필요한가, 돈이 드는가.
+        */}
         <p className="mb-8 text-[15px] leading-relaxed text-sub">
           {joining ? (
             <>
-              계정이 있으면 검사 결과가 <strong className="font-bold text-ink">내 것으로 남고</strong>,
-              나만 볼 수 있고, 직접 내릴 수 있습니다.
+              이메일과 비밀번호만 있으면 됩니다.{" "}
+              <strong className="font-bold text-ink">카드 등록은 필요 없습니다.</strong>
             </>
           ) : (
-            <>다시 오신 것을 환영합니다.</>
+            <>이메일과 비밀번호를 입력해 주세요.</>
           )}
         </p>
 
@@ -79,18 +97,49 @@ export function AccountPage({ mode }: { mode: "login" | "signup" }) {
           <label className="mb-1.5 block text-[13px] font-bold text-sub" htmlFor="password">
             비밀번호
           </label>
-          <input
-            id="password"
-            type="password"
-            autoComplete={joining ? "new-password" : "current-password"}
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-block border border-line bg-surface px-4 py-3 text-[15px] outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
-          />
+          <div className="relative">
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete={joining ? "new-password" : "current-password"}
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-block border border-line bg-surface py-3 pl-4 pr-16 text-[15px] outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+            />
+            {/*
+              **보기 토글.** 비밀번호 UI 조사에서 첫 번째로 꼽히는 항목이고,
+              오타로 인한 로그인 실패를 가장 많이 줄인다. 긴 비밀번호를 권할수록 더 필요하다.
+            */}
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-pressed={showPassword}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-block px-3 py-2 text-[13px] font-bold text-mute transition hover:text-sub"
+            >
+              {showPassword ? "숨기기" : "보기"}
+            </button>
+          </div>
+          {/*
+            **규칙을 입력 중에 알려준다.** 정적인 안내문은 다 치고 나서야 틀린 걸 알게 한다.
+            전에는 "10자 이상. 기억하기 쉬운 문장이면 됩니다." 였는데, 뒷문장은 규칙이
+            아니라 조언이라 사용자가 지금 할 일을 안 알려준다 (잡초).
+          */}
           {joining && (
-            <p className="mt-2 text-[13px] leading-relaxed text-mute">
-              10자 이상. 기억하기 쉬운 문장이면 됩니다.
+            <p
+              className={`mt-2 text-[13px] transition ${
+                password.length === 0
+                  ? "text-mute"
+                  : password.length >= MIN_PASSWORD
+                    ? "text-ok"
+                    : "text-mute"
+              }`}
+            >
+              {password.length === 0
+                ? `${MIN_PASSWORD}자 이상`
+                : password.length >= MIN_PASSWORD
+                  ? `${MIN_PASSWORD}자 이상 · 사용할 수 있습니다`
+                  : `${MIN_PASSWORD}자 이상 · ${MIN_PASSWORD - password.length}자 더 필요합니다`}
             </p>
           )}
 
@@ -125,7 +174,7 @@ export function AccountPage({ mode }: { mode: "login" | "signup" }) {
         {joining && (
           <div className="mt-6 space-y-2 text-[13px] leading-relaxed text-mute">
             <p>
-              비밀번호 재설정 기능이 아직 없습니다. 비밀번호 관리자에 저장해 두세요.
+              비밀번호를 잊으면 계정을 되찾을 수 없습니다. 비밀번호 관리자에 저장해 두세요.
             </p>
             {storage?.survives_restart === false && (
               <p className="rounded-block bg-warn-weak px-3 py-2.5 text-warn">
@@ -153,15 +202,16 @@ export function AccountPage({ mode }: { mode: "login" | "signup" }) {
           )}
         </p>
 
+        {/*
+          **「바로 검사하기」를 지웠다.** 로그인 벽이 생기면서 그 링크는 여기로 되돌아온다 —
+          가입하려는 사람에게 "안 해도 된다" 고 말했다가 다시 데려오는 셈이었다.
+        */}
         <p className="mt-4 text-[13.5px] leading-relaxed text-mute">
-          로그인하지 않아도 검사는 됩니다.{" "}
-          <Link to="/check" className="font-semibold text-sub hover:text-ink">
-            바로 검사하기
-          </Link>{" "}
-          ·{" "}
-          <Link to="/privacy" className="font-semibold text-sub hover:text-ink">
+          가입하시면{" "}
+          <Link to="/privacy" className="font-semibold text-sub hover:text-ink underline">
             데이터 처리 안내
           </Link>
+          에 동의하는 것으로 봅니다. 받는 것은 이메일 주소 하나뿐입니다.
         </p>
       </main>
     </div>

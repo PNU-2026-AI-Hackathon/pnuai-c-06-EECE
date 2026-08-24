@@ -360,3 +360,51 @@ def test_쿠키가_다른_출처로_실려_가게_설정돼_있다(tmp_path, mon
     importlib.reload(module)
     assert module.COOKIE_SAMESITE == "none"
     assert module.COOKIE_SECURE is True
+
+
+# ── 문구 (헌법 11절 · 사용자에게 그대로 노출된다) ──────────────────
+
+def test_오류_문구에_조언을_붙이지_않는다(client):
+    """**"길수록 강합니다 — 기억하기 쉬운 문장을 쓰셔도 됩니다"** 가 붙어 있었다.
+
+    그건 규칙이 아니라 우리 의견이고, 지금 뭘 해야 하는지를 안 알려준다.
+    화면 쪽 안내를 고치면서 **서버 문구를 같이 안 고쳐서** 여기만 남아 있었다 —
+    같은 진실이 두 곳에 있으면 한쪽만 갱신된다 (헌법 10절).
+    """
+    res = client.post("/api/v1/auth/signup", json={"email": "a@b.co", "password": "1234"})
+    msg = res.json()["error"]["message"]
+
+    assert "10자" in msg, msg          # 규칙은 말한다
+    assert "기억하기" not in msg, msg  # 조언은 안 한다
+    assert "길수록" not in msg, msg
+
+
+def test_같은_이메일로_두_번_가입되지_않는다(client):
+    """대소문자만 달라도 같은 사람이다. 안 그러면 한 사람이 계정을 여러 개 만든다."""
+    body = {"email": "kim@example.com", "password": GOOD}
+    assert client.post("/api/v1/auth/signup", json=body).status_code == 201
+
+    again = client.post("/api/v1/auth/signup", json=body)
+    assert again.status_code == 409
+    assert again.json()["error"]["code"] == "EMAIL_TAKEN"
+
+    upper = client.post(
+        "/api/v1/auth/signup", json={"email": "KIM@Example.COM", "password": GOOD}
+    )
+    assert upper.status_code == 409, "대소문자만 다른 주소가 새 계정이 됐다"
+
+
+def test_로그인_실패는_무엇이_틀렸는지_안_알려준다(client):
+    """**"없는 계정입니다" 라고 하면 가입 여부를 훑어 확인할 수 있다.**
+
+    이메일이 틀렸는지 비밀번호가 틀렸는지 가르지 않는 것이 표준이다.
+    """
+    _signup(client)
+    wrong_pw = client.post(
+        "/api/v1/auth/login", json={"email": "kim@example.com", "password": "wrong password!!"}
+    )
+    no_user = client.post(
+        "/api/v1/auth/login", json={"email": "nobody@example.com", "password": GOOD}
+    )
+    assert wrong_pw.status_code == no_user.status_code == 401
+    assert wrong_pw.json()["error"] == no_user.json()["error"], "응답이 갈리면 계정 존재를 알려준다"
