@@ -9,7 +9,9 @@ export function Header({
   meta?: { label: string; value: string }[];
 }) {
   return (
-    <header className="sticky top-0 z-10 border-b border-line bg-surface/85 backdrop-blur">
+    // `no-print` — 종이에는 고정 상단 바가 뜻이 없다. **클래스로 직접 표시한다** —
+    // 선택자로 `header` 를 통째로 잡으면 발견 카드의 머리까지 지워진다 (그것도 `<header>` 다)
+    <header className="no-print sticky top-0 z-10 border-b border-line bg-surface/85 backdrop-blur">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-y-3 px-5 py-3.5">
         <Link
           to="/"

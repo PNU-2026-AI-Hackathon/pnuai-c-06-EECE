@@ -87,10 +87,16 @@ def _finding(graph, net, source, sink, out, lim, volts, ceiling) -> Finding:
             f"{format_volts(ceiling)}V입니다. {format_volts(volts - ceiling)}V 초과입니다."
         ),
         evidence=tuple(evidence),
+        # **처방이 길면 처방이 안 읽힌다.**
+        #
+        # 출처를 괄호로 통째로 넣고 있었다 — `Table5-1. AbsoluteMaximumRatings · p.64`
+        # 같은 것이 두 개씩 들어가서, 정작 "레벨 시프터를 넣으세요" 가 문장 앞에서
+        # 묻혔다. 출처는 지우지 않는다(그게 이 제품의 근거다). 다만 **카드의 근거 레인이
+        # 이미 같은 인용을 쪽 번호까지 보여주고 있으므로** 여기서 되풀이하지 않는다.
         suggestion=(
             f"레벨 시프터나 분압으로 {format_volts(ceiling)}V 이하로 낮추세요. "
             f"절대 최대 정격을 넘으면 {i_ga(sink)} 파손됩니다 — 동작 이상이 아니라 고장입니다. "
-            f"추정이 아니라 양쪽 데이터시트 값입니다 ({out.fact.cite()} · {lim.fact.cite()})."
+            f"위 근거는 추정이 아니라 양쪽 부품에서 확인한 값입니다."
         ),
         unresolved_reason=None,
     )

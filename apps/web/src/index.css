@@ -74,3 +74,76 @@
     animation: none;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   인쇄 — 리포트를 PDF 로 내보내는 유일한 길
+   ─────────────────────────────────────────────────────────────────────────
+
+   결과 링크를 못 여는 자리가 실제로 있다. 사내망, 발주처에 첨부하는 메일,
+   나중에 다시 열어볼 보관본. 그때 JSON 은 사람이 읽는 물건이 아니다.
+
+   별도 화면을 만들지 않는다. **리포트 자체가 이미 보고서**이고, 필요한 것은
+   화면 장식을 걷어내는 것뿐이다. 브라우저의 Cmd+P → PDF 저장이 곧 내보내기다.
+
+   지키는 것 —
+   - **근거를 잘라내지 않는다.** 발견 카드가 페이지 경계에서 쪼개지면
+     판정과 근거가 다른 장에 남는다. 그게 이 문서에서 제일 나쁜 사고다
+   - 접힌 것(`<details>`)은 **펼쳐서 인쇄한다.** 종이에서는 못 펼친다
+   - 링크 주소를 본문에 박지 않는다 — 우리 링크는 32자리 검사 ID 라
+     본문이 읽기 어려워진다. 대신 머리말에 원본 주소를 한 번만 적는다 */
+@media print {
+  /* 배경을 인쇄하지 않는 기본 설정에서도 심각도 색이 남아야 한다 */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  html,
+  body {
+    background: #fff;
+  }
+
+  /* 화면 장치는 종이에서 뜻이 없다 — 고정 상단 바 · 버튼 · 다음 행동.
+     **`header` 를 통째로 숨기면 안 된다** — 발견 카드의 머리(심각도 · 규칙 ID ·
+     제목)도 `<header>` 다. 실제로 그렇게 지웠다가 인쇄본에서 어느 규칙인지
+     알 수 없게 됐다. 페이지 상단 바만 콕 집는다. */
+  .no-print {
+    display: none !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  /* **판정과 근거를 같은 장에 둔다.** 카드가 쪼개지면 이 리포트의 의미가 사라진다 */
+  .card,
+  figure,
+  details {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    box-shadow: none !important;
+  }
+
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* 접힌 것은 **인쇄 직전에 DOM 에서 연다** (`ReportActions.tsx`).
+     CSS 로 여는 방법은 브라우저마다 다르게 동작해서 믿을 수 없다.
+     여기서는 삼각형 표식만 없앤다 — 종이에서는 눌 수 없으니 뜻이 없다 */
+  summary {
+    list-style: none;
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  @page {
+    margin: 14mm 12mm;
+  }
+}

@@ -169,6 +169,24 @@ def _netlist_lines(graph, pad, net: str, netlist: Netlist) -> list[str]:
     ]
 
 
+def _neighbours(netlist: Netlist, net: str, mcu_ref: str) -> str:
+    """이 네트에 같이 물린 다른 부품들. **"연결된 부품" 보다 부품기호가 낫다.**
+
+    사용자는 이 문장을 읽고 회로도를 연다. 그때 무엇을 볼지 알려주지 않으면
+    네트 이름으로 다시 찾아야 한다.
+    """
+    others = sorted({ref for ref, _pin in netlist.connections(net) if ref != mcu_ref})
+    if not others:
+        return ""
+    # **저항에게 "동작한다" 고 말하지 않는다.** 부품기호를 괄호로 덧붙이기만 한다 —
+    # 사용자는 이 문장을 읽고 회로도를 열고, 그때 무엇을 볼지 알면 된다.
+    # **조사 앞에 보간을 두지 않는다** (헌법 11절 · `test_josa_in_claims`).
+    # 그래서 문장 끝에 붙는 모양으로 돌려준다 — `… 동작할 수 있습니다 (K1 · R3)`.
+    if len(others) <= 3:
+        return f" ({' · '.join(others)})"
+    return f" ({' · '.join(others[:3])} 외 {len(others) - 3}개)"
+
+
 def _gpio(pad) -> str:
     return f"GPIO{pad.gpio}" if pad.gpio is not None else "GPIO 미상"
 
@@ -208,10 +226,20 @@ def _finding(graph, pad, net: str, netlist: Netlist, firmware, blind: str | None
             f"코드에는 이 핀이 한 번도 나오지 않습니다."
         ),
         evidence=tuple(evidence),
+        # **지시를 먼저, 예외는 뒤에.**
+        #
+        # 세 문장이었고 **마지막이 첫 문장을 무효화하고 있었다** —
+        # "초기화하세요 … 아직 쓸 계획이 없다면 그대로 두셔도 됩니다."
+        # 읽고 나면 하라는 건지 말라는 건지 모른다. 예외를 지우지는 않는다
+        # (미래용 배선은 실제로 흔하다). 다만 **뒤로 빼고 조건을 앞에 둔다.**
+        #
+        # "연결된 부품" 이라고 뭉뚱그리지 않고 **실제 부품기호를 짚는다** —
+        # 사용자가 회로도에서 무엇을 볼지 바로 알 수 있어야 확인 비용이 준다.
         suggestion=(
-            f"코드에서 {eul(pad.silk)} 초기화하고 제어하세요. "
-            "초기화하지 않으면 부팅 후 핀이 뜬 상태로 남아 연결된 부품이 임의로 동작할 수 있습니다. "
-            "아직 쓸 계획이 없는 미래용 배선이라면 그대로 두셔도 됩니다."
+            f"코드에서 {eul(pad.silk)} 초기화하세요. 초기화하지 않으면 부팅 후 이 핀이 뜬 "
+            f"상태로 남아, 같은 네트에 물린 부품이 임의로 동작할 수 있습니다"
+            f"{_neighbours(netlist, net, pad.ref)}. "
+            f"쓸 계획이 없는 배선이라면 그대로 두셔도 됩니다."
         ),
         # 배선이 있고 코드에 없다는 것은 **다 읽었을 때만** 양쪽 다 확인된 사실이다.
         unresolved_reason=(
