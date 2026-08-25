@@ -16,7 +16,7 @@ from starlette.formparsers import MultiPartParser
 
 from prefab.datasheet.store import FactStore
 
-from . import quota, service, storage, usage, waitlist
+from . import apikeys, quota, service, storage, usage, waitlist
 from .auth import AuthError, AuthStore, normalize_email
 from .ratelimit import RateLimiter, client_key
 from .service import ApiError
@@ -295,7 +295,27 @@ def _current_user(request: Request):
     **없다고 거절하지 않는다.** 로그아웃 상태에서도 검사가 되고 결과가 열려야
     하기 때문이다 (헌법 4절 단서 1). 거절이 필요한 자리에서만 따로 거절한다.
     """
+    # **키를 쿠키보다 먼저 본다.** 둘 다 있으면 명시적으로 준 쪽이 뜻이다 —
+    # CI 러너가 쿠키를 들고 있을 일은 없지만, 사람이 브라우저에서 키를 시험할 때
+    # 로그인된 자기 계정으로 조용히 도는 것보다 키가 이기는 편이 덜 헷갈린다.
+    bearer = _bearer(request)
+    if apikeys.looks_like_key(bearer):
+        with store.session() as conn:
+            user_id = apikeys.user_for(conn, bearer)
+        return accounts.find_user(user_id) if user_id else None
+
     return accounts.user_for_token(request.cookies.get(SESSION_COOKIE))
+
+
+def _bearer(request: Request) -> str | None:
+    """`Authorization: Bearer prefab_...` 에서 키를 꺼낸다.
+
+    쿼리스트링으로는 안 받는다 — 주소는 서버 로그·브라우저 기록·리퍼러에
+    그대로 남는다. 키는 그런 데 남으면 안 된다.
+    """
+    raw = request.headers.get("authorization") or ""
+    scheme, _, value = raw.partition(" ")
+    return value.strip() if scheme.lower() == "bearer" else None
 
 
 def _require_user(request: Request):
@@ -421,6 +441,45 @@ async def join_waitlist(request: Request) -> dict:
     # **몇 명인지는 안 돌려준다.** 대기 인원은 우리 내부 지표이고,
     # 화면에 "3명 대기 중" 같은 숫자가 뜨면 오히려 안 팔리는 제품처럼 보인다.
     return {"joined": True}
+
+
+@app.get("/api/v1/keys")
+async def list_keys(request: Request) -> dict:
+    user = _current_user(request)
+    if user is None:
+        raise ApiError("LOGIN_REQUIRED", "로그인이 필요합니다.", 401)
+    with store.session() as conn:
+        return {"keys": apikeys.list_for(conn, user.id), "max": apikeys.MAX_KEYS_PER_USER}
+
+
+@app.post("/api/v1/keys", status_code=201)
+async def create_key(request: Request) -> dict:
+    """키를 만든다. **원문은 이 응답에만 실린다** — 다시는 못 본다.
+
+    DB 에는 SHA-256 만 남는다 (세션 토큰과 같은 규칙). 그래서 잃어버리면
+    되찾을 수 없고, 화면이 그 사실을 만들기 전에 미리 말해야 한다.
+    """
+    user = _current_user(request)
+    if user is None:
+        raise ApiError("LOGIN_REQUIRED", "로그인이 필요합니다.", 401)
+    body = await request.json()
+    try:
+        with store.session() as conn:
+            key, token = apikeys.create(conn, user.id, str((body or {}).get("label") or ""))
+    except apikeys.ApiKeyError as exc:
+        raise ApiError(exc.code, exc.message, 400) from exc
+    return {**key.to_dict(), "token": token}
+
+
+@app.delete("/api/v1/keys/{key_id}")
+async def revoke_key(key_id: str, request: Request) -> dict:
+    user = _current_user(request)
+    if user is None:
+        raise ApiError("LOGIN_REQUIRED", "로그인이 필요합니다.", 401)
+    with store.session() as conn:
+        if not apikeys.revoke(conn, user.id, key_id):
+            raise ApiError("KEY_NOT_FOUND", "그런 키가 없습니다.", 404)
+    return {"revoked": key_id}
 
 
 @app.get("/api/v1/parts/quota")

@@ -207,3 +207,26 @@ def test_검사_ID_는_추측할_수_없어야_한다():
         body = i[len("chk_"):]
         assert len(body) == CHECK_ID_BYTES * 2
         assert all(c in "0123456789abcdef" for c in body)
+
+
+def test_ApiError는_with_블록_안에서도_던져진다():
+    """**예외를 얼리면 `with` 안에서 못 던진다.**
+
+    `@dataclass(frozen=True)` 였을 때 `contextlib` 이 `gen.throw()` 로 예외를
+    넘기며 `__traceback__` 을 쓰다가 `FrozenInstanceError` 로 터졌다.
+    실패가 우리 오류가 아니라 서버 오류(500)로 나와서, 화면은 우리가 쓴
+    문구 대신 엉뚱한 것을 본다.
+
+    평범한 `raise` 로는 재현이 안 된다 — 반드시 컨텍스트 매니저 안이어야 한다.
+    """
+    import contextlib
+
+    @contextlib.contextmanager
+    def _session():
+        yield object()
+
+    with pytest.raises(service.ApiError) as caught:
+        with _session():
+            raise service.ApiError("BOOM", "터졌습니다.", 400)
+
+    assert caught.value.code == "BOOM"
