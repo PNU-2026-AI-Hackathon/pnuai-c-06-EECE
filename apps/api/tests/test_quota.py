@@ -137,3 +137,24 @@ def test_part_facts_표가_없어도_요청은_된다():
     quota.init(conn)
 
     assert quota.request(conn, "u1", "ANY-1", now=AUG)["status"] == "queued"
+
+
+def test_화면이_약속한_건수와_코드가_같다():
+    """**같은 숫자가 요금표와 코드 두 곳에 있다** (헌법 10절).
+
+    한쪽만 고치면 화면이 거짓말을 한다. 요금표를 파일에서 직접 읽어 대조한다 —
+    사람이 눈으로 맞추는 것에 기대지 않는다.
+    """
+    import pathlib
+    import re
+
+    pricing = pathlib.Path(__file__).resolve().parents[2] / "web/src/routes/Pricing.tsx"
+    if not pricing.exists():  # 백엔드만 체크아웃한 경우
+        pytest.skip("화면 저장소가 없습니다")
+
+    promised = [int(n) for n in re.findall(r"읽기 요청 월 (\d+)건", pricing.read_text())]
+    assert promised == [
+        quota.MONTHLY_LIMIT["free"],
+        quota.MONTHLY_LIMIT["pro"],
+        quota.MONTHLY_LIMIT["team"],
+    ], f"요금표 {promised} ≠ 코드 {list(quota.MONTHLY_LIMIT.values())}"
