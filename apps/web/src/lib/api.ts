@@ -1,4 +1,4 @@
-import type { CheckCreated, CheckResult, RuleInfo, Visibility } from "../types/api";
+import type { ApiKey, CheckCreated, CheckResult, RuleInfo, Visibility } from "../types/api";
 
 // 목표 응답은 docs/examples 에 있는 파일을 그대로 읽는다. 사본을 만들지 않는다 —
 // 계약 예시가 두 벌이 되는 순간 한쪽은 반드시 거짓이 된다.
@@ -310,4 +310,23 @@ export async function getRules(): Promise<RuleInfo[] | null> {
     console.warn(`[prefab] GET ${BASE}/api/v1/rules 실패`, e);
     throw e;
   }
+}
+
+/**
+ * API 키 목록. **원문은 안 온다** — 서버에도 해시만 있다.
+ */
+export async function fetchKeys(): Promise<{ keys: ApiKey[]; max: number }> {
+  return request("/api/v1/keys");
+}
+
+/**
+ * 키를 만든다. 돌려주는 `token` 은 **이때 한 번만** 존재한다.
+ * 화면은 그 사실을 만들기 전에 말해야 한다.
+ */
+export async function createKey(label: string): Promise<ApiKey & { token: string }> {
+  return send("/api/v1/keys", { label });
+}
+
+export async function revokeKey(id: string): Promise<void> {
+  await request(`/api/v1/keys/${id}`, { method: "DELETE" });
 }

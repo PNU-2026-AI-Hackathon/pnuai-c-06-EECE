@@ -225,3 +225,12 @@ export interface Discovery {
   unavailable: string | null;
   notes: string[];
 }
+
+/** API 키. **원문(`token`)은 만들 때 한 번만 온다** — 목록에는 없다. */
+export interface ApiKey {
+  id: string;
+  label: string;
+  created_at: string;
+  /** 한 번도 안 쓰였으면 `null`. 「이 키 아직 쓰이나」를 사용자가 알아야 지울 수 있다 */
+  last_used_at: string | null;
+}
