@@ -24,9 +24,20 @@ export function PricingPage() {
         <h1 className="mb-4 text-[28px] font-extrabold leading-snug tracking-tight md:text-[38px]">
           검사는 계속 무료입니다
         </h1>
+        {/*
+          **왜 무료인지 한 줄로 말한다.** 「무료」만 크게 적으면 나중에 말이 바뀔
+          것처럼 읽힌다. 판정이 순수 함수라 원가가 실제로 0에 가깝다는 것이
+          이 약속의 근거이고, 그건 우리 구조에서 나오는 것이라 잘 안 바뀐다.
+
+          그리고 **어디서 돈을 받는지도 같이 적는다.** 자동화(API·CI)와 팀 협업이다.
+          받는 자리를 숨기면 무료가 미끼처럼 보인다.
+        */}
         <p className="mb-12 max-w-2xl text-[16px] leading-relaxed text-sub md:text-[17px]">
-          회로도와 코드를 대조하는 검사는 횟수 제한 없이 무료입니다.
-          결과를 오래 보관하거나 팀에서 쓰실 때만 요금을 받습니다.
+          판정은 순수한 코드라 검사 한 번에 드는 비용이 거의 없습니다. 그래서{" "}
+          <strong className="font-bold text-ink">웹에서 하는 검사는 횟수 제한 없이 무료</strong>
+          이고, 앞으로도 그렇게 둡니다. 요금은{" "}
+          <strong className="font-bold text-ink">자동으로 돌릴 때와 팀에서 함께 쓸 때</strong>{" "}
+          받습니다.
         </p>
 
         {/* ── 요금제 ───────────────────────────────────────────── */}
@@ -38,12 +49,13 @@ export function PricingPage() {
           <Plan
             name="무료"
             price="0원"
-            note="지금 쓰실 수 있습니다"
+            note="개인 · 영원히"
             lines={[
-              "검사 무제한",
+              "웹에서 검사 무제한",
               "공개 부품 사실 DB 전부",
               "판정마다 근거와 출처",
-              "결과 링크 공유와 JSON 내려받기",
+              "결과 보관 · 링크 공유 · JSON 내려받기",
+              "새 부품 데이터시트 읽기 요청 월 3건",
             ]}
             limit="같은 주소에서 분당 20회 · 시간당 200회까지 올릴 수 있습니다."
             highlight
@@ -52,12 +64,12 @@ export function PricingPage() {
             name="Pro"
             price="9,900원"
             unit="/ 월"
-            note="개인 · 소규모"
+            note="자동으로 돌리고 싶을 때"
             lines={[
               "무료의 모든 것",
-              "결과 무기한 보관 · 비공개 링크",
-              "아직 안 읽은 부품 데이터시트 읽기 요청",
-              "규칙 발견 루프 — 내 보드에서 새 규칙 찾기",
+              "API 키 — 내 도구에서 바로 검사",
+              "GitHub 연동 — 회로도가 바뀐 PR에서 자동 검사",
+              "데이터시트 읽기 요청 월 30건",
             ]}
             waitlist="pro"
           />
@@ -65,25 +77,37 @@ export function PricingPage() {
             name="팀"
             price="39,000원"
             unit="/ 월"
-            note="발주가 잦은 팀"
+            note="여러 명이 쓰는 곳"
             lines={[
               "Pro의 모든 것",
-              "CI 연동 — 회로도가 바뀐 PR에서 자동 검사",
+              "조직 계정 — 결과를 팀이 함께 봅니다",
               "사내 부품 사실 등록 (공개 DB와 분리)",
               "사내 규칙 추가",
+              "데이터시트 읽기 요청 월 200건",
             ]}
             waitlist="team"
           />
         </div>
 
+        {/*
+          **무엇이 되고 무엇이 아직인지 한 줄씩 적는다.** 「준비 중」 한 마디로
+          뭉뚱그리면 무료 사용자도 자기가 지금 쓸 수 있는 것을 모른다.
+        */}
         <div className="rounded-card border border-warn/25 bg-warn-weak p-6">
-          <p className="mb-2 text-[15px] font-extrabold text-ink">
-            Pro · 팀 플랜은 준비 중입니다.
-          </p>
-          <p className="text-[14px] leading-relaxed text-sub">
-            출시하면 위에서 알림을 신청하신 분께 먼저 알려드립니다.
-            그때까지 무료 플랜의 모든 기능을 제한 없이 쓰실 수 있습니다.
-          </p>
+          <p className="mb-3 text-[15px] font-extrabold text-ink">지금 되는 것과 아직인 것</p>
+          <ul className="space-y-2 text-[14px] leading-relaxed text-sub">
+            <li>
+              <strong className="font-bold text-ink">무료 플랜은 전부 됩니다.</strong>{" "}
+              검사와 결과 보관, 그리고 데이터시트 읽기 요청까지 지금 쓰실 수 있습니다.
+              다만 <strong className="font-bold text-ink">결과 주소를 아는 사람은 열 수 있습니다</strong>
+              {" "}— 주소를 아는 사람도 못 열게 하는 비공개 링크는 만드는 중입니다.
+            </li>
+            <li>
+              <strong className="font-bold text-ink">Pro · 팀은 아직 결제를 열지 않았습니다.</strong>{" "}
+              API 키와 GitHub 연동, 조직 계정을 만드는 중입니다. 알림을 신청하시면 열릴 때
+              먼저 알려드립니다.
+            </li>
+          </ul>
         </div>
 
         <div className="mt-10 flex flex-wrap items-center gap-4 border-t border-line pt-8">
