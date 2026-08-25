@@ -562,13 +562,50 @@ async def get_check(check_id: str, request: Request) -> dict:
     가능해서 "공유용"과 "내 것"이 자연히 갈렸는데, 로그인 벽이 생기면서 모든 검사에
     주인이 붙었다. 그 규칙을 그대로 두면 **아무도 공유를 못 한다.**
 
-    비공개 링크는 요금표의 **Pro 항목**이다. 지금은 만들지 않았으므로
-    "없는 것을 있는 척" 하지 않는다 — 무료에서는 주소가 곧 접근 권한이고,
-    그 사실을 `/privacy` 가 그대로 적는다 (헌법 2-2 · 2-4).
+    **주인이 비공개로 바꾼 검사는 예외다.** 그때는 주인만 열린다.
+    비공개는 유료가 아니라 **무료 기능**이다 — 보안을 요금제 뒤에 두면
+    돈을 안 내는 사람의 회로도를 인질로 잡는 셈이 된다.
 
-    접근 통제는 **ID 를 못 맞히는 것**이 전부다. 그래서 16바이트(32자리)를 쓴다.
+    없는 검사와 남의 비공개 검사를 **똑같이 404 로 돌려준다.** 403 은
+    "여기 뭔가 있다"를 알려주는데, ID 를 못 맞히는 것이 접근 통제의 전부라
+    존재 자체를 안 알리는 편이 맞다.
     """
-    return store.get(check_id)
+    user = _current_user(request)
+    owner = store.owner_of(check_id)
+    mine = user is not None and owner is not None and owner == user.id
+
+    if store.visibility_of(check_id) == "private" and not mine:
+        raise ApiError("CHECK_NOT_FOUND", "그런 검사가 없습니다.", 404)
+
+    result = store.get(check_id)
+    # **저장한 payload 에 없는 두 값을 여기서 붙인다.**
+    # 검사한 순간의 판정 기록과 달리 나중에 바뀌는 값이라 payload 에 섞지 않는다.
+    #
+    # `owned` 가 없으면 남에게도 공개 범위 버튼이 뜨고, 눌러야 404 를 만난다.
+    # 보는 사람은 이미 이 검사를 열었으므로 새로 새는 정보가 없다.
+    result["visibility"] = store.visibility_of(check_id) or "link"
+    result["owned"] = mine
+    return result
+
+
+@app.post("/api/v1/checks/{check_id}/visibility")
+async def set_visibility(check_id: str, request: Request) -> dict:
+    """공개 범위를 바꾼다. **주인만.**
+
+    `{"visibility": "private"}` 또는 `{"visibility": "link"}`.
+    """
+    user = _current_user(request)
+    if user is None or store.owner_of(check_id) != user.id:
+        # 주인이 아닌 사람에게 "그 검사는 당신 것이 아닙니다" 라고 알려줄 이유가 없다
+        raise ApiError("CHECK_NOT_FOUND", "그런 검사가 없습니다.", 404)
+
+    body = await request.json()
+    wanted = str((body or {}).get("visibility") or "")
+    try:
+        store.set_visibility(check_id, wanted)
+    except ValueError as exc:
+        raise ApiError("BAD_VISIBILITY", str(exc), 400) from exc
+    return {"check_id": check_id, "visibility": wanted}
 
 
 @app.delete("/api/v1/checks/{check_id}")

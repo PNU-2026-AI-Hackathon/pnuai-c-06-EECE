@@ -158,7 +158,23 @@ export interface CheckResult {
   netlist: { nets: Net[]; parts: Part[] };
   /** 규칙 후보. 발견 루프를 안 돌렸으면 없다 */
   discovery?: Discovery;
+  /**
+   * 공개 범위. `link` 면 주소를 아는 누구나, `private` 면 주인만 열린다.
+   *
+   * **payload 가 아니라 서버 칼럼에서 온다.** 검사한 순간의 판정 기록과 달리
+   * 주인이 언제든 바꾸는 값이라 섞으면 안 된다.
+   *
+   * 옛 목 파일에는 없을 수 있어 선택으로 둔다 — 없으면 `link` 로 본다.
+   */
+  visibility?: Visibility;
+  /**
+   * 지금 보는 사람이 주인인가. **공개 범위를 바꾸는 버튼은 이게 참일 때만 뜬다.**
+   * 옛 목 파일에는 없어서 선택이고, 없으면 주인이 아닌 것으로 본다.
+   */
+  owned?: boolean;
 }
+
+export type Visibility = "link" | "private";
 
 /** POST /api/v1/checks 응답 */
 export interface CheckCreated {
