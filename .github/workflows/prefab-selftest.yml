@@ -48,16 +48,21 @@ jobs:
       # ③ 치명 발견이 있을 때 **정말로 빨간불이 켜지는가**
       #
       #    이걸 안 보면 「막아 준다」가 검증되지 않은 주장으로 남는다.
-      #    위 둘은 fail-on: never 라 통과하므로, 여기만 따로 본다.
+      #
+      #    **일부러 다른 보드를 쓴다.** `apps/api/board/` 는 REV2 — 레벨시프터를
+      #    넣어 고친 판이라 치명이 0건이다. 그걸로 돌리면 차단 조건 자체가 안 걸려서
+      #    「초록이니 잘 되는구나」로 읽힌다. 실제로 한 번 그렇게 지나갈 뻔했다.
+      #
+      #    아래 픽스처는 그 보드의 REV1 이고 치명 3건이 확실히 뜬다.
       - name: 빨간불이 켜지는지
         id: blocking
         continue-on-error: true
         uses: ./.github/actions/prefab-check
         with:
           api-key: ${{ secrets.PREFAB_API_KEY }}
-          netlist: apps/api/board/board.net.xml
-          firmware: apps/api/board/firmware
-          bom: apps/api/board/bom.csv
+          netlist: apps/api/tests/fixtures/esp32-c6-presence-smart-light.d356
+          firmware: apps/api/tests/fixtures/esp32-c6-presence-smart-light.firmware
+          bom: apps/api/tests/fixtures/esp32-c6-presence-smart-light.bom.csv
           fail-on: critical
 
       - name: 결과 판정
@@ -65,16 +70,23 @@ jobs:
         run: |
           echo "로컬 경로   ${{ steps.local.outcome }}  치명 ${{ steps.local.outputs.critical }}"
           echo "공개 경로   ${{ steps.remote.outcome }}  치명 ${{ steps.remote.outputs.critical }}"
-          echo "차단 동작   ${{ steps.blocking.outcome }}"
+          echo "차단 동작   ${{ steps.blocking.outcome }}  치명 ${{ steps.blocking.outputs.critical }}"
           echo "리포트      ${{ steps.local.outputs.report-url }}"
 
           fail=0
           [ "${{ steps.local.outcome }}"  = "success" ] || { echo "::error::로컬 경로 호출이 실패했습니다"; fail=1; }
           [ "${{ steps.remote.outcome }}" = "success" ] || { echo "::error::공개 경로 호출이 실패했습니다 — 남이 복사한 예시가 안 돕니다"; fail=1; }
 
-          # 이 보드에는 치명 발견이 있다. 그런데 차단이 안 걸렸으면 **막는 기능이 죽은 것**이다.
-          if [ "${{ steps.local.outputs.critical }}" -gt 0 ] && [ "${{ steps.blocking.outcome }}" != "failure" ]; then
-            echo "::error::치명 발견이 있는데 빨간불이 안 켜졌습니다"
+          # **차단은 조건부로 보지 않는다.** 전에는 "치명이 있으면" 이라는 조건을 달았는데,
+          # 그 보드에 치명이 0건이라 조건 자체가 안 걸렸고 초록이 났다.
+          # 검증되지 않은 채로 통과한 것이다. 이제 치명이 확실히 뜨는 보드를 쓰므로
+          # **차단은 반드시 failure 여야 한다.**
+          [ "${{ steps.blocking.outcome }}" = "failure" ] || {
+            echo "::error::치명 발견이 있는 보드인데 빨간불이 안 켜졌습니다 — 막는 기능이 죽었습니다"
             fail=1
-          fi
+          }
+          [ "${{ steps.blocking.outputs.critical }}" -gt 0 ] 2>/dev/null || {
+            echo "::error::차단 시험 보드에서 치명이 안 나왔습니다 — 시험 자체가 무의미합니다"
+            fail=1
+          }
           exit $fail
