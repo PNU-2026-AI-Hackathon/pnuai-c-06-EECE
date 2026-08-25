@@ -27,6 +27,7 @@ from prefab.runner import analyze
 from prefab.samples import SAMPLE_CHECK_ID, load_sample
 
 from . import waitlist
+from . import quota
 
 # --------------------------------------------------------------------- 상수
 
@@ -382,6 +383,7 @@ class Store:
             )
             # 대기 명단은 같은 DB 파일 안에 둔다 (헌법 9절 — SQLite 하나)
             waitlist.init(conn)
+            quota.init(conn)
 
     def save(self, result: dict[str, Any], owner_id: str | None = None) -> None:
         with self._session() as conn:

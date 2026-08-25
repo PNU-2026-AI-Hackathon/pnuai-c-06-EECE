@@ -16,7 +16,7 @@ from starlette.formparsers import MultiPartParser
 
 from prefab.datasheet.store import FactStore
 
-from . import service, storage, usage, waitlist
+from . import quota, service, storage, usage, waitlist
 from .auth import AuthError, AuthStore, normalize_email
 from .ratelimit import RateLimiter, client_key
 from .service import ApiError
@@ -162,6 +162,10 @@ async def guard(request: Request, call_next):
         path.startswith("/api/v1/checks")
         or path.startswith("/api/v1/auth/")
         or path.startswith("/api/v1/waitlist")
+        # **데이터시트 요청은 우리 돈이 나가는 유일한 자리다** (실측 약 $0.03/부품).
+        # 월 할당량이 이미 막고 있지만, 그건 계정 단위다. 계정을 여러 개 만들어
+        # 두드리는 것까지는 못 막으므로 주소 단위 한도를 겹쳐 둔다.
+        or path.startswith("/api/v1/parts/")
     )
     if request.method != "POST" or not guarded:
         return await call_next(request)
@@ -417,6 +421,47 @@ async def join_waitlist(request: Request) -> dict:
     # **몇 명인지는 안 돌려준다.** 대기 인원은 우리 내부 지표이고,
     # 화면에 "3명 대기 중" 같은 숫자가 뜨면 오히려 안 팔리는 제품처럼 보인다.
     return {"joined": True}
+
+
+@app.get("/api/v1/parts/quota")
+async def get_quota(request: Request) -> dict:
+    """이번 달 남은 데이터시트 읽기 요청.
+
+    **화면이 버튼을 누르기 전에 남은 수를 보여줘야 한다.** 눌러 보고 나서
+    "다 쓰셨습니다" 라고 하면 그건 알려준 게 아니라 막은 것이다.
+    """
+    user = _current_user(request)
+    if user is None:
+        raise ApiError("LOGIN_REQUIRED", "로그인하시면 남은 요청 수를 볼 수 있습니다.", 401)
+    with store.session() as conn:
+        return quota.quota_of(conn, user.id).to_dict()
+
+
+@app.post("/api/v1/parts/{mpn}/request", status_code=201)
+async def request_datasheet(mpn: str, request: Request) -> dict:
+    """아직 안 읽은 부품의 데이터시트를 읽어 달라고 남긴다.
+
+    **검사는 무제한 무료다.** 판정이 순수 함수라 원가가 0이기 때문이다.
+    돈이 나가는 자리는 여기 하나뿐이라 (실측 약 $0.03/부품) 여기만 센다.
+
+    **이미 읽은 부품은 할당량을 안 쓴다.** `part_facts` 는 공용이라 두 번째
+    요청부터 원가가 0이다. 그 사실을 `status: "known"` 으로 그대로 돌려준다.
+
+    큐에 들어간 요청은 **사람이 보고 처리한다** (헌법 2-1). 여기서 LLM 을 부르지 않는다.
+    """
+    user = _current_user(request)
+    if user is None:
+        raise ApiError(
+            "LOGIN_REQUIRED",
+            "데이터시트 읽기를 요청하려면 로그인이 필요합니다. 검사 자체는 로그인 없이도 무제한입니다.",
+            401,
+        )
+    try:
+        with store.session() as conn:
+            return quota.request(conn, user.id, mpn)
+    except quota.QuotaError as exc:
+        status = 429 if exc.code == "QUOTA_EXHAUSTED" else 400
+        raise ApiError(exc.code, exc.message, status) from exc
 
 
 @app.get("/api/v1/rules")
