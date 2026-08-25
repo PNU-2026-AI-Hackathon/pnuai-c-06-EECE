@@ -529,6 +529,41 @@ PYTHONPATH=src python -m pytest                  # 784개
 
 ---
 
+### 4.1. GitHub 에서 자동으로 돌리기
+
+**회로도가 바뀐 PR 마다 검사가 돕니다.** 우리 저장소가 이미 그렇게 쓰고 있고,
+같은 것을 남의 저장소에서도 쓸 수 있게 액션으로 뽑아 뒀습니다.
+
+1. https://prefab-web.onrender.com 의 **「내 검사」** 화면에서 API 키를 만듭니다
+2. 저장소 **Settings → Secrets → Actions** 에 `PREFAB_API_KEY` 로 넣습니다
+3. `.github/workflows/prefab.yml` 을 만듭니다
+
+```yaml
+name: 회로도 ↔ 코드 대조
+on:
+  pull_request:
+    paths: ["hardware/**", "firmware/**"]
+
+jobs:
+  prefab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: PNU-2026-AI-Hackathon/pnuai-c-06-EECE/.github/actions/prefab-check@main
+        with:
+          api-key: ${{ secrets.PREFAB_API_KEY }}
+          netlist: hardware/board.net.xml
+          firmware: firmware/
+          # bom: hardware/bom.csv        선택
+          # fail-on: critical            critical | warning | never
+```
+
+치명 발견이 있으면 **빨간불로 막고**, 결과 요약이 잡 요약(Job Summary)에 그대로 뜹니다.
+
+> **파일이 저장소를 떠납니다.** 검사하려면 넷리스트와 펌웨어를 Prefab 서버로 보내야
+> 합니다. 올린 파일은 디스크에 남기지 않고(`/privacy`), 요약에도 그 사실을 적습니다.
+> 사내망 밖으로 못 내보내는 회로도라면 `server` 를 바꿔 자체 호스팅하시면 됩니다.
+
 ## 5. 소개 및 시연영상
 
 | | |
