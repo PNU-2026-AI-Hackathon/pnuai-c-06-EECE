@@ -199,7 +199,10 @@ CREATE TABLE IF NOT EXISTS users (
     id            TEXT PRIMARY KEY,
     email         TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    created_at    TEXT NOT NULL
+    created_at    TEXT NOT NULL,
+    -- 요금제. 한도는 `web/quota.py` 의 MONTHLY_LIMIT 이 정한다.
+    -- **칼럼의 집은 여기다** — 계정에 속한 값이지 할당량 모듈의 것이 아니다.
+    plan          TEXT NOT NULL DEFAULT 'free'
 );
 CREATE TABLE IF NOT EXISTS sessions (
     fingerprint TEXT PRIMARY KEY,

@@ -67,9 +67,9 @@ pinMode(LED_PIN, OUTPUT);   // 컴파일 통과. 업로드 성공. LED는 안 �
 
 | 재작업 횟수 | 1회당 비용 | 1회당 지연 |
 |:---:|:---:|:---:|
-| **평균 2.9회** | **약 $44,000** | **8.5일** |
+| **평균 2.9회** | **$44,000** (약 6천만원) | **8.5일** |
 
-<p align='right'><sub>— Lifecycle Insights, PCB 설계 프로젝트 조사</sub></p>
+<p align='right'><sub>— Lifecycle Insights 조사. 업계에서 널리 인용되는 수치이고, 저희가 확인한 것은 이를 인용한 2차 자료(<a href='https://iconnect007.com/index.php/article/125926/cutting-respins-journey-to-the-single-spin-pcb/125929'>I-Connect007</a> 등)까지입니다.</sub></p>
 
 **이 비용을 감당할 수 있는 팀만 하드웨어를 만듭니다.** 그래서 이것은 실력의 문제가
 아니라 **진입장벽의 문제**입니다.
