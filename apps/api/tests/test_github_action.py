@@ -1,0 +1,120 @@
+"""GitHub 액션이 PR 에 적는 요약.
+
+**이 문구가 이 제품의 신뢰가 걸린 자리다.** CI 에서는 아무도 리포트를 안 열고
+요약 한 줄만 본다. 그 줄이 「발견 0건」만 말하고 못 돌린 규칙을 안 말하면,
+사용자는 다 검사해서 깨끗한 줄 읽는다 (헌법 2-4).
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import pathlib
+
+import pytest
+
+ACTION = pathlib.Path(__file__).resolve().parents[3] / ".github/actions/prefab-check/check.py"
+
+
+@pytest.fixture(scope="module")
+def check():
+    spec = importlib.util.spec_from_file_location("prefab_action_check", ACTION)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+URL = "https://prefab-web.onrender.com/r/chk_x"
+
+
+def test_못_돌린_규칙이_있으면_0건이_이상_없음이_아니라고_말한다(check):
+    out = check.summarize(
+        {"summary": {"critical": 0, "warning": 0, "cleared": 0, "rules_run": 9, "rules_total": 15},
+         "findings": []},
+        URL,
+    )
+    assert "6개는 돌리지 못했습니다" in out
+    assert "「이상 없음」을 뜻하지 않습니다" in out
+
+
+def test_다_돌았으면_그_경고를_안_붙인다(check):
+    out = check.summarize(
+        {"summary": {"critical": 0, "warning": 0, "cleared": 0, "rules_run": 15, "rules_total": 15},
+         "findings": []},
+        URL,
+    )
+    assert "돌리지 못했습니다" not in out
+
+
+def test_규칙_수를_모르면_지어내지_않는다(check):
+    """서버가 안 주면 `—` 로 둔다. 화면 규칙과 같다 (웹 헌법 2-1)."""
+    out = check.summarize({"summary": {"critical": 1, "warning": 0}, "findings": []}, URL)
+    assert "—" in out
+    assert "돌리지 못했습니다" not in out
+
+
+def test_발견을_열_건까지만_적고_나머지_수를_말한다(check):
+    findings = [
+        {"rule": f"R{i:02d}", "title": "무언가", "severity": "WARNING"} for i in range(14)
+    ]
+    out = check.summarize({"summary": {"critical": 0, "warning": 14}, "findings": findings}, URL)
+    assert "그 밖 4건" in out
+
+
+def test_파일을_보냈다는_사실을_적는다(check):
+    """**숨기지 않는다.** CI 에 넣는 사람은 회사 회로도를 올리는 것이다."""
+    out = check.summarize({"summary": {}, "findings": []}, URL)
+    assert "Prefab 서버로 보냈습니다" in out
+
+
+def test_리포트_링크가_들어간다(check):
+    assert URL in check.summarize({"summary": {}, "findings": []}, URL)
+
+
+# ── 액션 정의와 README 예시가 어긋나지 않는가 ──────────────
+
+ROOT = pathlib.Path(__file__).resolve().parents[3]
+ACTION_YML = ROOT / ".github/actions/prefab-check/action.yml"
+README = ROOT / "README.md"
+
+
+def _yaml():
+    return pytest.importorskip("yaml")
+
+
+def test_README_예시가_액션의_필수_입력을_다_준다():
+    """**한쪽만 고치면 남이 복사한 예시가 안 돈다.**
+
+    액션에 필수 입력을 더해 놓고 README 를 안 고치면, 그 예시를 그대로 붙인
+    사람은 첫 실행에서 막힌다. 우리는 그 실패를 못 본다.
+    """
+    import re
+
+    yaml = _yaml()
+    action = yaml.safe_load(ACTION_YML.read_text())
+    required = {k for k, v in action["inputs"].items() if v.get("required")}
+
+    block = re.search(r"name: 회로도 ↔ 코드 대조.*?```", README.read_text(), re.S)
+    assert block, "README 에서 워크플로 예시를 못 찾았습니다"
+    workflow = yaml.safe_load(block.group(0).rstrip("`").rstrip())
+
+    step = next(s for s in workflow["jobs"]["prefab"]["steps"] if "prefab-check" in str(s.get("uses", "")))
+    assert required <= set(step["with"]), f"예시에 빠진 필수 입력: {required - set(step['with'])}"
+
+
+def test_액션이_가리키는_스크립트가_있다():
+    yaml = _yaml()
+    action = yaml.safe_load(ACTION_YML.read_text())
+    run = action["runs"]["steps"][0]["run"]
+    assert "check.py" in run
+    assert (ACTION_YML.parent / "check.py").is_file()
+
+
+def test_액션이_넘기는_환경변수와_스크립트가_읽는_것이_같다(check):
+    """**환경변수 이름이 어긋나면 조용히 빈 값으로 돈다.** 예외도 안 난다."""
+    import re
+
+    yaml = _yaml()
+    action = yaml.safe_load(ACTION_YML.read_text())
+    passed = set(action["runs"]["steps"][0]["env"])
+    read = set(re.findall(r'os\.environ(?:\.get)?\[?\(?"(PREFAB_[A-Z_]+)"', ACTION_YML.parent.joinpath("check.py").read_text()))
+    assert read <= passed, f"액션이 안 넘기는 변수를 스크립트가 읽습니다: {read - passed}"

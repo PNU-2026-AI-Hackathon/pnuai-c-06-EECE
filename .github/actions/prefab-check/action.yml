@@ -1,0 +1,67 @@
+name: Prefab 회로도 ↔ 코드 대조
+description: 회로도와 펌웨어를 함께 검사해 어긋난 곳을 PR 에서 잡습니다.
+author: Prefab
+
+# **다른 저장소에서 이렇게 쓴다.**
+#
+#   - uses: PNU-2026-AI-Hackathon/pnuai-c-06-EECE/.github/actions/prefab-check@main
+#     with:
+#       api-key: ${{ secrets.PREFAB_API_KEY }}
+#       netlist: hardware/board.net.xml
+#       firmware: firmware/
+#
+# 저장소를 따로 만들지 않았다. GitHub 은 `owner/repo/경로@ref` 로도 액션을 읽는다.
+
+branding:
+  icon: git-pull-request
+  color: blue
+
+inputs:
+  api-key:
+    description: "Prefab API 키. 저장소 Secrets 에 PREFAB_API_KEY 로 넣으세요."
+    required: true
+  netlist:
+    description: "넷리스트 파일 경로 (.net.xml · .d356)"
+    required: true
+  firmware:
+    description: "펌웨어 소스 폴더 또는 zip. 없으면 코드 대조 규칙이 안 돕니다."
+    required: false
+    default: ""
+  bom:
+    description: "부품 목록 CSV. 없으면 데이터시트 규칙이 안 돕니다."
+    required: false
+    default: ""
+  fail-on:
+    description: "빨간불을 켤 기준 — critical | warning | never"
+    required: false
+    default: "critical"
+  server:
+    description: "API 주소. 자체 호스팅할 때만 바꾸세요."
+    required: false
+    default: "https://pnuai-c-06-eece-prefab.onrender.com"
+
+outputs:
+  report-url:
+    description: "결과 리포트 주소"
+    value: ${{ steps.check.outputs.report-url }}
+  critical:
+    description: "치명 발견 수"
+    value: ${{ steps.check.outputs.critical }}
+  warning:
+    description: "경고 수"
+    value: ${{ steps.check.outputs.warning }}
+
+runs:
+  using: composite
+  steps:
+    - id: check
+      shell: bash
+      # 파이썬만 쓴다. `jq` 는 러너에 있지만 없는 이미지도 있어서 기대지 않는다.
+      run: python3 "${{ github.action_path }}/check.py"
+      env:
+        PREFAB_API_KEY: ${{ inputs.api-key }}
+        PREFAB_NETLIST: ${{ inputs.netlist }}
+        PREFAB_FIRMWARE: ${{ inputs.firmware }}
+        PREFAB_BOM: ${{ inputs.bom }}
+        PREFAB_FAIL_ON: ${{ inputs.fail-on }}
+        PREFAB_SERVER: ${{ inputs.server }}
