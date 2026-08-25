@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { ApiKeys } from "../components/ApiKeys";
 import { Header } from "../components/Layout";
 import { ApiFailure, type CheckSummaryRow, deleteCheck, fetchMyChecks } from "../lib/api";
 import { useSession } from "../lib/session";
@@ -144,6 +145,13 @@ export function MyChecksPage() {
           ))}
         </ul>
       )}
+
+      {/*
+        **키 관리를 여기 둔다.** 로그인한 사람만 오는 화면이고, 검사 목록 바로
+        아래가 「내 계정에 딸린 것들」이 모이는 자리다. 별도 설정 화면을 새로
+        만들면 아무도 안 찾아간다.
+      */}
+      <ApiKeys />
     </Shell>
   );
 }
