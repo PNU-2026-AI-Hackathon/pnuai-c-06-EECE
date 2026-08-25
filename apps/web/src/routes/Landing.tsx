@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 
+import { AuthCta } from "../components/AuthCta";
+
 import { Header } from "../components/Layout";
 import { ReportPreview } from "../components/ReportPreview";
 
@@ -87,17 +89,7 @@ function Hero() {
           코드와 회로도 <strong className="font-bold text-ink">사이</strong>에
           있어서 어느 쪽 검사에도 안 걸리기 때문입니다.
         </p>
-        <div className="flex flex-wrap items-center gap-3">
-          <Link to="/signup" className="btn-primary">
-            무료로 시작하기
-          </Link>
-          <Link
-            to="/login"
-            className="inline-flex min-h-[44px] items-center rounded-block px-3 text-[15px] font-bold text-sub hover:text-ink"
-          >
-            로그인
-          </Link>
-        </div>
+        <AuthCta />
         {/*
           **누구를 위한 것인지 한 번도 말하지 않고 있었다.** 그리고 「넷리스트」가
           설명 없이 등장한다 — KiCad 사용자는 알지만 다른 도구를 쓰는 사람은
@@ -477,17 +469,7 @@ function Closing() {
           </Link>{" "}
           — 원가가 그렇게 생겼기 때문이고, 그 원가를 그대로 적어 뒀습니다.
         </p>
-        <div className="flex flex-wrap items-center gap-3">
-          <Link to="/signup" className="btn-primary">
-            무료로 시작하기
-          </Link>
-          <Link
-            to="/login"
-            className="inline-flex min-h-[44px] items-center rounded-block px-3 text-[15px] font-bold text-sub hover:text-ink"
-          >
-            로그인
-          </Link>
-        </div>
+        <AuthCta />
       </div>
     </Section>
   );
