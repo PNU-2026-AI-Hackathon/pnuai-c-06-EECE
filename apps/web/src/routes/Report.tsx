@@ -8,6 +8,7 @@ import { Discovery } from "../components/Discovery";
 import { Pipeline } from "../components/Pipeline";
 import { Logo } from "../components/Logo";
 import { ReportActions, ReportNext } from "../components/ReportActions";
+import { VisibilityToggle } from "../components/VisibilityToggle";
 import { InputsTable, SummaryTiles } from "../components/Summary";
 import { ApiFailure, checkNotice, getCheck } from "../lib/api";
 import type { CheckResult, Finding, Severity } from "../types/api";
@@ -161,6 +162,7 @@ export function ReportPage() {
       </p>
 
       <ReportActions check={check} />
+      <VisibilityToggle check={check} />
 
       <SectionTitle no="01">요약</SectionTitle>
       <div className="mb-8">

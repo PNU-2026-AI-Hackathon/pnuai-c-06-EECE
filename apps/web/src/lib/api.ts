@@ -1,4 +1,4 @@
-import type { CheckCreated, CheckResult, RuleInfo } from "../types/api";
+import type { CheckCreated, CheckResult, RuleInfo, Visibility } from "../types/api";
 
 // 목표 응답은 docs/examples 에 있는 파일을 그대로 읽는다. 사본을 만들지 않는다 —
 // 계약 예시가 두 벌이 되는 순간 한쪽은 반드시 거짓이 된다.
@@ -263,6 +263,14 @@ export async function createCheck(files: {
   if (files.previousNetlist) form.append("previous_netlist", files.previousNetlist);
 
   return request("/api/v1/checks", { method: "POST", body: form });
+}
+
+/** 검사 하나의 공개 범위를 바꾼다. **주인만 된다** — 아니면 404. */
+export async function setVisibility(
+  id: string,
+  visibility: Visibility
+): Promise<{ check_id: string; visibility: Visibility }> {
+  return send(`/api/v1/checks/${id}/visibility`, { visibility });
 }
 
 /** 결과 조회 */

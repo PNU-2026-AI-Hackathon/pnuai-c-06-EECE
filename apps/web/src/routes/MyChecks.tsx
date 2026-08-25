@@ -84,7 +84,8 @@ export function MyChecksPage() {
           같은 사실이 `Privacy.tsx` 에도 있는데 그쪽만 맞고 여기가 틀어져 있었다 (헌법 10절).
         */}
         {user.email} · 이 목록은 <strong className="font-bold text-ink">나에게만 보입니다.</strong>{" "}
-        결과 주소를 받은 사람은 로그인 없이 열 수 있습니다.
+        결과는 기본이 링크 공개라 주소를 받은 사람이 열 수 있고,{" "}
+        <strong className="font-bold text-ink">결과 화면에서 비공개로 바꾸면 나만 열립니다.</strong>
       </p>
 
       {storage?.survives_restart === false && (

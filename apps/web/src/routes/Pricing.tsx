@@ -54,7 +54,8 @@ export function PricingPage() {
               "웹에서 검사 무제한",
               "공개 부품 사실 DB 전부",
               "판정마다 근거와 출처",
-              "결과 보관 · 링크 공유 · JSON 내려받기",
+              "결과 보관 · 링크 공유 · 비공개 전환",
+              "JSON 내려받기",
               "새 부품 데이터시트 읽기 요청 월 3건",
             ]}
             limit="같은 주소에서 분당 20회 · 시간당 200회까지 올릴 수 있습니다."
@@ -98,9 +99,7 @@ export function PricingPage() {
           <ul className="space-y-2 text-[14px] leading-relaxed text-sub">
             <li>
               <strong className="font-bold text-ink">무료 플랜은 전부 됩니다.</strong>{" "}
-              검사와 결과 보관, 그리고 데이터시트 읽기 요청까지 지금 쓰실 수 있습니다.
-              다만 <strong className="font-bold text-ink">결과 주소를 아는 사람은 열 수 있습니다</strong>
-              {" "}— 주소를 아는 사람도 못 열게 하는 비공개 링크는 만드는 중입니다.
+              검사와 결과 보관, 비공개 링크, 데이터시트 읽기 요청까지 지금 쓰실 수 있습니다.
             </li>
             <li>
               <strong className="font-bold text-ink">Pro · 팀은 아직 결제를 열지 않았습니다.</strong>{" "}

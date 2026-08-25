@@ -378,6 +378,12 @@ class Store:
             # 있다. 표를 새로 만들면 그 결과들이 사라진다.
             if "owner_id" not in _columns(conn, "checks"):
                 conn.execute("ALTER TABLE checks ADD COLUMN owner_id TEXT")
+            # 공개 범위. **기본은 `link`** — 지금까지 만든 검사가 전부 그렇게
+            # 동작해 왔고, 기본을 `private` 로 두면 남에게 보낸 링크가 조용히 죽는다.
+            if "visibility" not in _columns(conn, "checks"):
+                conn.execute(
+                    "ALTER TABLE checks ADD COLUMN visibility TEXT NOT NULL DEFAULT 'link'"
+                )
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS checks_owner ON checks (owner_id, created_at)"
             )
@@ -401,6 +407,31 @@ class Store:
     def delete(self, check_id: str) -> None:
         with self._session() as conn:
             conn.execute("DELETE FROM checks WHERE id = ?", (check_id,))
+
+    #: 공개 범위. 값은 이 둘뿐이다.
+    #:
+    #: `link`     주소를 아는 사람은 누구나 (무료 플랜의 공유 방식)
+    #: `private`  주인만. 남이 주소를 알아도 404
+    #:
+    #: **404 로 돌려준다. 403 이 아니다.** 403 은 "여기 뭔가 있다"를 알려주는데,
+    #: 검사 ID 는 못 맞히는 것이 접근 통제의 전부라 존재 자체를 안 알리는 편이 맞다.
+    VISIBILITIES = ("link", "private")
+
+    def visibility_of(self, check_id: str) -> str | None:
+        """이 검사의 공개 범위. 검사가 없으면 `None`."""
+        with self._session() as conn:
+            row = conn.execute(
+                "SELECT visibility FROM checks WHERE id = ?", (check_id,)
+            ).fetchone()
+        return (row["visibility"] or "link") if row else None
+
+    def set_visibility(self, check_id: str, visibility: str) -> None:
+        if visibility not in self.VISIBILITIES:
+            raise ValueError(f"알 수 없는 공개 범위입니다: {visibility}")
+        with self._session() as conn:
+            conn.execute(
+                "UPDATE checks SET visibility = ? WHERE id = ?", (visibility, check_id)
+            )
 
     def owner_of(self, check_id: str) -> str | None:
         """이 검사의 주인. 없으면 `None` (로그인 없이 만든 검사)."""
@@ -443,6 +474,13 @@ class Store:
         return out
 
     def get(self, check_id: str) -> dict[str, Any]:
+        """저장한 것을 **그대로** 돌려준다.
+
+        공개 범위(`visibility`)와 주인 여부(`owned`)는 여기서 안 섞는다.
+        payload 는 검사한 순간의 판정 기록이고 그 둘은 나중에 바뀌는 값이라,
+        저장소의 왕복이 손실 없다는 성질을 지키는 편이 낫다.
+        응답에 싣는 것은 API 층(`web/app.py`)이 한다.
+        """
         with self._session() as conn:
             row = conn.execute("SELECT payload FROM checks WHERE id = ?", (check_id,)).fetchone()
         if row is None:
