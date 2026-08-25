@@ -27,6 +27,7 @@ from prefab.runner import analyze
 from prefab.samples import SAMPLE_CHECK_ID, load_sample
 
 from . import waitlist
+from . import apikeys
 from . import quota
 
 # --------------------------------------------------------------------- 상수
@@ -72,11 +73,25 @@ CHECK_ID_BYTES = 16  # → 16진수 32자리
 
 # --------------------------------------------------------------------- 오류
 
-@dataclass(frozen=True)
+@dataclass(eq=False)
 class ApiError(Exception):
     """계약의 오류 응답 그대로. message 는 사용자에게 그대로 노출된다.
 
     무엇이 잘못됐고 어떻게 고치는지 알려준다. 사과하지 않는다.
+
+    **`frozen=True` 가 아니다.** 한동안 그랬는데, 예외를 얼리면 파이썬이
+    `__traceback__` 을 못 붙인다. 평범한 `raise` 는 통과하지만
+    **`with` 블록 안에서 던지면 터진다** — `contextlib` 이 `gen.throw()` 로
+    예외를 넘기면서 traceback 을 쓰기 때문이다.
+
+        with store.session() as conn:
+            raise ApiError(...)      # FrozenInstanceError: __traceback__
+
+    증상이 고약하다. 실패가 `ApiError` 가 아니라 `FrozenInstanceError` 로
+    나와서 500 이 되고, 화면은 우리가 쓴 문구 대신 서버 오류를 본다.
+
+    `eq=False` 로 두는 이유는 해시 가능성을 지키기 위해서다 — 예외는 값이
+    아니라 사건이라 동일성 비교가 맞다.
     """
 
     code: str
@@ -390,6 +405,7 @@ class Store:
             # 대기 명단은 같은 DB 파일 안에 둔다 (헌법 9절 — SQLite 하나)
             waitlist.init(conn)
             quota.init(conn)
+            apikeys.init(conn)
 
     def save(self, result: dict[str, Any], owner_id: str | None = None) -> None:
         with self._session() as conn:
