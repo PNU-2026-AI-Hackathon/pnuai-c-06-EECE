@@ -7,6 +7,7 @@ import {
 
 import { SessionProvider } from "./lib/session";
 import { AccountPage } from "./routes/Account";
+import { ConnectPage } from "./routes/Connect";
 import { LandingPage } from "./routes/Landing";
 import { MyChecksPage } from "./routes/MyChecks";
 import { PricingPage } from "./routes/Pricing";
@@ -37,6 +38,8 @@ export default function App() {
           <Route path="/login" element={<AccountPage mode="login" />} />
           <Route path="/signup" element={<AccountPage mode="signup" />} />
           <Route path="/mine" element={<MyChecksPage />} />
+          {/* 저장소 연동 — CI 설정 네 단계를 세 번의 클릭으로 */}
+          <Route path="/connect" element={<ConnectPage />} />
           <Route path="/c/:id" element={<ProgressPage />} />
           <Route path="/r/:id" element={<ReportPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

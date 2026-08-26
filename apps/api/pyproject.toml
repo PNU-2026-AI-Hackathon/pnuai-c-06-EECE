@@ -19,6 +19,10 @@ datasheet = [
 dev = [
     "pytest>=8.0",
     "httpx>=0.27",
+    # **`web/repo.py` 가 남의 저장소에 넣을 YAML 을 만든다.** 그게 유효한지
+    # 확인하려면 실제 파서로 읽어 봐야 한다. `importorskip` 으로 두면 CI 에서
+    # 조용히 건너뛰고, 깨진 파일이 남의 저장소로 나간다 (헌법 2-4).
+    "pyyaml>=6.0",
 ]
 
 [project.scripts]
