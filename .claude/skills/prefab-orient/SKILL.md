@@ -54,9 +54,6 @@ awk '/^3/{print substr($0,4,14)}' <파일> | sort | uniq -c | sort -rn   # 네�
 | 백엔드에 뭘 요청해뒀나 | `_docs/백엔드_요청서.md` | 나머지 `_docs/*` |
 | 핀 번호·칩 표 | `docs/CHIPS.md` | 규칙 코드 (핀은 코드에 없다) |
 
-`_docs/MASTER_PROMPT.md` · `DEV_PROMPTS.md` · `PROMPTS.md` · `BOOTSTRAP.md`는
-**프롬프트 아카이브다.** 현재 상태를 묻는 질문의 답은 여기 없다. 명시적으로 요청받을 때만 연다.
-
 > 문서가 서로 어긋나면 **코드가 이긴다.** 규칙 카탈로그는 세 문서에 복사돼 있고 이미 갈라져 있다
 > (`apps/api/CLAUDE.md`의 R1·R5는 칩 번호가 하드코딩돼 있어 README와 다르다).
 

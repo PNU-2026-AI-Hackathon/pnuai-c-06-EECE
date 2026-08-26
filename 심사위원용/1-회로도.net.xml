@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  인체감지 스마트 조명 REV2 — 트랜지스터 레벨시프트 적용본.
+
+  **출처: 하드웨어 담당(한지양)이 보낸 `netlist_rev2_transistor.md` 를 그대로 옮긴 것이다.**
+  회로도 도구에서 뽑은 파일이 아니라 그 표를 손으로 옮겼다. 그 사실을 숨기지 않는다 —
+  좌표가 없고 부품 값도 문서에 적힌 만큼만 있다.
+
+  REV1 과 달라진 것 (문서 1절 그대로):
+    - U1.D5 → K1.IN 직결이 없어졌다. R4(1kΩ) → Q1(2N3904) 베이스로 간다
+    - R3(10kΩ) 풀업이 3V3 → 5V_BUS 로 옮겼다
+    - U1.3V3 은 이제 아무 데도 안 간다 (No Connect)
+    - 신호 극성이 뒤집혔다: HIGH=ON, LOW=OFF
+-->
+<export version="E">
+  <components>
+    <comp ref="U1"><value>XIAO ESP32C6</value>
+      <fields><field name="MPN">XIAO-ESP32C6</field></fields></comp>
+    <comp ref="U2"><value>mmWave sensor</value>
+      <fields><field name="MPN">HLK-LD2410C</field></fields></comp>
+    <comp ref="K1"><value>5V relay module</value>
+      <fields><field name="MPN">JQC-3FF-S-Z</field></fields></comp>
+    <comp ref="Q1"><value>NPN</value>
+      <fields><field name="MPN">2N3904</field></fields></comp>
+    <comp ref="R4"><value>1k</value></comp>
+    <comp ref="R3"><value>10k</value></comp>
+    <comp ref="R1"><value>5.1k</value></comp>
+    <comp ref="R2"><value>5.1k</value></comp>
+    <comp ref="C1"><value>470uF</value></comp>
+    <comp ref="C2"><value>100nF</value></comp>
+    <comp ref="J1"><value>USB-C</value></comp>
+    <comp ref="J2"><value>LED header</value></comp>
+  </components>
+  <nets>
+    <net name="5V_BUS">
+      <node ref="U1" pin="1" pinfunction="5V"/>
+      <node ref="U2" pin="1" pinfunction="VCC"/>
+      <node ref="K1" pin="1" pinfunction="VCC"/>
+      <node ref="K1" pin="5" pinfunction="COM"/>
+      <node ref="C1" pin="1"/>
+      <node ref="C2" pin="1"/>
+      <node ref="R3" pin="1"/>
+      <node ref="J1" pin="1" pinfunction="VBUS"/>
+    </net>
+    <net name="GND_BUS">
+      <node ref="U1" pin="2" pinfunction="GND"/>
+      <node ref="U2" pin="2" pinfunction="GND"/>
+      <node ref="K1" pin="2" pinfunction="GND"/>
+      <node ref="Q1" pin="3" pinfunction="E"/>
+      <node ref="C1" pin="2"/>
+      <node ref="C2" pin="2"/>
+      <node ref="R1" pin="2"/>
+      <node ref="R2" pin="2"/>
+      <node ref="J1" pin="2" pinfunction="GND"/>
+      <node ref="J2" pin="2"/>
+    </net>
+    <net name="PRESENCE_3V3">
+      <node ref="U1" pin="4" pinfunction="D2"/>
+      <node ref="U2" pin="3" pinfunction="OUT"/>
+    </net>
+    <net name="Q1_BASE_DRIVE">
+      <node ref="U1" pin="7" pinfunction="D5"/>
+      <node ref="R4" pin="1"/>
+    </net>
+    <net name="Q1_BASE">
+      <node ref="R4" pin="2"/>
+      <node ref="Q1" pin="2" pinfunction="B"/>
+    </net>
+    <net name="RELAY_IN_NET">
+      <node ref="Q1" pin="1" pinfunction="C"/>
+      <node ref="K1" pin="3" pinfunction="IN"/>
+      <node ref="R3" pin="2"/>
+    </net>
+    <net name="LED_POS_SWITCHED">
+      <node ref="K1" pin="4" pinfunction="NO"/>
+      <node ref="J2" pin="1"/>
+    </net>
+    <net name="USB_CC1">
+      <node ref="R1" pin="1"/>
+      <node ref="J1" pin="3" pinfunction="CC1"/>
+    </net>
+    <net name="USB_CC2">
+      <node ref="R2" pin="1"/>
+      <node ref="J1" pin="4" pinfunction="CC2"/>
+    </net>
+  </nets>
+</export>
