@@ -205,6 +205,17 @@ function FreshKey({
   onClose: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const [copiedCmd, setCopiedCmd] = useState(false);
+
+  /** 명령만 복사한다. **키는 안 붙인다** — 셸 기록에 남으면 안 된다. */
+  async function copyCmd() {
+    try {
+      await navigator.clipboard.writeText("gh secret set PREFAB_API_KEY --repo ");
+      setCopiedCmd(true);
+    } catch {
+      setCopiedCmd(false);
+    }
+  }
 
   async function copy() {
     try {
@@ -237,6 +248,45 @@ function FreshKey({
         >
           복사했습니다, 닫기
         </button>
+      </div>
+
+      {/*
+        **키만 주고 끝나고 있었다.** 손에 쥔 사람이 다음에 뭘 해야 하는지 몰랐다 —
+        「CI 에서 이 키로 인증합니다」는 설명이지 할 일이 아니다.
+
+        원문이 존재하는 순간은 여기뿐이라, 다음 한 걸음도 **여기서** 말해야 한다.
+        창을 닫고 나면 키를 다시 못 보고, 그러면 처음부터 다시 만들어야 한다.
+      */}
+      <div className="mt-6 border-t border-ok/20 pt-5">
+        <p className="mb-1 text-[14px] font-extrabold text-ink">이제 저장소에 넣으세요</p>
+        <p className="mb-3 text-[13px] leading-relaxed text-sub">
+          이 명령을 치면 <strong className="font-semibold text-ink">키를 물어봅니다.</strong>{" "}
+          거기 붙여 넣으시면 됩니다 — 명령에 직접 적지 않아야 셸 기록에 안 남습니다.
+        </p>
+        <div className="mb-2 flex items-start gap-2">
+          <code className="min-w-0 flex-1 overflow-x-auto rounded-block bg-surface px-4 py-3 font-mono text-[12.5px] text-ink">
+            gh secret set PREFAB_API_KEY --repo &lt;내-계정&gt;/&lt;저장소&gt;
+          </code>
+          <button
+            type="button"
+            onClick={() => void copyCmd()}
+            className="min-h-[44px] shrink-0 rounded-block px-3 text-[13px] font-bold text-sub hover:text-ink"
+          >
+            {copiedCmd ? "복사했습니다" : "복사"}
+          </button>
+        </div>
+        <p className="mb-4 text-[12.5px] leading-relaxed text-mute">
+          <code className="font-mono">gh</code> 가 없으시면 저장소{" "}
+          <strong className="font-semibold text-sub">Settings → Secrets and variables → Actions → New repository secret</strong>{" "}
+          에서 이름을 <code className="font-mono">PREFAB_API_KEY</code> 로 넣으셔도 같습니다.
+        </p>
+        <p className="text-[13px] leading-relaxed text-sub">
+          그다음 워크플로 파일이 필요한데,{" "}
+          <Link to="/connect" className="font-bold text-brand-strong hover:underline">
+            저장소 연결하기
+          </Link>
+          를 쓰시면 <strong className="font-bold text-ink">경로까지 채워서 PR 로 만들어 드립니다.</strong>
+        </p>
       </div>
     </div>
   );

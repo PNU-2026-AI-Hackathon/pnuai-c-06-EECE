@@ -13,7 +13,7 @@
 | **써 보기** | **https://prefab-web.onrender.com** |
 | **직접 돌려보기** | 계정 `review@prefab.demo` / `prefab-review-2026` · 파일은 [`심사위원용/`](./심사위원용) ([안내](./심사위원용/읽어보기.md)) |
 | API | https://pnuai-c-06-eece-prefab.onrender.com ([문서](https://pnuai-c-06-eece-prefab.onrender.com/docs)) |
-| 시연 영상 | *(8/27 등록 예정)* |
+| 시연 영상 | **[유튜브](https://www.youtube.com/watch?v=xuhnsA9rssU)** |
 | 규칙 | **15개 전부 구현** (차별 8 · 기본 7) |
 | 지원 칩 | **6종** — ESP32 · C3 · C6 · H2 · S3 · RP2040 |
 | 테스트 | **892개** 통과 |
@@ -659,8 +659,28 @@ PYTHONPATH=src python -m pytest                  # 892개
 **회로도가 바뀐 PR 마다 검사가 돕니다.** 우리 저장소가 이미 그렇게 쓰고 있고,
 같은 것을 남의 저장소에서도 쓸 수 있게 액션으로 뽑아 뒀습니다.
 
+#### 가장 빠른 길 — 저장소 연결
+
+[**「저장소 연결하기」**](https://prefab-web.onrender.com/connect) 를 쓰시면 저희가 저장소를 훑어
+**회로도·펌웨어·부품 목록이 어디 있는지 찾고, 경로가 채워진 워크플로 파일을 PR 로 올려 드립니다.**
+확신이 없으면 고르지 않고 비워 둡니다 — 틀린 경로를 채워 두는 것이 빈칸보다 나쁘기 때문입니다.
+
+그다음 키만 넣으시면 됩니다. **키를 물어보게 하고 붙여 넣으세요** — 명령에 직접 적으면 셸 기록에 남습니다.
+
+```bash
+gh secret set PREFAB_API_KEY --repo <내-계정>/<저장소>
+```
+
+`gh` 가 없으시면 저장소 **Settings → Secrets and variables → Actions → New repository secret**
+에서 이름을 `PREFAB_API_KEY` 로 넣으셔도 같습니다.
+
+> **시크릿은 저희가 대신 안 넣습니다.** 넣으려면 저장소의 **모든 비밀값을 바꿀 수 있는 권한**을
+> 받아야 합니다. 그 권한은 안 받는 편이 맞다고 봤습니다.
+
+#### 손으로 붙이려면
+
 1. https://prefab-web.onrender.com 의 **「내 검사」** 화면에서 API 키를 만듭니다
-2. 저장소 **Settings → Secrets → Actions** 에 `PREFAB_API_KEY` 로 넣습니다
+2. 위 명령으로 `PREFAB_API_KEY` 를 넣습니다
 3. `.github/workflows/prefab.yml` 을 만듭니다
 
 ```yaml
@@ -736,7 +756,7 @@ permissions:
 | | |
 |---|---|
 | **바로 써 보기** | **https://prefab-web.onrender.com** |
-| 시연 영상 | *AI융합교육원 유튜브 「제7회 PNU 창의융합AI해커톤」 재생목록 — 링크 확인 후 등록 (8/27)* |
+| **시연 영상** | **[제7회 PNU 창의융합AI해커톤(본선) 창업 06. 전전컴 시연 영상](https://www.youtube.com/watch?v=xuhnsA9rssU)** |
 | 발표 자료 | *(8/27 제출)* |
 
 > 첫 접속은 서버가 절전에서 깨느라 **약 12.6초** 걸립니다 (실측). 화면이 그 사실을 설명합니다.

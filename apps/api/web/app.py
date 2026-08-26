@@ -284,6 +284,31 @@ def _seed_demo_account() -> bool:
 
 DEMO_ACCOUNT_READY = _seed_demo_account()
 
+#: CI 가 쓰는 키의 원문. **배포 설정에 두고, GitHub 시크릿과 같은 값을 넣는다.**
+#:
+#: 무료 플랜이라 재배포마다 DB 가 날아가고 키도 같이 죽는다. 8/26 하루에 세 번
+#: 그랬고, 그때마다 사람이 키를 새로 만들어 시크릿에 넣었다.
+#: 기동 때 다시 심으면 그 일이 없어진다. **저장하는 것은 여전히 지문뿐이다.**
+CI_KEY = os.getenv("PREFAB_CI_KEY", "").strip()
+
+
+def _seed_ci_key() -> bool:
+    """CI 키를 공용 계정 것으로 심는다. **없으면 조용히 지나간다.**"""
+    if not (CI_KEY and DEMO_ACCOUNT_READY):
+        return False
+    try:
+        user = accounts.authenticate(DEMO_EMAIL, DEMO_PASSWORD)
+        with store.session() as conn:
+            apikeys.init(conn)
+            apikeys.ensure(conn, user.id, CI_KEY, "CI (배포 설정)")
+        return True
+    except Exception:
+        # 키 하나 못 심었다고 서버가 안 뜨면 그게 더 나쁘다.
+        return False
+
+
+CI_KEY_READY = _seed_ci_key()
+
 
 # --------------------------------------------------------------------- 오류
 
@@ -324,6 +349,8 @@ async def root() -> dict:
     out["seeded_parts"] = SEEDED_PARTS
     # **심었다고 말하지 않고 실제로 되는지 말한다.** 여기가 거짓이면 README 도 거짓이다.
     out["demo_account"] = DEMO_EMAIL if DEMO_ACCOUNT_READY else None
+    # **심었다고 말하지 않고 되는지 말한다.** CI 가 401 을 만나면 여기부터 본다.
+    out["ci_key"] = "ready" if CI_KEY_READY else ("unset" if not CI_KEY else "failed")
     return out
 
 
