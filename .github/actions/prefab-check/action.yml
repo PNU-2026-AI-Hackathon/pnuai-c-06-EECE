@@ -59,6 +59,8 @@ runs:
       # 파이썬만 쓴다. `jq` 는 러너에 있지만 없는 이미지도 있어서 기대지 않는다.
       run: python3 "${{ github.action_path }}/check.py"
       env:
+        # PR 에 줄 단위 코멘트를 달 때만 쓴다. 없으면 조용히 건너뛴다.
+        GITHUB_TOKEN: ${{ github.token }}
         PREFAB_API_KEY: ${{ inputs.api-key }}
         PREFAB_NETLIST: ${{ inputs.netlist }}
         PREFAB_FIRMWARE: ${{ inputs.firmware }}

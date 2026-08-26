@@ -11,12 +11,12 @@ import warnings
 
 from fastapi import FastAPI, File, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from starlette.formparsers import MultiPartParser
 
 from prefab.datasheet.store import FactStore
 
-from . import apikeys, github, guest, quota, repo, service, storage, usage, waitlist
+from . import apikeys, badge, github, guest, quota, repo, service, storage, usage, waitlist
 from .auth import AuthError, AuthStore, normalize_email
 from .ratelimit import RateLimiter, client_key
 from .service import ApiError
@@ -589,6 +589,45 @@ async def setup_repo(request: Request, payload: dict) -> JSONResponse:
     )
     # **일이 끝났으니 토큰을 버린다.** 더 들고 있을 이유가 없다.
     return _drop_connect(JSONResponse({"pull_request": url, "path": repo.WORKFLOW_PATH}))
+
+
+@app.get("/api/v1/checks/{check_id}/badge.svg")
+async def check_badge(check_id: str) -> Response:
+    """검사 결과를 배지 하나로. **남의 README 에 붙는다.**
+
+    ## 로그인을 요구하지 않는다
+
+    README 는 로그인 안 한 사람도 본다. 배지가 안 뜨면 그 저장소가 깨져 보인다.
+    배지에 실리는 것은 **숫자 두 개뿐**이고, 그건 이미 결과 링크가 공개하는 값이다.
+
+    ## 비공개 검사도 숫자는 준다
+
+    주인이 비공개로 바꿨어도 배지는 뜬다 — 배지에는 회로도도 코드도 안 실린다.
+    **내용은 안 주고 상태만 준다.** 그래야 비공개로 두면서도 배지를 쓸 수 있다.
+
+    ## 못 찾아도 500 을 내지 않는다
+
+    없는 검사면 회색 「검사 없음」을 돌려준다. README 에 깨진 이미지가 뜨는 것보다
+    **모른다고 적힌 배지**가 낫다 (헌법 2-2).
+    """
+    try:
+        result = store.get(check_id)
+        summary = result.get("summary") or {}
+        right, color = badge.summarize(
+            int(summary.get("critical") or 0), int(summary.get("warning") or 0)
+        )
+    except Exception:
+        right, color = badge.unknown()
+
+    return Response(
+        badge.render(right, color),
+        media_type="image/svg+xml",
+        headers={
+            # **짧게 둔다.** GitHub 이 자기 프록시로 캐시하는데, 길면 고쳐진 뒤에도
+            # 며칠씩 빨간 배지가 남는다. 틀린 배지는 없느니만 못하다.
+            "Cache-Control": "max-age=60, s-maxage=60",
+        },
+    )
 
 
 @app.get("/api/v1/auth/me")
