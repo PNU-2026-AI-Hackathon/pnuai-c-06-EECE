@@ -15,7 +15,7 @@
 | 시연 영상 | *(8/27 등록 예정)* |
 | 규칙 | **15개 전부 구현** (차별 8 · 기본 7) |
 | 지원 칩 | **6종** — ESP32 · C3 · C6 · H2 · S3 · RP2040 |
-| 테스트 | **784개** 통과 |
+| 테스트 | **개** 통과 |
 | 검증 | 검출 **17/17** · 주입 오탐 **0%** · 홀드아웃 **38개 보드** |
 
 ---
@@ -463,7 +463,7 @@ R17   측정이 찾은 것     LLM 대조 실험이 우리 사각지대를 드�
 │   │   ├── web/                    # FastAPI 어댑터 · 인증 · 요청 제한
 │   │   ├── parts/                  # 부품 사실 파일 (커밋되는 진실)
 │   │   ├── scripts/                # 홀드아웃 · LLM 대조 측정
-│   │   └── tests/                  # 784개
+│   │   └── tests/                  # 개
 │   └── web/                        # React 화면
 │       └── src/
 │           ├── routes/             # 랜딩 · 업로드 · 진행 · 리포트 · 요금 …
@@ -521,7 +521,7 @@ PYTHONPATH=src python -m prefab tests/fixtures/esp32-c6-presence-smart-light.d35
   --firmware tests/fixtures/esp32-c6-presence-smart-light.firmware
 
 PYTHONPATH=src python -m prefab --measure        # 검출율 · 오탐율
-PYTHONPATH=src python -m pytest                  # 784개
+PYTHONPATH=src python -m pytest                  # 개
 ```
 
 > **로컬에서 로그인이 조용히 안 되는 함정** — 쿠키가 `Secure` 라
