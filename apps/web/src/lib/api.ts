@@ -130,6 +130,14 @@ export type Account = {
  */
 export type GithubAuth = { enabled: boolean };
 
+/**
+ * 로그인 안 한 사람이 몇 번 더 써 볼 수 있는가.
+ *
+ * **화면이 이 숫자를 지어내면 안 된다.** 표는 httpOnly 쿠키라 브라우저 코드가
+ * 못 읽는다 — 서버가 말해 주는 값만 쓴다.
+ */
+export type GuestQuota = { remaining: number; free: number };
+
 export type CheckSummaryRow = {
   check_id: string;
   created_at: string;
@@ -159,6 +167,7 @@ export async function fetchMe(): Promise<{
   user: Account | null;
   storage: StorageState;
   github?: GithubAuth;
+  guest?: GuestQuota;
 } | null> {
   if (!BASE) return null;
   try {

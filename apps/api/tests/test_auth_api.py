@@ -50,25 +50,51 @@ def _signup(client, email="kim@example.com"):
     return client.post("/api/v1/auth/signup", json={"email": email, "password": GOOD})
 
 
-def _check(client):
+def _check(client, headers=None):
     return client.post(
-        "/api/v1/checks", files={"netlist": ("b.net.xml", BOARD.read_bytes())}
+        "/api/v1/checks",
+        files={"netlist": ("b.net.xml", BOARD.read_bytes())},
+        headers=headers or {},
     )
 
 
 # ── 로그인이 막으면 안 되는 것 (헌법 4절 단서 1) ───────────────────
 
-def test_로그인_없이는_검사를_못_만든다(client):
-    """**8/24 팀장 결정으로 검사에 로그인 벽을 세웠다** (CLAUDE.md 4절).
+def test_게스트는_한_번_써_볼_수_있다(client):
+    """**8/26 — 벽을 결과 뒤로 옮겼다** (`web/guest.py`).
 
-    전에는 로그아웃 상태에서도 검사가 됐다. 그 전제가 바뀌었으니 여기도 바뀐다 —
-    다만 **왜 막혔는지와 어떻게 푸는지**를 문구가 말해야 한다.
+    8/24 결정(검사하려면 계정이 필요하다)은 그대로다. 바뀐 것은 **벽의 위치**다 —
+    처음 온 사람이 이 도구가 무엇을 내놓는지 못 본 채로 계정을 요구받고 있었다.
     """
+    res = _check(client)
+    assert res.status_code == 201, res.text
+    body = res.json()
+    # **주인이 안 붙는다.** 그래서 화면이 "저장하려면 가입하세요"를 말할 수 있다.
+    assert body["owned"] is False
+    assert body["guest_remaining"] == 0
+
+
+def test_두_번째부터는_가입을_요구한다(client):
+    """한 번이면 무엇을 내놓는 도구인지 보기에 충분하다. 두 번째부터는 이미 안다."""
+    assert _check(client).status_code == 201
     res = _check(client)
     assert res.status_code == 401
     err = res.json()["error"]
     assert err["code"] == "LOGIN_REQUIRED"
-    assert "로그인" in err["message"]
+    # **왜 막혔는지와 무엇을 얻는지를 같이 말한다.** "로그인하세요"만으로는 부족하다
+    assert "체험" in err["message"] and "남습니다" in err["message"]
+
+
+def test_죽은_API_키는_게스트로_흘러가지_않는다(client):
+    """**CI 가 조용히 성공하면 안 된다.**
+
+    러너가 죽은 키로 부르면 401 과 "키를 다시 만드세요"를 받아야 한다.
+    게스트로 통과시키면 검사는 성공하고 키가 죽은 줄 아무도 모른다 —
+    그러다 다음 PR 에서 갑자기 막히고, 그때는 원인을 못 찾는다.
+    """
+    res = _check(client, headers={"Authorization": "Bearer prefab_" + "0" * 64})
+    assert res.status_code == 401
+    assert res.json()["error"]["code"] == "INVALID_API_KEY"
 
 
 def test_로그인해서_만든_결과는_주소를_아는_사람이_연다(client, other):

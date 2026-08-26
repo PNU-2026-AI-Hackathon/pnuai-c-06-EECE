@@ -4,6 +4,7 @@ import {
   type Account,
   fetchMe,
   type GithubAuth,
+  type GuestQuota,
   logout as apiLogout,
   type StorageState,
 } from "./api";
@@ -20,6 +21,8 @@ type Session = {
   storage: StorageState | null;
   /** 서버가 GitHub 로그인을 할 수 있는가. **모르는 동안은 `null` 이다** — 거짓이 아니다. */
   github: GithubAuth | null;
+  /** 로그인 안 한 사람에게 남은 체험 횟수. 로그인했으면 뜻이 없다. */
+  guest: GuestQuota | null;
   /** 아직 확인 중인가. 이걸 안 보면 새로고침마다 헤더가 "로그인"으로 깜빡인다. */
   loading: boolean;
   refresh: () => Promise<void>;
@@ -33,6 +36,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Account | null>(null);
   const [storage, setStorage] = useState<StorageState | null>(null);
   const [github, setGithub] = useState<GithubAuth | null>(null);
+  const [guest, setGuest] = useState<GuestQuota | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
@@ -40,6 +44,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setUser(got?.user ?? null);
     setStorage(got?.storage ?? null);
     setGithub(got?.github ?? null);
+    setGuest(got?.guest ?? null);
     setLoading(false);
   }, []);
 
@@ -53,8 +58,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, storage, github, loading, refresh, signOut, setUser }),
-    [user, storage, github, loading, refresh, signOut]
+    () => ({ user, storage, github, guest, loading, refresh, signOut, setUser }),
+    [user, storage, github, guest, loading, refresh, signOut]
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
