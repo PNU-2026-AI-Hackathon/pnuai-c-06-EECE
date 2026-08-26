@@ -8,7 +8,8 @@ import { Discovery } from "../components/Discovery";
 import { Pipeline } from "../components/Pipeline";
 import { Logo } from "../components/Logo";
 import { ReportActions, ReportNext } from "../components/ReportActions";
-import { GuestSaveCta } from "../components/GuestSaveCta";
+import { GuestSaveCta, showsGuestSaveCta } from "../components/GuestSaveCta";
+import { useSession } from "../lib/session";
 import { VisibilityToggle } from "../components/VisibilityToggle";
 import { InputsTable, SummaryTiles } from "../components/Summary";
 import { ApiFailure, checkNotice, getCheck } from "../lib/api";
@@ -35,6 +36,7 @@ function toKstDate(iso: string): string {
  */
 export function ReportPage() {
   const { id = "" } = useParams();
+  const { user } = useSession();
   const [check, setCheck] = useState<CheckResult | null>(null);
   /** 문구와 함께 코드도 들고 있는다 — 왜 실패했는지에 따라 다음 안내가 달라진다 */
   const [error, setError] = useState<{ message: string; code: string } | null>(null);
@@ -268,14 +270,18 @@ export function ReportPage() {
         예시를 보고 있는 사람에게 "다시 검사하기" 가 뜬다 — 아직 한 번도 안 올린 사람에게.
         예시 여부는 검사 ID 로 가른다 (서버가 기동 때 심는 그 하나다).
       */}
-      <ReportNext isSample={check.check_id === SAMPLE_CHECK_ID} />
-
       {/*
-        **가입 벽이 옮겨 온 자리.** 이 사람은 이 도구가 무엇을 내놓는지 이미 봤다.
-        지금 보고 있는 결과는 그대로 열려 있다는 것부터 말한다 — 안 그러면
-        "보려면 가입하라"는 협박으로 읽힌다.
+        **둘 중 하나만 그린다.**
+
+        전에는 둘 다 떠서 맨 아래에 버튼이 넷이었다 — 「다시 검사하기 · 예시 결과
+        보기 · 무료로 계정 만들기 · 로그인」. 다음에 할 일이 넷이면 그건 다음에 할
+        일이 없는 것과 같다.
+
+        그리고 체험을 다 쓴 게스트에게 「다시 검사하기」는 **막다른 길**이다 —
+        눌러 봐야 가입 화면을 만난다. 그 사람에게 맞는 다음 걸음은 가입뿐이다.
       */}
       <GuestSaveCta check={check} />
+      {!showsGuestSaveCta(user, check) && <ReportNext isSample={check.check_id === SAMPLE_CHECK_ID} />}
     </Page>
   );
 }
