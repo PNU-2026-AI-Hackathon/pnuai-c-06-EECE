@@ -16,7 +16,7 @@ from starlette.formparsers import MultiPartParser
 
 from prefab.datasheet.store import FactStore
 
-from . import apikeys, github, quota, repo, service, storage, usage, waitlist
+from . import apikeys, github, guest, quota, repo, service, storage, usage, waitlist
 from .auth import AuthError, AuthStore, normalize_email
 from .ratelimit import RateLimiter, client_key
 from .service import ApiError
@@ -605,6 +605,12 @@ async def me(request: Request) -> dict:
         # 화면이 「GitHub 으로 시작하기」를 그릴지 정하는 유일한 근거다.
         # 서버가 못 하는 일을 버튼으로 만들어 두지 않는다.
         "github": {"enabled": GITHUB.enabled},
+        # 로그인 안 한 사람이 몇 번 더 써 볼 수 있는가.
+        # **화면이 이 숫자를 지어내면 안 된다** — 쿠키는 httpOnly 라 못 읽는다.
+        "guest": {
+            "remaining": guest.remaining(request.cookies.get(guest.COOKIE)) if user is None else 0,
+            "free": guest.FREE_CHECKS,
+        },
     }
 
 
@@ -754,7 +760,7 @@ async def create_check(
     bom: UploadFile | None = File(default=None),
     firmware: UploadFile | None = File(default=None),
     previous_netlist: UploadFile | None = File(default=None),
-) -> dict:
+) -> JSONResponse:
     # **검사는 로그인해야 만들 수 있다** (8/24 팀장 결정 · CLAUDE.md 4절).
     #
     # 결과를 *보는* 것은 안 막는다 — 주소를 아는 사람은 그대로 열린다.
@@ -762,13 +768,32 @@ async def create_check(
     #
     # **파일을 받기 전에 막는다.** 핸들러 안쪽에서 검사하면 멀티파트 파서가
     # 이미 파일을 다 메모리에 올린 뒤라, 막으려던 비용을 그대로 치른다.
+    #
+    # **8/26 — 벽을 결과 뒤로 옮겼다.** 결정 자체(검사하려면 계정이 필요하다)는
+    # 그대로다. 다만 처음 온 사람은 이 도구가 무엇을 내놓는지 못 본 채로 계정을
+    # 요구받고 있었다. `guest.py` 에 이유를 적어 뒀다.
     user = _current_user(request)
+    guest_used = 0
     if user is None:
-        raise ApiError(
-            "LOGIN_REQUIRED",
-            "검사를 실행하려면 로그인이 필요합니다. 계정은 이메일 하나면 만들 수 있습니다.",
-            401,
-        )
+        # **키를 들고 왔는데 안 맞으면 게스트로 흘려보내지 않는다.**
+        #
+        # CI 러너가 죽은 키로 부르면 401 과 "시크릿을 확인하세요"를 받아야 한다.
+        # 게스트로 통과시키면 검사는 성공하고 키가 죽은 줄 아무도 모른다 —
+        # 그러다 두 번째 PR 에서 갑자기 막히고, 그때는 원인을 못 찾는다.
+        if apikeys.looks_like_key(_bearer(request)):
+            raise ApiError(
+                "INVALID_API_KEY",
+                "API 키가 맞지 않습니다. 「내 검사」 화면에서 키를 다시 만들어 주세요.",
+                401,
+            )
+        guest_used = guest.used_count(request.cookies.get(guest.COOKIE))
+        if guest_used >= guest.FREE_CHECKS:
+            raise ApiError(
+                "LOGIN_REQUIRED",
+                "체험 검사를 다 쓰셨습니다. 계속 쓰시려면 계정을 만들어 주세요 — "
+                "이메일 하나면 되고, 결과가 계정에 남습니다.",
+                401,
+            )
 
     if netlist is None or not netlist.filename:
         raise service.netlist_required()
@@ -804,17 +829,36 @@ async def create_check(
         previous_netlist_filename=previous_name,
         fact_store=facts,
     )
-    # 로그인했으면 주인을 붙이고, 아니면 안 붙인다. **로그인을 요구하지 않는다** —
-    # 로그아웃 상태에서도 검사가 되어야 한다 (헌법 4절 단서 1).
-    store.save(result, owner_id=user.id)
+    # 로그인했으면 주인을 붙이고, 게스트면 안 붙인다.
+    # **주인 없는 검사는 「내 검사」에 안 뜬다** — 그래서 화면이 가입하라고 말할 수 있다.
+    store.save(result, owner_id=user.id if user else None)
 
     # 검사는 밀리초 단위로 끝난다. 만들자마자 done 이다.
-    return {
+    body = {
         "check_id": result["check_id"],
         "status": result["status"],
         # 주인이 붙었는지 화면이 알아야 "내 검사"에 뜬다는 말을 할 수 있다.
         "owned": user is not None,
     }
+    # **`status_code` 를 직접 준다.** `JSONResponse` 를 돌려주면 데코레이터의
+    # `status_code=201` 이 무시된다 — `_with_session` 에서 이미 한 번 겪었다.
+    if user is not None:
+        return JSONResponse(body, status_code=201)
+
+    # 게스트가 한 번 썼다. **표를 갱신해서 돌려준다.**
+    # 남은 횟수를 같이 실어서, 화면이 "이제 가입해야 합니다"를 지어내지 않고 말한다.
+    body["guest_remaining"] = max(0, guest.FREE_CHECKS - (guest_used + 1))
+    response = JSONResponse(body, status_code=201)
+    response.set_cookie(
+        guest.COOKIE,
+        guest.issue(guest_used + 1),
+        max_age=guest.TTL_SECONDS,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE,
+        path="/",
+    )
+    return response
 
 
 @app.get("/api/v1/checks/{check_id}")

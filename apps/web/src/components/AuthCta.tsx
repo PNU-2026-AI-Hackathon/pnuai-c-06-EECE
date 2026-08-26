@@ -18,20 +18,33 @@ import { useSession } from "../lib/session";
  * 「검사 시작하기」로 바뀌면서 깜빡인다.
  */
 export function AuthCta() {
-  const { user, loading } = useSession();
+  const { user, guest, loading } = useSession();
 
   // 두 버튼 높이만큼 자리를 잡아 둔다 — 안 그러면 나타날 때 아래 내용이 밀린다
   if (loading) return <div className="min-h-[52px]" aria-hidden="true" />;
+
+  /*
+    **8/26 — 로그아웃한 사람의 첫 버튼을 가입에서 검사로 바꿨다.**
+
+    체험이 남아 있으면 「가입」이 아니라 「바로 해 보기」가 맞다. 가입은 결과를 본
+    뒤에 요구한다 (`web/guest.py`). 체험을 다 쓴 사람에게만 예전처럼 가입을 권한다.
+  */
+  const canTry = !user && (guest === null || guest.remaining > 0);
 
   const [primary, secondary] = user
     ? ([
         { to: "/check", label: "검사 시작하기" },
         { to: "/mine", label: "내 검사" },
       ] as const)
-    : ([
-        { to: "/signup", label: "무료로 시작하기" },
-        { to: "/login", label: "로그인" },
-      ] as const);
+    : canTry
+      ? ([
+          { to: "/check", label: "바로 해 보기" },
+          { to: "/login", label: "로그인" },
+        ] as const)
+      : ([
+          { to: "/signup", label: "무료로 시작하기" },
+          { to: "/login", label: "로그인" },
+        ] as const);
 
   return (
     <div className="flex flex-wrap items-center gap-3">

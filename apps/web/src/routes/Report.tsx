@@ -8,6 +8,7 @@ import { Discovery } from "../components/Discovery";
 import { Pipeline } from "../components/Pipeline";
 import { Logo } from "../components/Logo";
 import { ReportActions, ReportNext } from "../components/ReportActions";
+import { GuestSaveCta } from "../components/GuestSaveCta";
 import { VisibilityToggle } from "../components/VisibilityToggle";
 import { InputsTable, SummaryTiles } from "../components/Summary";
 import { ApiFailure, checkNotice, getCheck } from "../lib/api";
@@ -268,6 +269,13 @@ export function ReportPage() {
         예시 여부는 검사 ID 로 가른다 (서버가 기동 때 심는 그 하나다).
       */}
       <ReportNext isSample={check.check_id === SAMPLE_CHECK_ID} />
+
+      {/*
+        **가입 벽이 옮겨 온 자리.** 이 사람은 이 도구가 무엇을 내놓는지 이미 봤다.
+        지금 보고 있는 결과는 그대로 열려 있다는 것부터 말한다 — 안 그러면
+        "보려면 가입하라"는 협박으로 읽힌다.
+      */}
+      <GuestSaveCta check={check} />
     </Page>
   );
 }

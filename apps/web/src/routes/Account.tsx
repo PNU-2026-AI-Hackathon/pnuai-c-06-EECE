@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 
 import { GithubAuthButton, githubErrorMessage } from "../components/GithubAuthButton";
 import { Header } from "../components/Layout";
@@ -26,7 +26,7 @@ const MIN_PASSWORD = 10;
 
 export function AccountPage({ mode }: { mode: "login" | "signup" }) {
   const navigate = useNavigate();
-  const { setUser, storage, github } = useSession();
+  const { user, loading, setUser, storage, github } = useSession();
 
   // GitHub 콜백이 실패하면 `?error=` 를 달고 이 화면으로 돌아온다.
   // **`fetch` 가 아니라 주소창으로 오는 오류**라 state 로는 못 받는다.
@@ -40,6 +40,20 @@ export function AccountPage({ mode }: { mode: "login" | "signup" }) {
   const [error, setError] = useState<string | null>(null);
 
   const joining = mode === "signup";
+
+  /*
+    **이미 로그인한 사람에게 로그인 폼을 보여주고 있었다.**
+
+    헤더는 「내 검사 · 로그아웃」이라고 말하는데 본문은 「로그인 · 계정 만들기」였다 —
+    같은 화면이 서로 다른 말을 했다. 옛 링크나 뒤로가기로 들어오면 그 상태가 된다.
+
+    `loading` 중에는 아무것도 안 그린다. 안 그러면 로그인한 사람에게 폼이 한 번
+    번쩍 떴다가 사라진다 — 헤더·`AuthCta` 와 같은 규칙이다.
+
+    `replace` 로 보낸다. 안 그러면 뒤로가기가 다시 여기로 와서 갇힌다.
+  */
+  if (loading) return null;
+  if (user) return <Navigate to="/mine" replace />;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();

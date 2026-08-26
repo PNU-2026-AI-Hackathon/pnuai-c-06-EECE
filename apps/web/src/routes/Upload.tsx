@@ -160,7 +160,7 @@ export function UploadPage() {
    */
   const [previousNetlist, setPreviousNetlist] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { user, loading: sessionLoading } = useSession();
+  const { user, guest, loading: sessionLoading } = useSession();
   const [busy, setBusy] = useState(false);
   /** 샘플 파일을 받아 슬롯에 채우는 중인가. */
   const [sampling, setSampling] = useState(false);
@@ -268,19 +268,36 @@ export function UploadPage() {
     );
   }
 
-  if (!user) {
+  /*
+    **로그인 벽을 여기서 걷어냈다 (8/26).**
+
+    전에는 이 자리에서 통째로 막았다. 처음 온 사람은 이 도구가 무엇을 내놓는지
+    못 본 채로 계정을 요구받았고, 대부분 거기서 나갔다.
+
+    8/24 결정(검사하려면 계정이 필요하다)은 그대로다 — **벽의 위치만 옮겼다.**
+    한 번 써 보고 결과를 본 뒤에 요구한다. 남은 횟수는 **서버가 말해 준다**
+    (`auth/me` 의 `guest.remaining`). 화면이 세지 않는다 — 표가 httpOnly 쿠키라
+    브라우저가 못 읽고, 지어내면 그게 곧 거짓말이 된다.
+
+    체험을 다 쓴 사람에게만 가입 화면을 보여준다.
+  */
+  const guestOut = !user && guest !== null && guest.remaining <= 0;
+
+  if (guestOut) {
     return (
       <Page>
         <section className="mx-auto max-w-md py-10 text-center">
           <h1 className="mb-3 text-[24px] font-extrabold leading-snug md:text-[30px]">
-            검사하려면 로그인이 필요합니다
+            체험 검사를 다 쓰셨습니다
           </h1>
           <p className="mb-7 text-[15px] leading-relaxed text-sub">
-            이메일 하나면 계정이 만들어집니다. 카드 등록은 필요 없습니다.
+            계속 쓰시려면 계정을 만들어 주세요. 이메일 하나면 되고,{" "}
+            <strong className="font-bold text-ink">그때부터 결과가 계정에 남습니다.</strong>{" "}
+            카드 등록은 필요 없습니다.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link to="/signup" className="btn-primary">
-              무료로 시작하기
+              무료로 계정 만들기
             </Link>
             <Link
               to="/login"
@@ -430,6 +447,16 @@ export function UploadPage() {
         >
           {sampling ? "불러오는 중…" : "샘플 보드로 해보기"}
         </button>
+        {/*
+          **체험이라는 걸 누르기 전에 말한다.** 결과를 본 뒤에 갑자기 벽을 만나면
+          그건 알려준 게 아니라 유인한 것이다 (헌법 2-2).
+        */}
+        {!user && guest !== null && guest.remaining > 0 && (
+          <span className="text-[13px] text-mute">
+            로그인 없이 <strong className="font-semibold text-sub">{guest.remaining}번</strong> 해 보실 수 있습니다.
+            결과를 계정에 남기려면 가입이 필요합니다.
+          </span>
+        )}
         {/*
           **파일을 올리는 자리에서 말한다.** 정책 페이지에만 두면 아무도 안 본다 —
           그리고 이 도구가 받는 것은 남의 회로도와 펌웨어, 곧 지적재산이다.
