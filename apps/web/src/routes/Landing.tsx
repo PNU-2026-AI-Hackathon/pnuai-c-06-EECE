@@ -43,6 +43,7 @@ export function LandingPage() {
         <RealCase />
         <How />
         <Evidence />
+        <OnGithub />
         <VsLlm />
         <Closing />
       </main>
@@ -327,6 +328,93 @@ function Evidence() {
  * 두 색은 색맹 분리 ΔE 18.1 · 표면 대비 3:1 을 넘고, 신원은 색이 아니라 **막대마다 붙은
  * 이름표**가 진다.
  */
+/**
+ * PR 마다 도는 형태 — **이 제품의 최종 형태인데 랜딩에 한 번도 안 나왔다.**
+ *
+ * 만들어서 배포했고 남의 저장소에서 도는 것까지 확인했는데, 그 사실이
+ * 로그인 뒤 「내 검사」 화면 맨 아래에만 있었다. **아무도 못 본다.**
+ *
+ * 화면 대신 **실제 PR 스크린샷**을 쓴다. 우리가 만든 그림이 아니라 GitHub 이
+ * 그린 화면이라, 「진짜로 돈다」가 설명 없이 전달된다.
+ */
+function OnGithub() {
+  return (
+    <Section tone="raised">
+      <div className="max-w-3xl">
+        <Eyebrow>최종 형태</Eyebrow>
+        <h2 className="mb-5 text-[24px] font-extrabold leading-snug md:text-[32px]">
+          매번 올리지 않아도 됩니다. PR 마다 알아서 돕니다.
+        </h2>
+        <p className="mb-8 text-[16px] leading-relaxed text-sub">
+          저장소를 연결하면 회로도나 펌웨어가 바뀐 PR 마다 검사가 돕니다.{" "}
+          <strong className="font-bold text-ink">치명 발견이 있으면 머지가 막힙니다</strong> —
+          보드를 발주하기 전에 여기서 걸립니다.
+        </p>
+      </div>
+
+      <figure className="max-w-2xl">
+        <img
+          src="/pr-comment.png"
+          alt="PR 에 붙은 검사 결과 — 새로 생긴 치명 발견 3건과 main 대비 요약표"
+          width={680}
+          height={900}
+          loading="lazy"
+          className="w-full rounded-card border border-line bg-surface"
+        />
+        <figcaption className="mt-3 text-[13px] leading-relaxed text-mute">
+          실제 PR 입니다. 레벨시프터를 되돌린 커밋에서{" "}
+          <strong className="font-semibold text-sub">치명 3건이 새로 생겼고</strong> 빨간불이 켜졌습니다.
+          맨 아래 「이 비교가 못 보는 것」까지 봇이 같이 적습니다.
+        </figcaption>
+      </figure>
+
+      <div className="mt-10 max-w-3xl">
+        <h3 className="mb-4 text-[17px] font-extrabold text-ink">붙이는 데 세 번 누르면 됩니다</h3>
+        <ol className="mb-8 space-y-3">
+          {[
+            ["저장소를 고릅니다", "GitHub 으로 로그인하면 목록이 뜹니다"],
+            [
+              "경로를 확인합니다",
+              "회로도·펌웨어·부품 목록이 어디 있는지 저희가 찾아서 왜 그렇게 골랐는지까지 보여드립니다. 확신이 없으면 고르지 않고 비워 둡니다",
+            ],
+            ["PR 을 받습니다", "워크플로 파일이 담긴 PR 이 열립니다. 보고 닫으셔도 됩니다"],
+          ].map(([title, detail], i) => (
+            <li key={title} className="flex gap-3.5">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-chip bg-ink text-[12px] font-extrabold text-white">
+                {i + 1}
+              </span>
+              <span className="text-[15px] leading-relaxed text-sub">
+                <strong className="font-bold text-ink">{title}</strong> — {detail}
+              </span>
+            </li>
+          ))}
+        </ol>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Link to="/connect" className="btn-primary">
+            저장소 연결하기
+          </Link>
+          <a
+            href="https://github.com/parkganghyun123-sketch/prefab-demo-board/pull/2"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex min-h-[44px] items-center rounded-block px-3 text-[15px] font-bold text-sub hover:text-ink"
+          >
+            빨간불이 켜진 PR 보기 →
+          </a>
+        </div>
+        {/*
+          **남의 저장소에서 도는 것까지만 말한다.** 「많은 팀이 쓴다」 같은 말은
+          우리에게 근거가 없다 (헌법 2-1).
+        */}
+        <p className="mt-4 text-[13px] leading-relaxed text-mute">
+          위 링크는 저희 조직 밖 저장소입니다. 남이 복사해 쓰는 주소 그대로 돌렸습니다.
+        </p>
+      </div>
+    </Section>
+  );
+}
+
 function VsLlm() {
   return (
     <Section>

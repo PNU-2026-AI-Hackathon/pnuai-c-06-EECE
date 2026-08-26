@@ -190,6 +190,9 @@ def main() -> None:
     summary = summarize(result, report_url)
     print(summary)
 
+    # **덤이다.** 여기서 무엇이 터져도 검사 결과와 종료 코드는 그대로다.
+    post_inline(result, report_url)
+
     out = os.environ.get("GITHUB_STEP_SUMMARY")
     if out:
         with open(out, "a", encoding="utf-8") as f:
@@ -207,6 +210,165 @@ def main() -> None:
     if fail_on == "warning" and (crit or warn):
         fail(f"발견 {crit + warn}건 — {report_url}")
 
+# ------------------------------------------------------ PR 에 줄 단위로 달기
+#
+# ## 왜 요약만으로 부족한가
+#
+# 잡 요약은 **Actions 탭에 있다.** 코드를 보는 사람은 diff 화면에 있고, 거기서
+# 요약까지 두 번 더 눌러야 한다. 대부분 안 누른다.
+#
+# 발견에는 이미 `file` · `line` · `snippet` 이 붙어 있다. 그걸 **그 줄 옆에**
+# 달면, 고칠 사람이 고칠 자리에서 읽는다.
+#
+# ## GitHub 의 제약 하나
+#
+# 리뷰 코멘트는 **diff 에 실린 줄에만** 달린다. 안 바뀐 파일의 줄에 달려고 하면
+# 요청 전체가 422 로 죽는다 — 코멘트 하나 때문에 나머지도 다 사라진다.
+#
+# 그래서 **달 수 있는 줄을 먼저 추려낸다.** 못 다는 것은 조용히 버린다 —
+# 요약에는 어차피 다 실려 있다.
+
+
+def commentable_lines(patch: str | None) -> set[int]:
+    """diff 조각에서 **코멘트를 달 수 있는 줄 번호**를 뽑는다.
+
+    `@@ -a,b +c,d @@` 머리를 읽어 새 파일 기준 줄 번호를 센다.
+    추가된 줄(`+`)과 그대로인 줄(` `)에만 달 수 있다 — 지워진 줄(`-`)은 없는 줄이다.
+
+    **순수 함수다.**
+    """
+    if not patch:
+        return set()
+
+    lines: set[int] = set()
+    cursor = 0
+    for raw in patch.split("\n"):
+        if raw.startswith("@@"):
+            # @@ -12,7 +12,9 @@ ...  →  새 파일이 12번 줄부터
+            try:
+                cursor = int(raw.split("+", 1)[1].split(",", 1)[0].split(" ", 1)[0])
+            except (IndexError, ValueError):
+                cursor = 0
+            continue
+        if cursor == 0:
+            continue
+        if raw.startswith("-"):
+            continue          # 지워진 줄 — 새 파일에는 없다
+        if raw.startswith("+") or raw.startswith(" "):
+            lines.add(cursor)
+            cursor += 1
+    return lines
+
+
+def match_path(evidence_file: str, pr_paths: list[str]) -> str | None:
+    """발견이 말하는 파일을 PR 의 실제 경로에 맞춘다.
+
+    발견에는 파일 **이름**만 온다(`main.ino`). PR 은 저장소 기준 **경로**를 쓴다
+    (`firmware/main/main.ino`). 뒤에서부터 맞춰 본다.
+
+    **두 개 이상 걸리면 포기한다.** 엉뚱한 파일에 코멘트를 다느니 안 다는 게 낫다.
+    """
+    name = evidence_file.strip().lstrip("./")
+    hits = [p for p in pr_paths if p == name or p.endswith("/" + name)]
+    return hits[0] if len(hits) == 1 else None
+
+
+def build_comments(findings: list, files: dict) -> list[dict]:
+    """리뷰 코멘트 목록. **순수 함수다.**
+
+    `files` 는 `{저장소 경로: 달 수 있는 줄 집합}`.
+
+    한 발견에 근거가 여럿이면 **첫 줄에만 단다.** 같은 발견을 세 줄에 세 번 달면
+    diff 가 우리 코멘트로 덮인다 — 그러면 첫 주에 꺼진다.
+    """
+    made: list[dict] = []
+    seen: set[tuple[str, int]] = set()
+
+    for f in findings:
+        mark = "🔴" if f.get("severity") == "CRITICAL" else "🟠"
+        for ev in f.get("evidence") or []:
+            if ev.get("kind") != "firmware":
+                continue
+            name, line = ev.get("file"), ev.get("line")
+            if not name or not isinstance(line, int):
+                continue
+            path = match_path(name, list(files))
+            if path is None or line not in files[path]:
+                continue
+            if (path, line) in seen:
+                continue
+            seen.add((path, line))
+
+            body = f"{mark} **{f.get('rule')}** · {f.get('title')}\n\n{f.get('claim') or ''}"
+            if f.get("suggestion"):
+                body += f"\n\n**다음 단계** — {f['suggestion']}"
+            made.append({"path": path, "line": line, "side": "RIGHT", "body": body.strip()})
+            break   # 이 발견은 여기까지
+
+    return made
+
+
+def _gh(url: str, token: str, data: dict | None = None):
+    body = json.dumps(data).encode() if data is not None else None
+    req = urllib.request.Request(url, data=body, method="POST" if data else "GET")
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Accept", "application/vnd.github+json")
+    req.add_header("User-Agent", "prefab")
+    if data is not None:
+        req.add_header("Content-Type", "application/json")
+    with urllib.request.urlopen(req, timeout=30) as res:
+        return json.loads(res.read() or b"{}")
+
+
+def post_inline(result: dict, report_url: str) -> None:
+    """발견을 PR 의 그 코드 줄 옆에 단다.
+
+    **여기서 실패해도 검사는 실패시키지 않는다.** 이건 덤이다 — 요약과 종료 코드가
+    본체고, 코멘트를 못 달았다고 빨간불을 켜면 그게 오작동이다.
+
+    토큰이 없거나 PR 이 아니면 조용히 지나간다. 남의 저장소에서 `pull-requests: write`
+    권한을 안 줬을 수 있고, 그건 정상이다.
+    """
+    token = os.environ.get("GITHUB_TOKEN", "").strip()
+    repo = os.environ.get("GITHUB_REPOSITORY", "")
+    event_path = os.environ.get("GITHUB_EVENT_PATH", "")
+    if not (token and repo and event_path):
+        return
+
+    try:
+        with open(event_path, encoding="utf-8") as f:
+            number = (json.load(f).get("pull_request") or {}).get("number")
+        if not number:
+            return
+
+        api = f"https://api.github.com/repos/{repo}/pulls/{number}"
+        changed = _gh(f"{api}/files?per_page=100", token)
+        files = {
+            item["filename"]: commentable_lines(item.get("patch"))
+            for item in changed
+            if isinstance(item, dict) and item.get("filename")
+        }
+
+        comments = build_comments(result.get("findings") or [], files)
+        if not comments:
+            return
+
+        s = result.get("summary") or {}
+        _gh(
+            f"{api}/reviews",
+            token,
+            {
+                "event": "COMMENT",
+                "body": (
+                    f"**Prefab** — 치명 {s.get('critical', 0)} · 경고 {s.get('warning', 0)}"
+                    f"\n\n어긋난 자리에 코멘트를 달았습니다. [전체 리포트]({report_url})"
+                ),
+                "comments": comments,
+            },
+        )
+        print(f"PR 에 코멘트 {len(comments)}개를 달았습니다.")
+    except Exception as exc:  # noqa: BLE001 — 덤이라서 무엇이 터져도 검사를 막지 않는다
+        print(f"::notice::PR 코멘트를 달지 못했습니다 ({exc}). 검사 결과는 위 요약에 있습니다.")
 
 if __name__ == "__main__":
     main()

@@ -118,3 +118,120 @@ def test_액션이_넘기는_환경변수와_스크립트가_읽는_것이_같�
     passed = set(action["runs"]["steps"][0]["env"])
     read = set(re.findall(r'os\.environ(?:\.get)?\[?\(?"(PREFAB_[A-Z_]+)"', ACTION_YML.parent.joinpath("check.py").read_text()))
     assert read <= passed, f"액션이 안 넘기는 변수를 스크립트가 읽습니다: {read - passed}"
+
+
+# ── PR 인라인 코멘트 ──────────────────────────────────────────────
+#
+# GitHub 은 **diff 에 실린 줄에만** 코멘트를 받는다. 안 바뀐 줄에 달려고 하면
+# 요청 전체가 422 로 죽어서 **나머지 코멘트까지 다 사라진다.**
+# 그래서 달 수 있는 줄을 먼저 추려내는 것이 이 기능의 전부다.
+
+
+def test_diff_에서_달_수_있는_줄만_고른다(check):
+    patch = """@@ -12,4 +12,6 @@ void setup() {
+ const int A = 1;
+-const int B = 2;
++const int B = 3;
++const int C = 4;
+ void loop() {"""
+    # 지워진 줄(-)은 새 파일에 없다. 나머지는 12번부터 이어진다
+    assert check.commentable_lines(patch) == {12, 13, 14, 15}
+
+
+def test_조각이_없으면_아무_줄도_못_단다(check):
+    """바이너리나 아주 큰 파일은 GitHub 이 patch 를 안 준다."""
+    assert check.commentable_lines(None) == set()
+    assert check.commentable_lines("") == set()
+
+
+def test_파일_이름을_저장소_경로에_맞춘다(check):
+    """발견에는 이름만 오고(main.ino), PR 은 경로를 쓴다(firmware/main/main.ino)."""
+    assert check.match_path(
+        "main.ino", ["firmware/main/main.ino", "docs/x.md"]
+    ) == "firmware/main/main.ino"
+
+
+def test_같은_이름이_둘이면_안_단다(check):
+    """**엉뚱한 파일에 코멘트를 다느니 안 다는 게 낫다.**"""
+    assert check.match_path("main.ino", ["a/main.ino", "b/main.ino"]) is None
+
+
+def test_diff_밖의_줄에는_안_단다(check):
+    """이걸 안 거르면 요청 전체가 422 로 죽고 나머지 코멘트도 같이 사라진다."""
+    findings = [{
+        "rule": "R07", "title": "코드가 쓰는 핀이 회로도에 미연결", "severity": "CRITICAL",
+        "claim": "코드가 D4 를 읽습니다.",
+        "evidence": [{"kind": "firmware", "file": "main.ino", "line": 999, "snippet": "x"}],
+    }]
+    got = check.build_comments(findings, {"firmware/main.ino": {10, 11, 12}})
+    assert got == []
+
+
+def test_한_발견에_코멘트_하나만_단다(check):
+    """근거가 세 줄이라고 세 번 달면 diff 가 우리 코멘트로 덮인다."""
+    findings = [{
+        "rule": "R07", "title": "제목", "severity": "CRITICAL", "claim": "설명",
+        "evidence": [
+            {"kind": "firmware", "file": "main.ino", "line": 10, "snippet": "a"},
+            {"kind": "firmware", "file": "main.ino", "line": 11, "snippet": "b"},
+        ],
+    }]
+    got = check.build_comments(findings, {"firmware/main.ino": {10, 11}})
+    assert len(got) == 1
+    assert got[0]["line"] == 10
+
+
+def test_코멘트에_규칙과_다음_단계가_실린다(check):
+    findings = [{
+        "rule": "R07", "title": "코드가 쓰는 핀이 회로도에 미연결", "severity": "CRITICAL",
+        "claim": "코드가 D4(GPIO22)를 입력으로 읽습니다.",
+        "suggestion": "D2 로 되돌리거나 회로도에 D4 를 배선하세요.",
+        "evidence": [{"kind": "firmware", "file": "main.ino", "line": 15, "snippet": "x"}],
+    }]
+    body = check.build_comments(findings, {"fw/main.ino": {15}})[0]["body"]
+    assert "R07" in body
+    assert "D4(GPIO22)" in body
+    assert "다음 단계" in body and "되돌리거나" in body
+
+
+def test_회로도_근거에는_안_단다(check):
+    """넷리스트는 PR diff 에 없을 수도 있고, 있어도 줄 번호가 뜻이 다르다."""
+    findings = [{
+        "rule": "R12", "title": "제목", "severity": "CRITICAL", "claim": "설명",
+        "evidence": [{"kind": "netlist", "text": "U1.D2 → NET"}],
+    }]
+    assert check.build_comments(findings, {"a/b.ino": {1, 2, 3}}) == []
+
+
+def test_진입점이_파일_맨_끝에_있다():
+    """**실제로 밟은 버그다 (8/26).**
+
+    `if __name__ == "__main__": main()` **뒤에** 함수를 덧붙였더니, `main()` 이
+    돌 때는 그 함수가 아직 정의되지 않아 러너에서 `NameError` 로 죽었다.
+
+    파이썬은 위에서 아래로 실행한다. 진입점 뒤의 정의는 `main()` 이 끝난 뒤에야
+    평가된다. 단위 테스트는 모듈만 import 하므로 이 실수를 못 잡는다 —
+    **파일 순서를 직접 본다.**
+    """
+    text = ACTION.read_text(encoding="utf-8")
+    assert text.rstrip().endswith("main()"), "진입점이 파일 맨 끝이 아닙니다"
+
+    entry = text.index('if __name__ == "__main__"')
+    after = text[entry:]
+    assert "\ndef " not in after, "진입점 뒤에 함수 정의가 있습니다 — 러너에서 NameError 가 납니다"
+
+
+def test_main_이_부르는_이름이_전부_정의돼_있다():
+    """import 만으로는 「정의는 됐지만 순서가 틀린」 경우를 못 본다."""
+    import ast
+
+    tree = ast.parse(ACTION.read_text(encoding="utf-8"))
+    defined = {n.name for n in tree.body if isinstance(n, ast.FunctionDef)}
+    main = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "main")
+    called = {
+        n.func.id
+        for n in ast.walk(main)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+    }
+    missing = {c for c in called if c.islower() and "_" in c or c in defined} - defined
+    assert not missing, f"main 이 부르는데 없는 함수: {missing}"

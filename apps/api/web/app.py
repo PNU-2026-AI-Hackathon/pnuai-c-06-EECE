@@ -11,12 +11,12 @@ import warnings
 
 from fastapi import FastAPI, File, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from starlette.formparsers import MultiPartParser
 
 from prefab.datasheet.store import FactStore
 
-from . import apikeys, github, guest, quota, repo, service, storage, usage, waitlist
+from . import apikeys, badge, github, guest, quota, repo, service, storage, usage, waitlist
 from .auth import AuthError, AuthStore, normalize_email
 from .ratelimit import RateLimiter, client_key
 from .service import ApiError
@@ -253,6 +253,37 @@ GITHUB = github.config_from_env()
 #: 이 덕분에 **영구 디스크가 필요 없다.** 못 심으면 빈 목록이고, 루트 응답에 그대로 실린다.
 SEEDED_PARTS = service.seed_facts(os.getenv("PREFAB_PARTS", "parts"), facts)
 
+#: 심사위원·구경꾼용 공용 계정. **기동 때마다 심는다.**
+#:
+#: README 가 이 계정을 적어 두고 있다. 그런데 무료 플랜이라 재배포마다 DB 가
+#: 비워져서, **적어 둔 계정이 안 되는 상태가 실제로 있었다** — 8/26 에 로그인해
+#: 보니 401 이었다. 문서에 적힌 것이 거짓이 되는 자리라 코드가 지키게 한다.
+#:
+#: **비밀이 아니다.** README 에 공개된 값이고 그래서 저장소에 그대로 적는다.
+#: 숨겨야 할 값이라면 여기 있으면 안 되고, 여기 있어도 되는 값이라 여기 있다.
+DEMO_EMAIL = os.getenv("DEMO_EMAIL", "review@prefab.demo")
+DEMO_PASSWORD = os.getenv("DEMO_PASSWORD", "prefab-review-2026")
+
+
+def _seed_demo_account() -> bool:
+    """공용 계정이 없으면 만든다. 있으면 아무것도 안 한다.
+
+    **실패해도 서버는 뜬다.** 구경용 계정 하나 때문에 서비스가 안 뜨면 그게 더 나쁘다.
+    """
+    try:
+        accounts.authenticate(DEMO_EMAIL, DEMO_PASSWORD)
+        return True
+    except Exception:
+        pass
+    try:
+        accounts.create_user(DEMO_EMAIL, DEMO_PASSWORD)
+        return True
+    except Exception:
+        return False
+
+
+DEMO_ACCOUNT_READY = _seed_demo_account()
+
 
 # --------------------------------------------------------------------- 오류
 
@@ -291,6 +322,8 @@ async def root() -> dict:
         out["sample_check"] = f"/api/v1/checks/{SAMPLE_CHECK_ID}"
     # 몇 개를 심었는지 그대로 싣는다. 0 이면 데이터시트 해제가 안 도는 상태다 (헌법 2-4).
     out["seeded_parts"] = SEEDED_PARTS
+    # **심었다고 말하지 않고 실제로 되는지 말한다.** 여기가 거짓이면 README 도 거짓이다.
+    out["demo_account"] = DEMO_EMAIL if DEMO_ACCOUNT_READY else None
     return out
 
 
@@ -589,6 +622,45 @@ async def setup_repo(request: Request, payload: dict) -> JSONResponse:
     )
     # **일이 끝났으니 토큰을 버린다.** 더 들고 있을 이유가 없다.
     return _drop_connect(JSONResponse({"pull_request": url, "path": repo.WORKFLOW_PATH}))
+
+
+@app.get("/api/v1/checks/{check_id}/badge.svg")
+async def check_badge(check_id: str) -> Response:
+    """검사 결과를 배지 하나로. **남의 README 에 붙는다.**
+
+    ## 로그인을 요구하지 않는다
+
+    README 는 로그인 안 한 사람도 본다. 배지가 안 뜨면 그 저장소가 깨져 보인다.
+    배지에 실리는 것은 **숫자 두 개뿐**이고, 그건 이미 결과 링크가 공개하는 값이다.
+
+    ## 비공개 검사도 숫자는 준다
+
+    주인이 비공개로 바꿨어도 배지는 뜬다 — 배지에는 회로도도 코드도 안 실린다.
+    **내용은 안 주고 상태만 준다.** 그래야 비공개로 두면서도 배지를 쓸 수 있다.
+
+    ## 못 찾아도 500 을 내지 않는다
+
+    없는 검사면 회색 「검사 없음」을 돌려준다. README 에 깨진 이미지가 뜨는 것보다
+    **모른다고 적힌 배지**가 낫다 (헌법 2-2).
+    """
+    try:
+        result = store.get(check_id)
+        summary = result.get("summary") or {}
+        right, color = badge.summarize(
+            int(summary.get("critical") or 0), int(summary.get("warning") or 0)
+        )
+    except Exception:
+        right, color = badge.unknown()
+
+    return Response(
+        badge.render(right, color),
+        media_type="image/svg+xml",
+        headers={
+            # **짧게 둔다.** GitHub 이 자기 프록시로 캐시하는데, 길면 고쳐진 뒤에도
+            # 며칠씩 빨간 배지가 남는다. 틀린 배지는 없느니만 못하다.
+            "Cache-Control": "max-age=60, s-maxage=60",
+        },
+    )
 
 
 @app.get("/api/v1/auth/me")

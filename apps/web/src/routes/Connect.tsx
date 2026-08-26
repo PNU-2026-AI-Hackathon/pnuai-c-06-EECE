@@ -348,6 +348,8 @@ function Slot({
 
 /** 다 됐을 때. **아직 하나 남았다는 걸 분명히 말한다.** */
 function Done({ made, repo }: { made: { pull_request: string; path: string }; repo: string }) {
+  // **주소를 지어내지 않는다.** 배포마다 다르므로 화면이 쓰는 값을 그대로 보여준다.
+  const apiBase = (import.meta.env.VITE_API_BASE as string | undefined) ?? "";
   return (
     <div className="rounded-card border border-ok/30 bg-ok-weak p-7">
       <p className="mb-2 text-[17px] font-extrabold text-ink">
@@ -364,6 +366,20 @@ function Done({ made, repo }: { made: { pull_request: string; path: string }; re
         **끝났다고 말하지 않는다.** 시크릿이 없으면 액션이 401 로 죽고,
         사용자는 우리가 만들어 준 파일이 고장 났다고 읽는다 (헌법 2-4).
       */}
+      {/*
+        **배지는 덤이지만 눈에 띄어야 한다.** 남의 README 에 우리 이름이 박히는
+        유일한 자리이고, 안 알려주면 아무도 안 쓴다.
+      */}
+      <div className="mt-7 border-t border-ok/20 pt-6">
+        <p className="mb-2 text-[15px] font-bold text-ink">README 에 배지를 붙이시겠어요?</p>
+        <p className="mb-3 text-[14px] leading-relaxed text-sub">
+          최근 검사 결과가 저장소 첫 화면에 뜹니다. 치명이 있으면 빨간색입니다.
+        </p>
+        <code className="block overflow-x-auto rounded-block bg-surface px-4 py-3 font-mono text-[12.5px] text-ink">
+          {`![Prefab](${apiBase}/api/v1/checks/<검사 ID>/badge.svg)`}
+        </code>
+      </div>
+
       <div className="mt-7 border-t border-ok/20 pt-6">
         <p className="mb-2 text-[15px] font-bold text-ink">머지 전에 하나 더 하셔야 합니다</p>
         <p className="mb-4 text-[14px] leading-relaxed text-sub">
