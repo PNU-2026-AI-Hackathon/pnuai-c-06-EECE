@@ -258,10 +258,18 @@ export function ConnectPage() {
 function Grant({ href }: { href: string | null }) {
   return (
     <div className="rounded-card border border-line bg-surface p-7">
-      <p className="mb-2 text-[16px] font-extrabold text-ink">저장소 접근을 허용해 주세요</p>
+      <p className="mb-2 text-[16px] font-extrabold text-ink">GitHub 에 연결해 주세요</p>
+      {/*
+        **「로그인할 때는 이름과 이메일만 받았습니다」라고 적혀 있었다.**
+        이메일·비밀번호로 가입한 사람은 GitHub 을 한 번도 안 거쳤는데 그렇게 말했다.
+        화면이 사용자가 어떻게 들어왔는지 모르면서 안다고 말한 것이다 (헌법 2-1).
+
+        어떻게 로그인했든 참인 문장으로 바꾼다.
+      */}
       <p className="mb-6 text-[14.5px] leading-relaxed text-sub">
-        로그인할 때는 이름과 이메일만 받았습니다. 저장소를 훑고 PR 을 올리려면{" "}
-        <strong className="font-bold text-ink">권한을 따로 받아야 합니다.</strong>
+        저장소를 훑고 PR 을 올리려면{" "}
+        <strong className="font-bold text-ink">GitHub 권한이 필요합니다.</strong>{" "}
+        아직 안 주셨거나, 준 지 오래돼 만료됐을 수 있습니다.
       </p>
       {href && <a href={href} className="btn-primary">GitHub에서 허용하기</a>}
       <p className="mt-5 text-[13px] leading-relaxed text-mute">

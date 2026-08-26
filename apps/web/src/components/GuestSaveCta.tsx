@@ -25,12 +25,21 @@ import type { CheckResult } from "../types/api";
  *   가입을 권하는 건 맥락이 어긋난다. 링크 공유가 우리 강점인데 그 경험을 흐린다
  * - 확인 중(`loading`) — 깜빡임을 만들지 않는다
  */
+/**
+ * 이 자리에 가입 권유가 뜨는가.
+ *
+ * **리포트 아래에는 다음 걸음이 하나만 있어야 한다.** 그래서 「다시 검사하기」 쪽이
+ * 이 값을 보고 자리를 비운다 — 조건을 두 곳에 적으면 반드시 갈라진다 (헌법 10절).
+ */
+export function showsGuestSaveCta(user: unknown, check: CheckResult): boolean {
+  return !user && !check.owned;
+}
+
 export function GuestSaveCta({ check }: { check: CheckResult }) {
   const { user, loading } = useSession();
 
-  if (loading || user) return null;
-  // 주인이 붙은 검사를 로그아웃 상태로 보고 있다면, 그건 남이 공유한 링크다.
-  if (check.owned) return null;
+  if (loading) return null;
+  if (!showsGuestSaveCta(user, check)) return null;
 
   return (
     <section className="no-print mt-10 rounded-card border border-brand/25 bg-brand/5 px-6 py-5">

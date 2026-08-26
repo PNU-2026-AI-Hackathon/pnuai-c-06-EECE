@@ -82,7 +82,13 @@ export function ApiKeys() {
     <section className="mt-12 border-t border-line pt-10">
       <h2 className="mb-2 text-[19px] font-extrabold tracking-tight md:text-[22px]">API 키</h2>
       <p className="mb-6 max-w-2xl text-[14.5px] leading-relaxed text-sub">
-        화면 없이 검사를 돌릴 때 씁니다. CI 나 스크립트에서 이 키로 인증합니다.
+        {/*
+          **무엇에 쓰는지만 말하고 왜 좋은지를 안 말하고 있었다.**
+          「CI 에서 이 키로 인증합니다」는 이미 아는 사람에게만 뜻이 통한다.
+          모르는 사람에게는 그래서 뭐가 좋아지는지를 먼저 말해야 한다.
+        */}
+        저장소에 붙이면 <strong className="font-bold text-ink">PR 마다 검사가 저절로 돕니다.</strong>{" "}
+        매번 파일을 올리지 않아도 되고, 회로도가 어긋나면 머지가 막힙니다.
       </p>
 
       {/* 방금 만든 키 — 여기가 원문이 존재하는 유일한 순간이다 */}
