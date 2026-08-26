@@ -517,3 +517,55 @@ Authorization: Bearer prefab_<64자리 16진수>
 ### DELETE /api/v1/keys/{id}
 
 남의 키는 `404`. 지운 키는 **즉시** 안 먹는다.
+
+---
+
+## GitHub 으로 로그인
+
+**브라우저가 주소창으로 오는 자리다. `fetch` 가 아니다.** OAuth 는 사용자를
+GitHub 으로 실제로 보냈다가 데려오는 흐름이라 XHR 로는 성립하지 않는다.
+화면은 `<a href>` 로 건다.
+
+```
+GET /api/v1/auth/github/start?next=/mine    → 302 GitHub 승인 화면
+GET /api/v1/auth/github/callback            → 302 화면 (세션 쿠키가 여기서 심긴다)
+```
+
+### 켜졌는지 화면이 아는 법
+
+`GET /api/v1/auth/me` 에 실린다.
+
+```json
+{ "user": null, "storage": { ... }, "github": { "enabled": false } }
+```
+
+**`enabled` 가 거짓이면 화면은 버튼을 아예 안 그린다.** 서버에 GitHub 앱이
+설정되지 않으면 `/start` 가 `404` 다 — 눌러도 안 되는 버튼을 두지 않는다 (헌법 2-4).
+
+### 실패하면 화면으로 사유를 달아 되돌린다
+
+```
+{WEB_APP_URL}/login?error=<코드>
+```
+
+| 코드 | 뜻 |
+|---|---|
+| `cancelled` | 사용자가 GitHub 화면에서 취소했다. **오류가 아니다** |
+| `no_verified_email` | GitHub 계정에 **인증된** 이메일이 없다 |
+| `bad_state` | 우리가 시작한 흐름이 아니거나 시간이 지났다 (CSRF 방어) |
+| `exchange_failed` · `github_unreachable` | GitHub 과의 통신이 안 됐다 |
+
+`next` 는 **목록에 있는 경로만** 받는다 (`/mine` · `/check` · `/pricing` · `/`).
+그 밖은 `/mine` 으로 간다 — 우리 로그인 링크가 남의 사이트로 떨어뜨리는
+미끼가 되면 안 된다 (오픈 리다이렉트).
+
+### 서버 환경변수
+
+```
+GITHUB_CLIENT_ID        GitHub OAuth 앱의 Client ID
+GITHUB_CLIENT_SECRET    Client secret. **state 서명 열쇠로도 쓴다**
+GITHUB_REDIRECT_URI     {API 주소}/api/v1/auth/github/callback
+WEB_APP_URL             다 끝나고 사람을 보낼 화면 주소
+```
+
+넷 중 하나라도 비면 기능이 통째로 꺼진다.
