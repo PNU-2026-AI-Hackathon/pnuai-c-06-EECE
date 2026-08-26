@@ -55,7 +55,7 @@
 
 | PR | 상태 |
 |---|---|
-| [#64](https://github.com/PNU-2026-AI-Hackathon/pnuai-c-06-EECE/pull/64) 요청 제한 · 수익 모델 · 로그인 | **CI 초록. 머지 대기** |
+| [#89](https://github.com/PNU-2026-AI-Hackathon/pnuai-c-06-EECE/pull/89) 액션 자가 시험 | **빨간불 — `PREFAB_API_KEY` 가 죽었다.** 코드 문제가 아니라 8/26 04:25 에 DB 가 비면서 키가 같이 지워진 것이다. 새 키를 시크릿에 넣으면 초록이 된다 |
 | [#57](https://github.com/PNU-2026-AI-Hackathon/pnuai-c-06-EECE/pull/57) 드리프트 데모 | **일부러 빨간불. 절대 머지하지 말 것** — 드리프트 CI 가 PR 을 막는 것을 보여 주는 데모다 |
 
 **CI 가 초록인 것을 확인하기 전에는 머지하지 않는다.** main 이 이것 때문에 두 번 깨졌다.
@@ -174,6 +174,26 @@ Render 문서: *"You can attach a persistent disk to a **paid** Render web servi
 유료 플랜 + `disk:` 를 붙이면 두 번째 기동부터 저절로 `persistent` 가 되고 화면 경고가 사라진다.
 방법은 `render.yaml` 주석에 적혀 있다.
 
+**재배포만이 아니다 — 놀려 두기만 해도 지워진다 (8/26 측정).**
+"머지를 안 하면 시연 때까지 버티지 않겠나" 를 확인하려고 실제로 재 봤다.
+
+```
+03:17  계정 생성(201)   boots=1  first_seen=8/25 17:54
+        ─ 그 뒤 아무것도 안 건드림 ─
+13:25  깨움             boots=1  first_seen=8/26 04:25   ← 표식이 새로 생겼다
+        그 계정으로 로그인 → 401
+```
+
+`first_seen` 이 바뀌었다는 것은 **표식 파일이 사라진 채로 새로 떴다**는 뜻이다.
+Render 대시보드도 같은 말을 배너로 하고 있다 —
+*"Your free instance will spin down with inactivity."*
+
+**시연 때 쓸 계정·API 키는 그날 아침에 만들고, 서버를 깨워 둔다.**
+
+```bash
+while true; do curl -s -o /dev/null https://pnuai-c-06-eece-prefab.onrender.com/; sleep 600; done
+```
+
 ### 6-6. 업로드는 디스크에 닿으면 안 된다
 
 `/privacy` 가 "디스크에 쓰지 않습니다"라고 말한다. starlette 기본값(`spool_max_size` 1MB)이면
@@ -219,6 +239,14 @@ import 된 `dataclasses.field` 로 해석돼 **항상 False 였고 예외도 안
 - **모듈 핀아웃 DB 에 보드가 1개**(XIAO ESP32-C6). IPC-D-356 으로 들어온 보드에만 남은 문제다.
 - **부품 사실이 4개뿐.** 없는 부품은 `UNRESOLVED` 로 나가고 **무엇이 있으면 풀리는지**를 같이 적는다.
 - **비밀번호 재설정·메일 인증이 없다.** 메일 보낼 수단이 없다. 있는 척하지 않는다.
+  → **8/26, GitHub 로그인을 붙여 우회로를 만들었다** (`web/github.py` · [설정 순서](docs/GITHUB_LOGIN_SETUP.md)).
+  GitHub 으로 들어오면 비밀번호를 우리가 안 가지므로 잊을 것도 없다. **실서비스에서 동작 확인됨.**
+  비밀번호 가입은 그대로 남아 있고, 그 길에는 위 문장이 여전히 참이다.
+
+  이 기능의 보안은 **계정을 잇는 순서**가 전부다 —
+  ① `github_id` → ② **인증된** 이메일 → ③ 새로 만들기.
+  ②에서 「인증된」을 빼면 아무나 남의 주소를 자기 GitHub 에 적어 두고 그 계정을 가져간다.
+  `tests/test_github_oauth.py` 가 이걸 붙잡는다.
 - **결제가 없다** (헌법 4절). `/pricing` 의 Pro·팀은 "준비 중"이라고 적혀 있다.
 
 ---
