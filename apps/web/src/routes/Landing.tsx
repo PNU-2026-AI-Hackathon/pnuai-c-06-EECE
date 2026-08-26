@@ -103,11 +103,49 @@ function Hero() {
           (KiCad · Altium · EasyEDA · Flux).
         </p>
 
+        {/*
+          **우리가 어디까지 왔는지를 숫자로 먼저 보여준다.**
+          아래 리포트 미리보기가 「무엇을 받는지」라면, 이 띠는 「얼마나 단단한지」다.
+          특히 **오탐 0%** 는 이 대회에서 우리만 잰 값이라 여기 둔다.
+        */}
+        <dl className="mt-10 grid max-w-2xl grid-cols-2 gap-px overflow-hidden rounded-card border border-line bg-line sm:grid-cols-4">
+          {[
+            { k: "판정 규칙", v: "15", u: "개" },
+            { k: "테스트", v: "892", u: "개" },
+            { k: "홀드아웃 검증", v: "38", u: "보드" },
+            { k: "그중 오탐", v: "0", u: "%", strong: true },
+          ].map((m) => (
+            <div key={m.k} className="bg-surface px-4 py-3.5">
+              <dt className="text-[12px] font-semibold text-mute">{m.k}</dt>
+              <dd
+                className={`mt-0.5 text-[22px] font-extrabold tabular-nums ${
+                  m.strong ? "text-ok" : "text-ink"
+                }`}
+              >
+                {m.v}
+                <span className="ml-0.5 text-[13px] font-bold text-mute">{m.u}</span>
+              </dd>
+            </div>
+          ))}
+        </dl>
+
         {/* **무엇을 받는지 먼저 보여준다.** 로그인 벽이 생긴 만큼 더 필요해졌다 */}
-        <div className="mt-10 max-w-2xl">
+        <div className="mt-6 max-w-2xl">
           <ReportPreview />
-          <p className="mt-3 text-[13px] text-mute">
-            실제 보드를 검사한 결과입니다. 판정마다 회로도 · 코드 · 부품 근거가 붙습니다.
+          {/*
+            **미리보기만 보여주고 진짜를 안 보여주고 있었다.** 완성된 리포트가
+            서버에 살아 있는데(`/r/chk_sample01`) 링크가 어디에도 없었다 —
+            만들어 놓고 안 보이는 상태였다. 가입 없이 열린다.
+          */}
+          <p className="mt-3 text-[13px] leading-relaxed text-mute">
+            실제 보드를 검사한 결과입니다. 판정마다 회로도 · 코드 · 부품 근거가 붙습니다.{" "}
+            <Link
+              to="/r/chk_sample01"
+              className="font-bold text-brand-strong hover:underline"
+            >
+              전체 리포트 열어 보기 →
+            </Link>{" "}
+            <span className="text-mute">가입 없이 열립니다.</span>
           </p>
         </div>
       </div>

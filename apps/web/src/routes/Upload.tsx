@@ -162,6 +162,8 @@ export function UploadPage() {
   const [error, setError] = useState<string | null>(null);
   const { user, loading: sessionLoading } = useSession();
   const [busy, setBusy] = useState(false);
+  /** 샘플 파일을 받아 슬롯에 채우는 중인가. */
+  const [sampling, setSampling] = useState(false);
   /** 서버가 잠들어 있어 기다리는 중인가. 판정이 느린 것과 구분해서 말한다 */
   const [waking, setWaking] = useState(false);
   /**
@@ -172,6 +174,38 @@ export function UploadPage() {
   const [catalogFailed, setCatalogFailed] = useState(false);
 
   // 카탈로그를 못 받아도 업로드는 막지 않는다. 개수만 안 쓴다
+  /**
+   * 저희 실측 보드로 슬롯 셋을 채운다.
+   *
+   * **파일을 진짜로 받아서 채운다.** 서버에 "샘플로 돌려라"는 지름길을 두지 않는 이유는,
+   * 그러면 사용자가 보는 경로와 저희가 시연하는 경로가 갈리기 때문이다. 여기서
+   * 받는 파일은 남이 올리는 것과 똑같이 업로드를 거친다.
+   */
+  async function loadSample() {
+    setSampling(true);
+    setError(null);
+    try {
+      const pick = async (path: string, name: string, type: string) => {
+        const res = await fetch(path);
+        if (!res.ok) throw new Error(path);
+        return new File([await res.blob()], name, { type });
+      };
+      const [net, parts, fw] = await Promise.all([
+        pick("/samples/board.net.xml", "샘플-회로도.net.xml", "application/xml"),
+        pick("/samples/bom.csv", "샘플-부품목록.csv", "text/csv"),
+        pick("/samples/firmware.zip", "샘플-펌웨어.zip", "application/zip"),
+      ]);
+      setNetlist(net);
+      setBom(parts);
+      setFirmware(fw);
+    } catch {
+      // **조용히 실패하지 않는다.** 눌렀는데 아무 일도 안 일어나면 고장으로 읽힌다.
+      setError("샘플을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setSampling(false);
+    }
+  }
+
   useEffect(() => {
     let alive = true;
     getRules()
@@ -379,6 +413,22 @@ export function UploadPage() {
       <div className="flex flex-wrap items-center gap-2.5">
         <button type="button" onClick={run} disabled={busy} className="btn-primary">
           {busy ? "시작하는 중" : "검사 실행"}
+        </button>
+        {/*
+          **파일이 없는 사람이 여기서 막힌다.** 처음 온 사람은 넷리스트가 뭔지도
+          모르고, 안다 해도 지금 손에 없다. 그러면 이 화면에서 할 수 있는 일이
+          아무것도 없다 — 도구가 무엇을 하는지 못 본 채로 나간다.
+
+          저희 보드 파일을 서버가 들고 있으므로 눌러서 채워 준다.
+          **올린 것처럼 위장하지 않는다** — 슬롯에 「샘플」이라고 그대로 보인다.
+        */}
+        <button
+          type="button"
+          onClick={() => void loadSample()}
+          disabled={busy || sampling}
+          className="btn-ghost disabled:opacity-50"
+        >
+          {sampling ? "불러오는 중…" : "샘플 보드로 해보기"}
         </button>
         {/*
           **파일을 올리는 자리에서 말한다.** 정책 페이지에만 두면 아무도 안 본다 —
