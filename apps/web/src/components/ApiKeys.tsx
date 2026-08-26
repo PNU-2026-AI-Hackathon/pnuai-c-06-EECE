@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { ApiFailure, createKey, fetchKeys, revokeKey } from "../lib/api";
+import { useSession } from "../lib/session";
 import type { ApiKey } from "../types/api";
 
 /**
@@ -23,6 +25,7 @@ import type { ApiKey } from "../types/api";
  * 쌓이고, 하나가 새는 날 피해가 커진다. **지울 수 있게 하려면 알려줘야 한다.**
  */
 export function ApiKeys() {
+  const { github } = useSession();
   const [keys, setKeys] = useState<ApiKey[] | null>(null);
   const [max, setMax] = useState(0);
   const [label, setLabel] = useState("");
@@ -162,6 +165,26 @@ export function ApiKeys() {
         <p className="mt-2 text-[13.5px] text-warn">
           키는 {max}개까지 만들 수 있습니다. 안 쓰는 키를 먼저 지워 주세요.
         </p>
+      )}
+
+      {/*
+        **키를 만든 다음에 뭘 해야 하는지가 여기 없었다.** 키만 손에 쥐어 주고
+        "이제 YAML 을 쓰세요" 로 끝내면, 경로를 맞추는 데서 대부분 막힌다.
+        그 일을 대신해 주는 화면이 생겼으니 여기서 잇는다.
+      */}
+      {github?.enabled && (
+        <div className="mt-8 rounded-card border border-line bg-surface-2 px-5 py-4">
+          <p className="mb-1 text-[14.5px] font-bold text-ink">
+            GitHub 저장소에 붙이시겠어요?
+          </p>
+          <p className="mb-3 text-[13.5px] leading-relaxed text-sub">
+            저장소를 훑어 회로도·펌웨어가 어디 있는지 찾고, 경로가 채워진 워크플로 파일을
+            PR 로 올려 드립니다.
+          </p>
+          <Link to="/connect" className="text-[14px] font-bold text-brand-strong hover:underline">
+            저장소 연결하기 →
+          </Link>
+        </div>
       )}
     </section>
   );

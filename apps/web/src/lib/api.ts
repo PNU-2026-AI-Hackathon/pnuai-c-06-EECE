@@ -354,3 +354,56 @@ export async function revokeKey(id: string): Promise<void> {
 export function githubStartUrl(next: string): string | null {
   return BASE ? `${BASE}/api/v1/auth/github/start?next=${encodeURIComponent(next)}` : null;
 }
+
+// --------------------------------------------------------- 저장소 연동
+
+/** 저장소를 훑어 찾은 후보 하나. **왜 골랐는지 같이 온다.** */
+export type FileCandidate = { path: string; score: number; reason: string };
+
+/**
+ * 한 종류(넷리스트·펌웨어·부품목록)의 결과.
+ *
+ * **`picked` 가 `null` 인 것은 "없다"가 아니라 "우리가 고를 만큼 확신이 없다"** 이다.
+ * 그때 화면은 칸을 비워 두고 사용자가 고르게 한다 — 틀린 값을 채워 두면
+ * 검토를 건너뛰게 되고, 액션이 엉뚱한 오류로 죽는다.
+ */
+export type ScanGroup = { picked: string | null; candidates: FileCandidate[] };
+
+export type RepoScan = {
+  repo: string;
+  branch: string;
+  files_seen: number;
+  /** 저장소가 커서 다 못 봤는가. **숨기면 「없습니다」가 거짓이 된다.** */
+  truncated: boolean;
+  netlist: ScanGroup;
+  firmware: ScanGroup;
+  bom: ScanGroup;
+};
+
+export type GithubRepo = { full_name: string; private: boolean; default_branch: string };
+
+export function connectStartUrl(): string | null {
+  return BASE ? `${BASE}/api/v1/github/connect/start` : null;
+}
+
+export async function fetchRepos(): Promise<GithubRepo[]> {
+  const got = (await request("/api/v1/github/repos")) as { repos: GithubRepo[] };
+  return got.repos;
+}
+
+export async function scanRepo(repo: string, branch: string): Promise<RepoScan> {
+  return (await request(
+    `/api/v1/github/scan?repo=${encodeURIComponent(repo)}&branch=${encodeURIComponent(branch)}`
+  )) as RepoScan;
+}
+
+export async function setupRepo(body: {
+  repo: string;
+  branch: string;
+  netlist: string;
+  firmware?: string;
+  bom?: string;
+}): Promise<{ pull_request: string; path: string }> {
+  // `send` 가 POST + JSON + credentials 를 한 곳에서 붙인다.
+  return (await send("/api/v1/github/setup", body)) as { pull_request: string; path: string };
+}

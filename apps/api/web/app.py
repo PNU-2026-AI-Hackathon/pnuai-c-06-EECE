@@ -16,7 +16,7 @@ from starlette.formparsers import MultiPartParser
 
 from prefab.datasheet.store import FactStore
 
-from . import apikeys, github, quota, service, storage, usage, waitlist
+from . import apikeys, github, quota, repo, service, storage, usage, waitlist
 from .auth import AuthError, AuthStore, normalize_email
 from .ratelimit import RateLimiter, client_key
 from .service import ApiError
@@ -452,7 +452,8 @@ async def github_callback(request: Request):
         code = request.query_params.get("code") or ""
         if not code:
             raise github.GithubError("EXCHANGE_FAILED", "")
-        identity = github.fetch_identity(github.exchange_code(GITHUB, code))
+        access = github.exchange_code(GITHUB, code)
+        identity = github.fetch_identity(access)
         user = accounts.link_or_create_github(
             identity.github_id, identity.login, identity.email
         )
@@ -463,6 +464,13 @@ async def github_callback(request: Request):
 
     token, expires = accounts.open_session(user.id)
     response = RedirectResponse(f"{GITHUB.web_base}{landing}", status_code=302)
+    # 저장소 연동으로 돌아온 흐름이면 접근 토큰을 짧게 사는 쿠키로 넘긴다.
+    # **DB 에 안 넣는다** — 위 「토큰을 저장하지 않는다」 참고.
+    if landing == "/connect":
+        response.set_cookie(
+            CONNECT_COOKIE, access, max_age=CONNECT_TTL_SECONDS,
+            httponly=True, secure=COOKIE_SECURE, samesite=COOKIE_SAMESITE, path="/",
+        )
     response.set_cookie(
         SESSION_COOKIE,
         token,
@@ -474,6 +482,113 @@ async def github_callback(request: Request):
     )
     response.delete_cookie(GITHUB_NEXT_COOKIE, path="/")
     return response
+
+
+# ------------------------------------------------------------ 저장소 연동
+#
+# ## 토큰을 저장하지 않는다
+#
+# 연동은 **한 번 하는 일**이다. 그래서 권한을 받아 그 흐름 안에서만 쓰고 버린다.
+# 저장하면 우리 DB 가 남의 **비공개 회로도 저장소 열쇠**를 들고 있게 되는데,
+# 지금 우리에게는 그걸 지킬 암호화도, 애초에 살아남는 저장소도 없다.
+#
+# 대신 짧게 사는 쿠키로 나른다 — 브라우저가 들고 있다가 흐름이 끝나면 지워진다.
+# 서버가 재배포돼도 진행 중인 연동이 안 끊긴다는 덤도 있다.
+
+#: 연동 흐름 동안만 사는 쿠키. **여기 담긴 것은 GitHub 접근 토큰이다.**
+CONNECT_COOKIE = "prefab_gh_connect"
+
+#: 그 쿠키의 수명. 저장소 고르고 파일 확인하는 데 드는 시간 + 여유.
+CONNECT_TTL_SECONDS = 900
+
+
+def _connect_token(request: Request) -> str:
+    token = request.cookies.get(CONNECT_COOKIE)
+    if not token:
+        raise ApiError(
+            "NOT_CONNECTED",
+            "저장소 연결이 만료되었습니다. 다시 연결해 주세요.",
+            401,
+        )
+    return token
+
+
+def _drop_connect(response):
+    """토큰 쿠키를 지운다. **끝났으면 바로 버린다.**"""
+    response.delete_cookie(CONNECT_COOKIE, path="/")
+    return response
+
+
+@app.get("/api/v1/github/connect/start")
+async def connect_start(request: Request):
+    """저장소 권한을 물어보는 승인 화면으로 보낸다. 로그인과 **다른 scope** 다."""
+    if not GITHUB.enabled:
+        raise _github_off()
+    _require_user(request)
+    state = github.new_state(GITHUB.client_secret)
+    response = RedirectResponse(github.connect_url(GITHUB, state), status_code=302)
+    # 로그인 흐름과 콜백이 같아서, 어느 쪽인지 표식을 남긴다.
+    response.set_cookie(
+        GITHUB_NEXT_COOKIE, "/connect", max_age=github.STATE_TTL_SECONDS,
+        httponly=True, secure=COOKIE_SECURE, samesite=COOKIE_SAMESITE, path="/",
+    )
+    return response
+
+
+@app.get("/api/v1/github/repos")
+async def list_repos(request: Request) -> dict:
+    """쓸 수 있는 저장소 목록. **`push` 권한이 있는 것만.**"""
+    _require_user(request)
+    return {"repos": [r.to_dict() for r in github.list_repos(_connect_token(request))]}
+
+
+@app.get("/api/v1/github/scan")
+async def scan_repo(request: Request) -> dict:
+    """저장소를 훑어 넷리스트·펌웨어·부품목록 후보를 찾는다.
+
+    **고르지 않는다. 후보를 근거와 함께 늘어놓는다** (`web/repo.py`).
+    """
+    _require_user(request)
+    full_name = (request.query_params.get("repo") or "").strip()
+    branch = (request.query_params.get("branch") or "main").strip()
+    if not full_name:
+        raise ApiError("BAD_REQUEST", "저장소를 골라 주세요.", 422)
+
+    paths, truncated = github.list_paths(_connect_token(request), full_name, branch)
+    found = repo.scan(paths).to_dict()
+    return {
+        "repo": full_name,
+        "branch": branch,
+        "files_seen": len(paths),
+        # **잘렸으면 말한다.** 이걸 숨기면 "넷리스트가 없습니다" 가 거짓이 된다.
+        "truncated": truncated,
+        **found,
+    }
+
+
+@app.post("/api/v1/github/setup")
+async def setup_repo(request: Request, payload: dict) -> JSONResponse:
+    """워크플로 파일을 넣는 PR 을 연다. **기본 브랜치에 직접 안 쓴다.**"""
+    _require_user(request)
+    full_name = str(payload.get("repo") or "").strip()
+    branch = str(payload.get("branch") or "main").strip()
+    netlist = str(payload.get("netlist") or "").strip()
+    if not full_name or not netlist:
+        raise ApiError("BAD_REQUEST", "저장소와 넷리스트 경로가 필요합니다.", 422)
+
+    url = github.open_setup_pr(
+        _connect_token(request),
+        full_name,
+        branch,
+        repo.WORKFLOW_PATH,
+        repo.workflow_yaml(
+            netlist,
+            str(payload.get("firmware") or "").strip() or None,
+            str(payload.get("bom") or "").strip() or None,
+        ),
+    )
+    # **일이 끝났으니 토큰을 버린다.** 더 들고 있을 이유가 없다.
+    return _drop_connect(JSONResponse({"pull_request": url, "path": repo.WORKFLOW_PATH}))
 
 
 @app.get("/api/v1/auth/me")

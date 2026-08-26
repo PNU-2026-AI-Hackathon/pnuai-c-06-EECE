@@ -101,9 +101,18 @@ export function PricingPage() {
               <strong className="font-bold text-ink">무료 플랜은 전부 됩니다.</strong>{" "}
               검사와 결과 보관, 비공개 링크, 데이터시트 읽기 요청까지 지금 쓰실 수 있습니다.
             </li>
+            {/*
+              **이 문장이 8/26 에 거짓이 됐다.** "API 키와 GitHub 연동을 만드는 중"
+              이라고 적혀 있었는데 둘 다 이미 돌고 있었다. 못 만든 것을 숨기지 않는
+              것만큼, **만든 것을 안 만들었다고 말하는 것도 사실이 아니다** (2-1).
+            */}
             <li>
-              <strong className="font-bold text-ink">Pro · 팀은 아직 결제를 열지 않았습니다.</strong>{" "}
-              API 키와 GitHub 연동, 조직 계정을 만드는 중입니다. 알림을 신청하시면 열릴 때
+              <strong className="font-bold text-ink">Pro 기능은 이미 만들었고 지금 무료로 쓰실 수 있습니다.</strong>{" "}
+              API 키도, GitHub 연동도 돌아갑니다 — 결제를 아직 안 열어서 한도만 무료 기준입니다.
+            </li>
+            <li>
+              <strong className="font-bold text-ink">아직인 것은 결제와 조직 계정입니다.</strong>{" "}
+              사업자등록 전이라 결제 대행 계약을 맺지 못했습니다. 알림을 신청하시면 열릴 때
               먼저 알려드립니다.
             </li>
           </ul>
