@@ -210,11 +210,6 @@ def main() -> None:
     if fail_on == "warning" and (crit or warn):
         fail(f"발견 {crit + warn}건 — {report_url}")
 
-
-if __name__ == "__main__":
-    main()
-
-
 # ------------------------------------------------------ PR 에 줄 단위로 달기
 #
 # ## 왜 요약만으로 부족한가
@@ -374,3 +369,6 @@ def post_inline(result: dict, report_url: str) -> None:
         print(f"PR 에 코멘트 {len(comments)}개를 달았습니다.")
     except Exception as exc:  # noqa: BLE001 — 덤이라서 무엇이 터져도 검사를 막지 않는다
         print(f"::notice::PR 코멘트를 달지 못했습니다 ({exc}). 검사 결과는 위 요약에 있습니다.")
+
+if __name__ == "__main__":
+    main()

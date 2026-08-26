@@ -201,3 +201,37 @@ def test_회로도_근거에는_안_단다(check):
         "evidence": [{"kind": "netlist", "text": "U1.D2 → NET"}],
     }]
     assert check.build_comments(findings, {"a/b.ino": {1, 2, 3}}) == []
+
+
+def test_진입점이_파일_맨_끝에_있다():
+    """**실제로 밟은 버그다 (8/26).**
+
+    `if __name__ == "__main__": main()` **뒤에** 함수를 덧붙였더니, `main()` 이
+    돌 때는 그 함수가 아직 정의되지 않아 러너에서 `NameError` 로 죽었다.
+
+    파이썬은 위에서 아래로 실행한다. 진입점 뒤의 정의는 `main()` 이 끝난 뒤에야
+    평가된다. 단위 테스트는 모듈만 import 하므로 이 실수를 못 잡는다 —
+    **파일 순서를 직접 본다.**
+    """
+    text = ACTION.read_text(encoding="utf-8")
+    assert text.rstrip().endswith("main()"), "진입점이 파일 맨 끝이 아닙니다"
+
+    entry = text.index('if __name__ == "__main__"')
+    after = text[entry:]
+    assert "\ndef " not in after, "진입점 뒤에 함수 정의가 있습니다 — 러너에서 NameError 가 납니다"
+
+
+def test_main_이_부르는_이름이_전부_정의돼_있다():
+    """import 만으로는 「정의는 됐지만 순서가 틀린」 경우를 못 본다."""
+    import ast
+
+    tree = ast.parse(ACTION.read_text(encoding="utf-8"))
+    defined = {n.name for n in tree.body if isinstance(n, ast.FunctionDef)}
+    main = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "main")
+    called = {
+        n.func.id
+        for n in ast.walk(main)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+    }
+    missing = {c for c in called if c.islower() and "_" in c or c in defined} - defined
+    assert not missing, f"main 이 부르는데 없는 함수: {missing}"
