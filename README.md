@@ -17,6 +17,7 @@
 | 지원 칩 | **6종** — ESP32 · C3 · C6 · H2 · S3 · RP2040 |
 | 테스트 | **892개** 통과 |
 | 검증 | 검출 **17/17** · 주입 오탐 **0%** · 홀드아웃 **38개 보드** |
+| 실전 | 남의 오픈소스 보드에서 결함을 찾아 **[제보했습니다](https://github.com/FForzano/xgsail-e1/issues/5)** |
 
 ---
 
@@ -559,6 +560,22 @@ jobs:
 ```
 
 치명 발견이 있으면 **빨간불로 막고**, 결과 요약이 잡 요약(Job Summary)에 그대로 뜹니다.
+
+<img src="docs/images/pr-comment.png" alt="PR 에 붙은 검사 결과 — 새로 생긴 치명 발견 3건과 main 대비 요약표" width="72%">
+
+<p align='center'><sub><b>실제 PR 입니다</b> — <a href="https://github.com/PNU-2026-AI-Hackathon/pnuai-c-06-EECE/pull/57">#57</a>.
+레벨시프터를 되돌린 커밋에서 <b>치명 3건이 새로 생겼고</b> 빨간불이 켜졌습니다.
+맨 아래 「이 비교가 못 보는 것」까지 봇이 같이 적습니다.</sub></p>
+
+### 남의 저장소에서 찾은 결함 — 실제로 제보했습니다
+
+이 도구로 오픈소스 ESP32 보드들을 훑다가 [`FForzano/xgsail-e1`](https://github.com/FForzano/xgsail-e1)
+에서 어긋난 핀 상수를 찾아 **[이슈로 올렸습니다](https://github.com/FForzano/xgsail-e1/issues/5)**.
+
+`User_Setup.h` 는 납땜에 맞춰 백라이트를 GPIO 19 로 옮겨 뒀는데, `config.h` 의
+`TFT_BL_PIN` 은 25 에 그대로 남아 있었습니다. **25 는 이제 디스플레이 MISO 입니다.**
+아직 아무도 그 상수를 안 써서 터지지 않았을 뿐이고, 같은 파일에 적혀 있는
+적응형 백라이트 기능이 들어오는 순간 SPI 데이터 선에 PWM 이 걸립니다.
 
 > **파일이 저장소를 떠납니다.** 검사하려면 넷리스트와 펌웨어를 Prefab 서버로 보내야
 > 합니다. 올린 파일은 디스크에 남기지 않고(`/privacy`), 요약에도 그 사실을 적습니다.
