@@ -139,20 +139,25 @@ def test_인증된_이메일이_같으면_기존_계정에_잇는다(app_module)
     client.post(
         "/api/v1/auth/signup", json={"email": "me@x.com", "password": "qweasdzxc123"}
     )
+    # **개수를 못 박지 않는다.** 서버가 기동 때 구경용 계정을 심어서 절대값이 바뀐다.
+    # 여기서 지키려는 것은 「이었다」이지 「하나다」가 아니다.
+    before = app_module.accounts.count_users()
     linked = app_module.accounts.link_or_create_github(4242, "me", "me@x.com")
     assert linked.email == "me@x.com"
 
-    # **계정이 하나여야 한다.** 둘이 되면 검사 목록이 갈린다.
-    assert app_module.accounts.count_users() == 1
+    # **계정이 안 늘어야 한다.** 늘면 검사 목록이 갈린다.
+    assert app_module.accounts.count_users() == before
 
 
 def test_github_id_가_이메일보다_세다(app_module):
     """GitHub 에서 기본 이메일을 바꿔도 같은 계정으로 들어와야 한다."""
     first = app_module.accounts.link_or_create_github(777, "dev", "old@x.com")
+    after_first = app_module.accounts.count_users()
     again = app_module.accounts.link_or_create_github(777, "dev-renamed", "brand-new@x.com")
     assert again.id == first.id
     assert again.email == "old@x.com"
-    assert app_module.accounts.count_users() == 1
+    # 두 번째 호출이 계정을 새로 만들면 안 된다
+    assert app_module.accounts.count_users() == after_first
 
 
 def test_처음_보는_사람은_계정이_생긴다(app_module):
