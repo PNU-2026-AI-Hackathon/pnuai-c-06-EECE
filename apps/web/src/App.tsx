@@ -8,6 +8,7 @@ import {
 import { SessionProvider } from "./lib/session";
 import { AccountPage } from "./routes/Account";
 import { ConnectPage } from "./routes/Connect";
+import { EvidencePage } from "./routes/Evidence";
 import { LandingPage } from "./routes/Landing";
 import { MyChecksPage } from "./routes/MyChecks";
 import { PricingPage } from "./routes/Pricing";
@@ -34,6 +35,8 @@ export default function App() {
           <Route path="/check" element={<UploadPage />} />
           {/* 남의 회로도를 받는 도구다. 무엇을 저장하는지 말하지 않으면 아무도 안 올린다 */}
           <Route path="/pricing" element={<PricingPage />} />
+          {/* 우리가 어디서 틀리는지 — README 에만 있던 것을 화면으로 꺼냈다 */}
+          <Route path="/evidence" element={<EvidencePage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/login" element={<AccountPage mode="login" />} />
           <Route path="/signup" element={<AccountPage mode="signup" />} />

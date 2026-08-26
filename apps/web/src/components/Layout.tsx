@@ -28,6 +28,19 @@ export function Header({
         </Link>
 
         <div className="flex items-center gap-x-1">
+          {/*
+            **상단 메뉴가 없었다.** 로고와 로그인뿐이라, 처음 온 사람이 검증 결과나
+            요금제로 갈 방법이 아예 없었다 — 그 페이지들이 랜딩 본문 깊숙한 곳에서만
+            링크돼 있었다. 경쟁 서비스들은 전부 상단에 메뉴를 두고 있고, 그중 하나는
+            자기네 검증 페이지를 메뉴 첫 자리에 올려 뒀다.
+
+            좁은 화면에서는 감춘다. 같은 링크가 랜딩 본문과 바닥글에 다시 나온다.
+          */}
+          <nav className="mr-1 hidden items-center gap-x-1 md:flex">
+            <NavLink to="/check">검사하기</NavLink>
+            <NavLink to="/evidence">검증 결과</NavLink>
+            <NavLink to="/pricing">요금</NavLink>
+          </nav>
           <SessionLinks />
         </div>
 
@@ -49,6 +62,19 @@ export function Header({
         )}
       </div>
     </header>
+  );
+}
+
+/** 상단 메뉴 링크 하나. 헤더의 로그인 링크와 같은 크기로 맞춘다. */
+function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
+  return (
+    <Link
+      to={to}
+      className="min-h-[44px] rounded-block px-3 text-[14px] font-bold text-sub transition hover:text-ink"
+      style={{ display: "inline-flex", alignItems: "center" }}
+    >
+      {children}
+    </Link>
   );
 }
 
