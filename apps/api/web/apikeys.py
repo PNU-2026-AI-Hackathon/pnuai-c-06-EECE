@@ -180,3 +180,33 @@ def user_for(conn: sqlite3.Connection, token: str | None) -> str | None:
     conn.execute("UPDATE api_keys SET last_used_at = ? WHERE id = ?", (_now(), row[0]))
     conn.commit()
     return row[1]
+
+
+def ensure(conn: sqlite3.Connection, user_id: str, token: str, label: str) -> bool:
+    """이 원문 키가 이 사람 것으로 **있게 만든다.** 이미 있으면 아무것도 안 한다.
+
+    ## 왜 필요한가
+
+    무료 플랜이라 **재배포마다 DB 가 통째로 날아간다.** 키도 같이 죽는다.
+    그러면 CI 가 401 로 멈추고, 그때마다 사람이 키를 새로 만들어 시크릿에
+    넣어야 한다 — 8/26 하루에 세 번 그랬다.
+
+    배포 설정에 원문을 두면 기동 때마다 그 지문을 다시 심는다.
+    **저장하는 것은 여전히 지문뿐이고**, 원문은 배포 설정과 GitHub 시크릿에만 있다.
+
+    ## 왜 사람이 만드는 키와 같은 표를 쓰는가
+
+    표를 따로 두면 인증 경로가 둘이 되고, 그중 하나만 고치는 날이 온다.
+    같은 표에 넣으면 **검증 코드가 하나**로 남고, 화면에서도 보이고 지울 수 있다.
+    """
+    if not looks_like_key(token):
+        return False
+    fp = fingerprint(token)
+    if conn.execute("SELECT 1 FROM api_keys WHERE fingerprint = ?", (fp,)).fetchone():
+        return False
+    conn.execute(
+        "INSERT INTO api_keys (id, user_id, label, fingerprint, created_at) VALUES (?, ?, ?, ?, ?)",
+        (secrets.token_hex(8), user_id, label[:MAX_LABEL_LEN], fp, _now()),
+    )
+    conn.commit()
+    return True
