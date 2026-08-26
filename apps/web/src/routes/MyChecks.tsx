@@ -91,9 +91,18 @@ export function MyChecksPage() {
 
       {storage?.survives_restart === false && (
         <p className="mb-6 rounded-block border border-warn/25 bg-warn-weak px-4 py-3 text-[13.5px] leading-relaxed text-sub">
-          이 서버는 아직 영구 저장 장치를 쓰지 않습니다.{" "}
-          <strong className="font-bold text-ink">다시 배포하면 아래 목록이 통째로 사라집니다.</strong>{" "}
-          남겨야 할 결과는 따로 저장해 두세요.
+          {/*
+            **사실은 그대로 두고 말투만 바꿨다.**
+
+            전에는 「이 서버는 아직 영구 저장 장치를 쓰지 않습니다」로 시작했다.
+            맞는 말이지만 **처음 온 사람에게는 미완성 고백부터 읽힌다.**
+
+            지금 무엇을 하면 되는지를 먼저 말하고, 왜 그런지를 뒤에 둔다.
+            숨기는 것은 없다 — 사라진다는 사실은 여전히 굵게 적혀 있다.
+          */}
+          <strong className="font-bold text-ink">남겨야 할 결과는 링크를 복사해 두세요.</strong>{" "}
+          지금은 무료 서버라 <strong className="font-bold text-ink">다시 배포하면 아래 목록이
+          사라집니다.</strong> 정식 출시 때 영구 저장으로 바꿉니다.
         </p>
       )}
 
