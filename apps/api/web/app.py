@@ -11,12 +11,12 @@ import warnings
 
 from fastapi import FastAPI, File, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.formparsers import MultiPartParser
 
 from prefab.datasheet.store import FactStore
 
-from . import apikeys, quota, service, storage, usage, waitlist
+from . import apikeys, github, quota, service, storage, usage, waitlist
 from .auth import AuthError, AuthStore, normalize_email
 from .ratelimit import RateLimiter, client_key
 from .service import ApiError
@@ -97,6 +97,9 @@ AUTH_LIMIT_PER_HOUR = int(os.getenv("AUTH_LIMIT_PER_HOUR", "60"))
 #: `HttpOnly` 는 양보하지 않는다. 토큰을 `localStorage` 에 두면 스크립트가
 #: 읽을 수 있고, 그러면 XSS 한 번이 곧 계정 탈취가 된다.
 SESSION_COOKIE = "prefab_session"
+
+#: GitHub 을 다녀오는 동안 「어디로 돌아갈지」를 나르는 쿠키. 10분 살고 지워진다.
+GITHUB_NEXT_COOKIE = "prefab_github_next"
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "1") not in ("0", "false", "False")
 
 
@@ -240,6 +243,10 @@ accounts = AuthStore(DB_PATH)
 #: 무료 플랜에는 영구 디스크를 못 붙여서 계정이 재배포마다 사라질 수 있는데,
 #: 그걸 조용히 두지 않으려고 만든 것이다 (헌법 4절 단서 2).
 STORAGE = storage.probe(DB_PATH)
+
+#: GitHub 로그인 설정. **켜지지 않았으면 없는 기능이다** —
+#: 화면이 `enabled` 를 보고 버튼을 아예 안 그린다 (헌법 2-4).
+GITHUB = github.config_from_env()
 
 #: 커밋된 사실 파일을 기동 때 심는다. 배포 이미지에는 DB 가 없기 때문이다 —
 #: 안 심으면 데이터시트 해제가 배포된 서버에서만 조용히 사라진다.
@@ -385,6 +392,90 @@ async def logout(request: Request) -> JSONResponse:
     return response
 
 
+# ------------------------------------------------------- GitHub 으로 로그인
+#
+# **두 엔드포인트 모두 브라우저가 주소창으로 오는 자리다.** fetch 가 아니다.
+# 그래서 오류를 JSON 으로 돌려주면 사용자는 화면에 날 JSON 을 보게 된다.
+# 대신 화면의 로그인 페이지로 사유를 붙여 되돌린다.
+
+
+def _github_off():
+    return ApiError(
+        "GITHUB_DISABLED",
+        "이 서버에는 GitHub 로그인이 설정되어 있지 않습니다.",
+        404,
+    )
+
+
+@app.get("/api/v1/auth/github/start")
+async def github_start(request: Request):
+    """GitHub 승인 화면으로 보낸다."""
+    if not GITHUB.enabled:
+        raise _github_off()
+
+    state = github.new_state(GITHUB.client_secret)
+    response = RedirectResponse(github.authorize_url(GITHUB, state), status_code=302)
+    # **돌아갈 곳을 state 에 안 싣는다.** state 는 서명해서 위조를 막는 값이고,
+    # 거기에 사용자 입력을 섞으면 검증 대상이 늘어난다. 짧게 사는 쿠키로 따로 나른다.
+    response.set_cookie(
+        GITHUB_NEXT_COOKIE,
+        github.safe_next(request.query_params.get("next")),
+        max_age=github.STATE_TTL_SECONDS,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE,
+        path="/",
+    )
+    return response
+
+
+@app.get("/api/v1/auth/github/callback")
+async def github_callback(request: Request):
+    """GitHub 이 돌려보낸 자리. 여기서 세션 쿠키가 심긴다."""
+    if not GITHUB.enabled:
+        raise _github_off()
+
+    landing = github.safe_next(request.cookies.get(GITHUB_NEXT_COOKIE))
+
+    def back(code: str) -> RedirectResponse:
+        """로그인 화면으로 사유를 달아 돌려보낸다."""
+        response = RedirectResponse(f"{GITHUB.web_base}/login?error={code}", status_code=302)
+        response.delete_cookie(GITHUB_NEXT_COOKIE, path="/")
+        return response
+
+    # 사용자가 GitHub 화면에서 「취소」를 누른 경우다. 오류가 아니다.
+    if request.query_params.get("error"):
+        return back("cancelled")
+
+    try:
+        github.check_state(GITHUB.client_secret, request.query_params.get("state"))
+        code = request.query_params.get("code") or ""
+        if not code:
+            raise github.GithubError("EXCHANGE_FAILED", "")
+        identity = github.fetch_identity(github.exchange_code(GITHUB, code))
+        user = accounts.link_or_create_github(
+            identity.github_id, identity.login, identity.email
+        )
+    except github.GithubError as failure:
+        return back(failure.code.lower())
+    except AuthError as failure:
+        return back(failure.code.lower())
+
+    token, expires = accounts.open_session(user.id)
+    response = RedirectResponse(f"{GITHUB.web_base}{landing}", status_code=302)
+    response.set_cookie(
+        SESSION_COOKIE,
+        token,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE,
+        expires=expires,
+        path="/",
+    )
+    response.delete_cookie(GITHUB_NEXT_COOKIE, path="/")
+    return response
+
+
 @app.get("/api/v1/auth/me")
 async def me(request: Request) -> dict:
     """로그인 상태. **로그인 안 했으면 401 이 아니라 `user: null` 이다.**
@@ -396,6 +487,9 @@ async def me(request: Request) -> dict:
     return {
         "user": _account_body(user) if user else None,
         "storage": STORAGE.to_dict(),
+        # 화면이 「GitHub 으로 시작하기」를 그릴지 정하는 유일한 근거다.
+        # 서버가 못 하는 일을 버튼으로 만들어 두지 않는다.
+        "github": {"enabled": GITHUB.enabled},
     }
 
 

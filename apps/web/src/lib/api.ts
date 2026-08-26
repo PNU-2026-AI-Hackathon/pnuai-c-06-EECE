@@ -122,6 +122,14 @@ export type Account = {
   storage: StorageState;
 };
 
+/**
+ * 서버가 GitHub 로그인을 할 수 있는가.
+ *
+ * **버튼을 그릴지 정하는 유일한 근거다.** 서버에 GitHub 앱이 설정돼 있지
+ * 않으면 눌러도 404 가 난다 — 그런 버튼을 화면에 두지 않는다 (헌법 2-2).
+ */
+export type GithubAuth = { enabled: boolean };
+
 export type CheckSummaryRow = {
   check_id: string;
   created_at: string;
@@ -147,7 +155,11 @@ export async function logout(): Promise<void> {
  * 화면이 뜨자마자 부르는 자리라, 로그아웃을 예외로 만들면 콘솔이 401 로
  * 가득 차고 진짜 오류가 그 사이에 묻힌다.
  */
-export async function fetchMe(): Promise<{ user: Account | null; storage: StorageState } | null> {
+export async function fetchMe(): Promise<{
+  user: Account | null;
+  storage: StorageState;
+  github?: GithubAuth;
+} | null> {
   if (!BASE) return null;
   try {
     const res = await fetch(`${BASE}/api/v1/auth/me`, { credentials: "include" });
@@ -329,4 +341,16 @@ export async function createKey(label: string): Promise<ApiKey & { token: string
 
 export async function revokeKey(id: string): Promise<void> {
   await request(`/api/v1/keys/${id}`, { method: "DELETE" });
+}
+
+/**
+ * GitHub 승인 화면으로 가는 주소.
+ *
+ * **`fetch` 가 아니라 주소창으로 간다.** OAuth 는 사용자를 GitHub 으로 실제로
+ * 보냈다가 데려오는 흐름이라, XHR 로는 성립하지 않는다. 그래서 `<a href>` 다.
+ *
+ * `BASE` 가 없으면(목 모드) `null` — 화면이 버튼을 안 그린다.
+ */
+export function githubStartUrl(next: string): string | null {
+  return BASE ? `${BASE}/api/v1/auth/github/start?next=${encodeURIComponent(next)}` : null;
 }

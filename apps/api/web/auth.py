@@ -202,7 +202,12 @@ CREATE TABLE IF NOT EXISTS users (
     created_at    TEXT NOT NULL,
     -- 요금제. 한도는 `web/quota.py` 의 MONTHLY_LIMIT 이 정한다.
     -- **칼럼의 집은 여기다** — 계정에 속한 값이지 할당량 모듈의 것이 아니다.
-    plan          TEXT NOT NULL DEFAULT 'free'
+    plan          TEXT NOT NULL DEFAULT 'free',
+    -- GitHub 신원. **숫자 id 가 진짜 이름이다** — login 은 사용자가 바꿀 수 있고
+    -- 남이 그 이름을 다시 차지할 수 있어서 신원으로 못 쓴다.
+    -- login 은 화면에 보여주려고만 들고 있는다.
+    github_id     INTEGER UNIQUE,
+    github_login  TEXT
 );
 CREATE TABLE IF NOT EXISTS sessions (
     fingerprint TEXT PRIMARY KEY,
@@ -214,6 +219,25 @@ CREATE INDEX IF NOT EXISTS sessions_user ON sessions (user_id);
 """
 
 
+#: 이미 만들어진 DB 에 뒤늦게 붙이는 칼럼.
+#:
+#: `CREATE TABLE IF NOT EXISTS` 는 이미 있는 표를 안 건드리므로, 위 스키마만
+#: 고치면 **새로 만든 DB 에서만** 칼럼이 생긴다. 재배포마다 DB 가 날아가는
+#: 지금은 티가 안 나지만, 영구 디스크를 붙이는 날 조용히 깨진다.
+_LATE_COLUMNS = (
+    ("github_id", "INTEGER"),
+    ("github_login", "TEXT"),
+)
+
+
+#: GitHub 으로만 들어온 계정의 비밀번호 칸.
+#:
+#: **scrypt 해시가 아니라서 어떤 비밀번호로도 안 맞는다** (`verify_password` 가
+#: `scheme != "scrypt"` 를 거절한다). 칼럼이 `NOT NULL` 이라 빈 값을 못 넣는데,
+#: SQLite 는 제약을 떼기가 번거로워서 표식을 쓴다.
+GITHUB_ONLY_PASSWORD = "github-only"
+
+
 class AuthStore:
     """계정·세션 저장. **checks 와 같은 SQLite 파일을 쓴다** (헌법 9절)."""
 
@@ -221,6 +245,25 @@ class AuthStore:
         self.db_path = db_path
         with self._session() as conn:
             conn.executescript(_SCHEMA)
+            self._add_late_columns(conn)
+
+    @staticmethod
+    def _add_late_columns(conn: sqlite3.Connection) -> None:
+        """옛 DB 에 칼럼을 붙인다. **이미 있으면 조용히 넘어간다.**
+
+        `UNIQUE` 는 여기서 못 준다 — SQLite 의 `ALTER TABLE ADD COLUMN` 이
+        거절한다. 대신 부분 인덱스로 같은 것을 얻는다 (`NULL` 은 여러 개 허용).
+        """
+        for name, kind in _LATE_COLUMNS:
+            try:
+                conn.execute(f"ALTER TABLE users ADD COLUMN {name} {kind}")
+            except sqlite3.OperationalError:
+                pass
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS users_github_id"
+            " ON users (github_id) WHERE github_id IS NOT NULL"
+        )
+        conn.commit()
 
     def _session(self):
         conn = sqlite3.connect(self.db_path)
@@ -270,9 +313,80 @@ class AuthStore:
         if row is None:
             hash_password(password)
             raise _bad_credentials()
+
+        # **GitHub 전용 계정도 해시를 한 번 돌린다.** `verify_password` 는
+        # scrypt 해시가 아닌 값을 만나면 74ms 를 안 쓰고 즉시 거짓을 돌려준다.
+        # 그러면 "이 주소는 GitHub 으로만 들어오는 계정" 이라는 사실이 응답
+        # 시간으로 새어 나간다 — 없는 계정에서 해시를 돌리는 것과 같은 이유다.
+        if not str(row["password_hash"]).startswith("scrypt$"):
+            hash_password(password)
+            raise _bad_credentials()
+
         if not verify_password(password, row["password_hash"]):
             raise _bad_credentials()
         return User(id=row["id"], email=row["email"], created_at=row["created_at"])
+
+    def link_or_create_github(
+        self, github_id: int, login: str, email: str | None
+    ) -> User:
+        """GitHub 신원으로 로그인시킨다. 필요하면 잇거나 새로 만든다.
+
+        **순서가 곧 보안이다.**
+
+            1. github_id 로 찾는다        → 그 사람이다. 이메일은 안 본다
+            2. **인증된** 이메일로 찾는다  → 그 계정에 잇는다
+            3. 없으면 새로 만든다
+
+        1번이 2번보다 먼저인 이유: 사용자가 GitHub 에서 기본 이메일을 바꿔도
+        우리 쪽 계정은 그대로여야 한다. 이메일을 먼저 보면 같은 사람이 새 계정을
+        하나 더 갖게 된다.
+
+        2번의 **인증된** 은 호출하는 쪽 책임이다 — `github.pick_email` 이
+        `verified` 인 주소만 돌려준다. 확인 안 된 주소로 이으면 아무나
+        남의 주소를 자기 GitHub 에 적어 두고 그 계정을 가져갈 수 있다.
+        """
+        with self._session() as conn:
+            row = conn.execute(
+                "SELECT id, email, created_at FROM users WHERE github_id = ?",
+                (github_id,),
+            ).fetchone()
+            if row is not None:
+                # 이름이 바뀌었으면 따라간다. 신원은 id 라 영향이 없다.
+                conn.execute(
+                    "UPDATE users SET github_login = ? WHERE id = ?", (login, row["id"])
+                )
+                conn.commit()
+                return User(id=row["id"], email=row["email"], created_at=row["created_at"])
+
+            if not email:
+                raise AuthError(
+                    "NO_VERIFIED_EMAIL",
+                    "GitHub 계정에 인증된 이메일이 없습니다. "
+                    "GitHub 설정에서 이메일을 인증한 뒤 다시 시도해 주세요.",
+                    422,
+                )
+
+            row = conn.execute(
+                "SELECT id, email, created_at FROM users WHERE email = ?", (email,)
+            ).fetchone()
+            if row is not None:
+                conn.execute(
+                    "UPDATE users SET github_id = ?, github_login = ? WHERE id = ?",
+                    (github_id, login, row["id"]),
+                )
+                conn.commit()
+                return User(id=row["id"], email=row["email"], created_at=row["created_at"])
+
+            user = User(
+                id="usr_" + secrets.token_hex(16), email=email, created_at=_iso(_now())
+            )
+            conn.execute(
+                "INSERT INTO users (id, email, password_hash, created_at,"
+                " github_id, github_login) VALUES (?, ?, ?, ?, ?, ?)",
+                (user.id, user.email, GITHUB_ONLY_PASSWORD, user.created_at, github_id, login),
+            )
+            conn.commit()
+            return user
 
     def find_user(self, user_id: str) -> User | None:
         with self._session() as conn:

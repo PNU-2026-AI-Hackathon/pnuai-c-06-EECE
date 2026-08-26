@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
+import { GithubAuthButton, githubErrorMessage } from "../components/GithubAuthButton";
 import { Header } from "../components/Layout";
 import { ApiFailure, login, signup } from "../lib/api";
 import { useSession } from "../lib/session";
@@ -25,7 +26,12 @@ const MIN_PASSWORD = 10;
 
 export function AccountPage({ mode }: { mode: "login" | "signup" }) {
   const navigate = useNavigate();
-  const { setUser, storage } = useSession();
+  const { setUser, storage, github } = useSession();
+
+  // GitHub 콜백이 실패하면 `?error=` 를 달고 이 화면으로 돌아온다.
+  // **`fetch` 가 아니라 주소창으로 오는 오류**라 state 로는 못 받는다.
+  const [params] = useSearchParams();
+  const fromGithub = githubErrorMessage(params.get("error"));
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -79,6 +85,33 @@ export function AccountPage({ mode }: { mode: "login" | "signup" }) {
             <>이메일과 비밀번호를 입력해 주세요.</>
           )}
         </p>
+
+        {/*
+          **GitHub 을 폼 위에 둔다.** 아래에 두면 "안 되면 이것도 있어요" 로 읽히는데,
+          우리 사용자는 거의 다 GitHub 계정이 있고 CI 연동도 결국 그 위에서 돈다.
+          먼저 보이는 것이 권하는 길이다.
+
+          서버에 GitHub 앱이 설정돼 있지 않으면 이 블록은 **통째로 안 그려진다.**
+        */}
+        {github?.enabled && (
+          <>
+            <GithubAuthButton />
+            <div className="my-7 flex items-center gap-4">
+              <span className="h-px flex-1 bg-line" />
+              <span className="text-[13px] font-bold text-mute">또는</span>
+              <span className="h-px flex-1 bg-line" />
+            </div>
+          </>
+        )}
+
+        {fromGithub && (
+          <p
+            role="alert"
+            className="mb-6 rounded-block border border-crit/20 bg-crit-weak px-4 py-3 text-[14px] leading-relaxed text-ink"
+          >
+            {fromGithub}
+          </p>
+        )}
 
         <form onSubmit={submit} noValidate>
           <label className="mb-1.5 block text-[13px] font-bold text-sub" htmlFor="email">
@@ -173,8 +206,16 @@ export function AccountPage({ mode }: { mode: "login" | "signup" }) {
         */}
         {joining && (
           <div className="mt-6 space-y-2 text-[13px] leading-relaxed text-mute">
+            {/*
+              **이 문장은 GitHub 이 켜지면 절반이 해결된다.** 비밀번호를 안 만들면
+              잊을 것도 없다. 그 사실을 안 말하면, 우리가 이미 제공하는 해결책을
+              두고 사용자에게 경고만 주는 셈이다.
+            */}
             <p>
-              비밀번호를 잊으면 계정을 되찾을 수 없습니다. 비밀번호 관리자에 저장해 두세요.
+              비밀번호를 잊으면 계정을 되찾을 수 없습니다.{" "}
+              {github?.enabled
+                ? "GitHub으로 시작하시면 비밀번호를 만들지 않습니다."
+                : "비밀번호 관리자에 저장해 두세요."}
             </p>
             {storage?.survives_restart === false && (
               <p className="rounded-block bg-warn-weak px-3 py-2.5 text-warn">

@@ -95,6 +95,16 @@ BOM이 없어서 규칙 5개를 못 돌렸으면 응답에 `skipped`로 그대�
      "확인되지 않았다"이다 (헌법 2-2).
   3. **비밀번호 재설정이 없다.** 메일 보낼 수단이 없기 때문이다. 있는 척하지 말고
      가입 화면에 적는다.
+
+     → **8/26, GitHub 로그인을 붙여 이 문제의 절반을 없앴다** (`web/github.py`).
+     GitHub 으로 들어오면 비밀번호를 우리가 안 가지므로 잊을 것도 없다.
+     비밀번호 가입은 그대로 남기고, 위 문구도 그대로 둔다 — 그 길을 고른
+     사람에게는 여전히 참이다.
+
+     계정을 잇는 순서가 이 기능의 보안 전부다:
+     **① github_id → ② 인증된 이메일 → ③ 새로 만들기.**
+     ②의 「인증된」을 빼면 아무나 남의 주소를 자기 GitHub 에 적어 두고
+     그 계정을 가져간다. `tests/test_github_oauth.py` 가 이걸 붙잡는다.
 - Postgres · Redis · Celery · 마이크로서비스
 - 계약(`API_CONTRACT.md`)에 없는 응답 필드
 
@@ -537,6 +547,8 @@ src/prefab/
   runner.py         파싱 → 그래프 → 엔진. CLI 와 web 이 같이 쓴다
   __main__.py       python -m prefab <파일> [--json|--rules-json|--facts-load]
 parts/            사람이 손으로 적는 부품 사실 파일 (서식·규칙은 여기 README)
+web/github.py       GitHub OAuth. state 를 **서명해서** 들고 다닌다 (DB 에 안 넣는다 —
+                    재배포마다 날아가서, 저장하면 배포 중 로그인이 전부 실패한다)
 web/service.py      검증 · 오류 · SQLite. HTTP 프레임워크를 모른다
 web/app.py          FastAPI 어댑터. 판정도 검증도 여기 없다
 scripts/smoke.sh    배포한 URL 이 진짜 도는지 확인
