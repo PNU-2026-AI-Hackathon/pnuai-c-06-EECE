@@ -282,3 +282,43 @@ def test_근거의_줄바꿈이_목록을_깨지_않는다(check):
     out = mod.summarize(result, "https://example.test/r/chk_1")
     body = [l for l in out.splitlines() if "둘째 줄" in l]
     assert body and body[0].startswith("  - 코드")
+
+
+def test_한_발견에_코멘트는_하나만_단다(check):
+    """근거가 여러 줄이어도 코멘트는 하나다. 세 줄에 세 번 달면 diff 가 덮인다."""
+    findings = [{
+        "rule": "R07", "title": "가", "severity": "CRITICAL", "verdict": "FAIL",
+        "claim": "설명",
+        "evidence": [
+            {"kind": "firmware", "file": "a.ino", "line": 15, "snippet": "x"},
+            {"kind": "firmware", "file": "a.ino", "line": 23, "snippet": "y"},
+        ],
+    }]
+    out = check.build_comments(findings, {"firmware/a.ino": {15, 23}})
+    assert len(out) == 1
+    assert out[0]["line"] == 15
+
+
+def test_코멘트를_못_단_발견을_요약이_말한다(check):
+    """가리킬 줄이 없는 발견이 있다. 안 말하면 발견 수와 코멘트 수가 어긋나 보인다."""
+    findings = [
+        {"rule": "R07", "title": "가", "severity": "CRITICAL", "verdict": "FAIL",
+         "claim": "c", "evidence": [{"kind": "firmware", "file": "a.ino",
+                                     "line": 15, "snippet": "x"}]},
+        {"rule": "R08", "title": "나", "severity": "WARNING", "verdict": "FAIL",
+         "claim": "c", "evidence": [{"kind": "netlist", "text": "줄 없음"}]},
+    ]
+    files = {"firmware/a.ino": {15}}
+    missed = check.uncommentable(findings, files)
+    assert [f["rule"] for f in missed] == ["R08"]
+
+    body = check._review_body({"critical": 1, "warning": 1},
+                              check.build_comments(findings, files), missed, URL)
+    assert "R08" in body and "달지 못했습니다" in body
+
+
+def test_해제된_발견은_못_달았다고_말하지_않는다(check):
+    """PASS 는 애초에 지적이 아니다. 못 달았다고 세면 없는 문제를 만든다."""
+    findings = [{"rule": "R12", "title": "다", "severity": "CRITICAL",
+                 "verdict": "PASS", "evidence": [{"kind": "netlist", "text": "t"}]}]
+    assert check.uncommentable(findings, {"firmware/a.ino": {15}}) == []

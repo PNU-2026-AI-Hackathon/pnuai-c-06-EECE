@@ -331,10 +331,13 @@ def build_comments(findings: list, files: dict) -> list[dict]:
     """
     made: list[dict] = []
     seen: set[tuple[str, int]] = set()
+    done: set[int] = set()
 
-    for f in findings:
+    for i, f in enumerate(findings):
         mark = mark_of(f)
         for ev in f.get("evidence") or []:
+            if i in done:
+                break
             if ev.get("kind") != "firmware":
                 continue
             name, line = ev.get("file"), ev.get("line")
@@ -346,6 +349,7 @@ def build_comments(findings: list, files: dict) -> list[dict]:
             if (path, line) in seen:
                 continue
             seen.add((path, line))
+            done.add(i)
 
             body = f"{mark} **{f.get('rule')}** · {f.get('title')}\n\n{f.get('claim') or ''}"
             if f.get("suggestion"):
@@ -354,6 +358,49 @@ def build_comments(findings: list, files: dict) -> list[dict]:
             break   # 이 발견은 여기까지
 
     return made
+
+
+def uncommentable(findings: list, files: dict) -> list[dict]:
+    """코멘트를 달 수 없는 발견. `build_comments` 와 같은 기준으로 센다.
+
+    이 PR 에서 바뀌지 않은 줄에는 GitHub 이 코멘트를 못 받는다. 그리고 애초에
+    **가리킬 줄이 없는 발견**도 있다 — 「이 핀이 어느 파일에도 안 나온다」 같은
+    것이 그렇다. 못 단 것을 말하지 않으면 요약의 발견 수와 화면의 코멘트 수가
+    어긋나 보인다 (헌법 2-4).
+    """
+    got = {c.get("path") for c in build_comments(findings, files)}
+    left: list[dict] = []
+    for f in findings:
+        if mark_of(f) == "✅":
+            continue
+        hit = False
+        for ev in f.get("evidence") or []:
+            if ev.get("kind") != "firmware":
+                continue
+            name, line = ev.get("file"), ev.get("line")
+            if not name or not isinstance(line, int):
+                continue
+            path = match_path(name, list(files))
+            if path is not None and line in files[path]:
+                hit = True
+                break
+        if not hit:
+            left.append(f)
+    return left
+
+
+def _review_body(summary: dict, comments: list, missed: list, report_url: str) -> str:
+    """리뷰 요약 한 덩어리. **못 단 발견을 숨기지 않는다.**"""
+    head = (f"**Prefab** — 치명 {summary.get('critical', 0)}"
+            f" · 경고 {summary.get('warning', 0)}")
+    if not missed:
+        mid = f"어긋난 자리에 코멘트를 달았습니다. [전체 리포트]({report_url})"
+    else:
+        names = " · ".join(f"**{f.get('rule')}**" for f in missed[:4])
+        mid = (f"{len(comments)}건을 어긋난 자리에 달았습니다. "
+               f"{names} 는 **이 PR 에서 바뀐 줄에 걸리지 않아 달지 못했습니다** — "
+               f"[전체 리포트]({report_url}) 에 근거가 다 있습니다.")
+    return head + "\n\n" + mid
 
 
 def _gh(url: str, token: str, data: dict | None = None):
@@ -397,9 +444,11 @@ def post_inline(result: dict, report_url: str) -> None:
             if isinstance(item, dict) and item.get("filename")
         }
 
-        comments = build_comments(result.get("findings") or [], files)
+        findings = result.get("findings") or []
+        comments = build_comments(findings, files)
         if not comments:
             return
+        missed = uncommentable(findings, files)
 
         s = result.get("summary") or {}
         _gh(
@@ -407,10 +456,7 @@ def post_inline(result: dict, report_url: str) -> None:
             token,
             {
                 "event": "COMMENT",
-                "body": (
-                    f"**Prefab** — 치명 {s.get('critical', 0)} · 경고 {s.get('warning', 0)}"
-                    f"\n\n어긋난 자리에 코멘트를 달았습니다. [전체 리포트]({report_url})"
-                ),
+                "body": _review_body(s, comments, missed, report_url),
                 "comments": comments,
             },
         )
