@@ -140,7 +140,10 @@ def summarize(result: dict, report_url: str) -> str:
     for f in (result.get("findings") or [])[:10]:
         mark = mark_of(f)
         where = f" · `{f['net']}`" if f.get("net") else ""
-        lines.append(f"- {mark} **{f.get('rule')}** {f.get('title')}{where}")
+        # 제목은 **그 규칙이 무엇을 찾는지**다. 판정이 아니다. 해제된 발견에
+        # 제목만 붙이면 초록 체크와 제목이 서로 반대로 읽힌다.
+        head = "해제됨 — " if f.get("verdict") == "PASS" else ""
+        lines.append(f"- {mark} **{f.get('rule')}** {head}{f.get('title')}{where}")
         for ev in evidence_lines(f):
             lines.append(f"  - {ev}")
     if len(result.get("findings") or []) > 10:

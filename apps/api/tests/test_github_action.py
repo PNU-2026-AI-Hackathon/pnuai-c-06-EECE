@@ -322,3 +322,30 @@ def test_해제된_발견은_못_달았다고_말하지_않는다(check):
     findings = [{"rule": "R12", "title": "다", "severity": "CRITICAL",
                  "verdict": "PASS", "evidence": [{"kind": "netlist", "text": "t"}]}]
     assert check.uncommentable(findings, {"firmware/a.ino": {15}}) == []
+
+
+def test_해제된_발견은_제목_앞에_해제됨을_붙인다(check):
+    """제목은 규칙이 무엇을 찾는지다. 판정이 아니다.
+
+    「✅ R12 상위 전원 도메인이 하위를 직결」 은 체크와 제목이 서로 반대로
+    읽힌다. 괜찮다는 건지 문제라는 건지 알 수 없다.
+    """
+    result = {
+        "summary": {"critical": 0, "warning": 0, "cleared": 1,
+                    "rules_run": 15, "rules_total": 15},
+        "findings": [{"rule": "R12", "title": "상위 전원 도메인이 하위를 직결",
+                      "severity": "CRITICAL", "verdict": "PASS"}],
+    }
+    out = check.summarize(result, URL)
+    assert "✅ **R12** 해제됨 — 상위 전원 도메인이 하위를 직결" in out
+
+
+def test_실패한_발견에는_해제됨을_안_붙인다(check):
+    result = {
+        "summary": {"critical": 1, "warning": 0, "cleared": 0,
+                    "rules_run": 15, "rules_total": 15},
+        "findings": [{"rule": "R07", "title": "코드가 쓰는 핀이 회로도에 미연결",
+                      "severity": "CRITICAL", "verdict": "FAIL"}],
+    }
+    out = check.summarize(result, URL)
+    assert "해제됨 —" not in out
