@@ -181,3 +181,15 @@ def test_우리가_만든_워크플로를_액션이_실제로_받는다():
 
     # ③ 시크릿 이름이 같은가 — 다르면 401 이 나고 원인 찾기가 어렵다
     assert "secrets.PREFAB_API_KEY" in repo.workflow_yaml("a.d356")
+
+
+def test_워크플로가_PR_코멘트_권한을_준다():
+    """권한이 없으면 코멘트에서 403 이 난다.
+
+    GitHub 의 기본 토큰은 읽기 전용이라, 이 블록을 빼면 요약은 나오지만
+    PR 코멘트가 조용히 실패한다. 실제로 시연 저장소에서 그렇게 났다.
+    """
+    y = repo.workflow_yaml("hardware/board.net.xml", firmware="firmware")
+    assert "permissions:" in y
+    assert "pull-requests: write" in y
+    assert "contents: read" in y

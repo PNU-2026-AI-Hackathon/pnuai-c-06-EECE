@@ -138,9 +138,11 @@ def summarize(result: dict, report_url: str) -> str:
         ]
 
     for f in (result.get("findings") or [])[:10]:
-        mark = "🔴" if f.get("severity") == "CRITICAL" else "🟠"
+        mark = mark_of(f)
         where = f" · `{f['net']}`" if f.get("net") else ""
         lines.append(f"- {mark} **{f.get('rule')}** {f.get('title')}{where}")
+        for ev in evidence_lines(f):
+            lines.append(f"  - {ev}")
     if len(result.get("findings") or []) > 10:
         lines.append(f"- … 그 밖 {len(result['findings']) - 10}건")
 
@@ -273,6 +275,52 @@ def match_path(evidence_file: str, pr_paths: list[str]) -> str | None:
     return hits[0] if len(hits) == 1 else None
 
 
+def mark_of(f: dict) -> str:
+    """발견 하나의 기호. **심각도가 아니라 판정으로 정한다.**
+
+    `severity` 는 그 규칙이 어긋났을 때 얼마나 나쁜지를 말할 뿐이다. 규칙이
+    보고 나서 **괜찮다고 판정한 것(`PASS`)까지 빨갛게 칠하면** 요약표의 숫자와
+    목록의 색이 어긋난다 — 치명 1건인데 빨간 점이 두 개가 된다.
+    """
+    verdict = f.get("verdict")
+    if verdict == "PASS":
+        return "✅"
+    if verdict == "UNRESOLVED":
+        return "⚪"
+    return "🔴" if f.get("severity") == "CRITICAL" else "🟠"
+
+
+def one_line(text: str | None, limit: int = 110) -> str:
+    """여러 줄 근거를 목록 한 줄로 눕힌다.
+
+    근거 본문에는 줄바꿈이 들어 있다. 그대로 markdown 목록에 넣으면 둘째 줄부터
+    목록 밖으로 튀어나와 **판정과 근거가 따로 노는 것처럼 보인다.**
+    """
+    flat = " ".join((text or "").split())
+    return flat[: limit - 1] + "…" if len(flat) > limit else flat
+
+
+def evidence_lines(f: dict, limit: int = 3) -> list[str]:
+    """근거를 사람이 읽을 한 줄씩으로. 없으면 빈 목록."""
+    out: list[str] = []
+    for ev in (f.get("evidence") or [])[:limit]:
+        kind = ev.get("kind")
+        if kind == "firmware" and ev.get("file"):
+            line = ev.get("line")
+            where = f"`{ev['file']}`" + (f" {line}줄" if isinstance(line, int) else "")
+            snip = one_line(ev.get("snippet"), 80)
+            out.append(f"코드 {where}" + (f" — `{snip}`" if snip else ""))
+        elif kind == "netlist":
+            head = one_line(ev.get("text"))
+            if head:
+                out.append("회로도 — " + head)
+        elif kind == "datasheet":
+            src = ev.get("source") or ev.get("mpn") or "데이터시트"
+            quote = one_line(ev.get("quote"), 80)
+            out.append(f"부품 {src}" + (f" — {quote}" if quote else ""))
+    return out
+
+
 def build_comments(findings: list, files: dict) -> list[dict]:
     """리뷰 코멘트 목록. **순수 함수다.**
 
@@ -285,7 +333,7 @@ def build_comments(findings: list, files: dict) -> list[dict]:
     seen: set[tuple[str, int]] = set()
 
     for f in findings:
-        mark = "🔴" if f.get("severity") == "CRITICAL" else "🟠"
+        mark = mark_of(f)
         for ev in f.get("evidence") or []:
             if ev.get("kind") != "firmware":
                 continue

@@ -235,3 +235,50 @@ def test_main_이_부르는_이름이_전부_정의돼_있다():
     }
     missing = {c for c in called if c.islower() and "_" in c or c in defined} - defined
     assert not missing, f"main 이 부르는데 없는 함수: {missing}"
+
+
+def test_해제된_발견은_빨간점이_아니다(check):
+    """`severity` 는 규칙의 등급이고 `verdict` 가 이번 판정이다.
+
+    규칙이 보고 나서 **괜찮다고 판정한 것(PASS)** 까지 빨갛게 칠하면,
+    요약표의 「치명 1」과 목록의 빨간 점 두 개가 어긋난다. 실제로 시연
+    저장소에서 그렇게 나왔다.
+    """
+    mod = check
+    assert mod.mark_of({"severity": "CRITICAL", "verdict": "PASS"}) == "✅"
+    assert mod.mark_of({"severity": "CRITICAL", "verdict": "FAIL"}) == "🔴"
+    assert mod.mark_of({"severity": "WARNING", "verdict": "FAIL"}) == "🟠"
+    assert mod.mark_of({"severity": "CRITICAL", "verdict": "UNRESOLVED"}) == "⚪"
+
+
+def test_빨간점_수가_요약표_치명수와_같다(check):
+    mod = check
+    result = {
+        "summary": {"critical": 1, "warning": 1, "cleared": 1,
+                    "rules_run": 15, "rules_total": 15},
+        "findings": [
+            {"rule": "R07", "title": "가", "severity": "CRITICAL", "verdict": "FAIL"},
+            {"rule": "R12", "title": "나", "severity": "CRITICAL", "verdict": "PASS"},
+            {"rule": "R08", "title": "다", "severity": "WARNING", "verdict": "FAIL"},
+        ],
+    }
+    out = mod.summarize(result, "https://example.test/r/chk_1")
+    assert out.count("🔴") == 1
+    assert out.count("✅") == 1
+
+
+def test_근거의_줄바꿈이_목록을_깨지_않는다(check):
+    """근거 본문에는 줄바꿈이 있다. 그대로 넣으면 둘째 줄이 목록 밖으로 튄다."""
+    mod = check
+    result = {
+        "summary": {"critical": 1, "warning": 0, "cleared": 0,
+                    "rules_run": 15, "rules_total": 15},
+        "findings": [{
+            "rule": "R07", "title": "가", "severity": "CRITICAL", "verdict": "FAIL",
+            "evidence": [{"kind": "firmware", "file": "a.ino", "line": 15,
+                          "snippet": "첫 줄\n둘째 줄\n셋째 줄"}],
+        }],
+    }
+    out = mod.summarize(result, "https://example.test/r/chk_1")
+    body = [l for l in out.splitlines() if "둘째 줄" in l]
+    assert body and body[0].startswith("  - 코드")
